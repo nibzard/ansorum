@@ -6,10 +6,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ahash::AHashMap;
+use chrono::NaiveDate;
 use common::{build_site, build_site_with_setup};
 use config::TaxonomyConfig;
 use content::Page;
 use site::Site;
+use site::answers::audit_library;
 use site::sitemap;
 use utils::types::InsertAnchor;
 
@@ -240,6 +242,37 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert_eq!(billing_answers.len(), 2);
     assert_eq!(billing_answers[0]["id"], "cancel-subscription");
     assert_eq!(billing_answers[1]["id"], "refunds-policy");
+}
+
+#[test]
+fn audits_freshness_visibility_and_machine_output_quality() {
+    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    path.push("test_sites_invalid");
+    path.push("answers_audit");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+    site.load().unwrap();
+
+    let library = site.library.read().unwrap();
+    let report = audit_library(
+        &library,
+        &site.answers,
+        NaiveDate::from_ymd_opt(2026, 3, 18).expect("valid date"),
+    );
+
+    let codes = report
+        .findings
+        .iter()
+        .map(|finding| finding.code.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(codes.contains(&"missing_related_links"));
+    assert!(codes.contains(&"stale_review_by"));
+    assert!(codes.contains(&"token_budget_overflow"));
+    assert!(codes.contains(&"related_visibility_leak"));
+    assert_eq!(report.summary.errors, 4);
+    assert_eq!(report.summary.warnings, 3);
+    assert!(report.has_errors());
 }
 
 #[test]

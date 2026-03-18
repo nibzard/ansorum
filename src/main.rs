@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::Instant;
 
-use cli::{Cli, Command};
+use chrono::Utc;
+use cli::{AuditFormat, Cli, Command};
 use env_logger::Env;
 use errors::anyhow;
 use log;
@@ -197,6 +198,18 @@ fn main() {
                     messages::unravel_errors("Failed to check the site", &e);
                     std::process::exit(1);
                 }
+            }
+        }
+        Command::Audit { drafts, format } => {
+            let (root_dir, config_file) = get_config_file_path(&cli_dir, cli.config.as_deref());
+            if format == AuditFormat::Human {
+                log::info!("Auditing site as of {}...", Utc::now().date_naive());
+            }
+            if let Err(e) = cmd::audit(&root_dir, &config_file, drafts, format) {
+                if format == AuditFormat::Human {
+                    messages::unravel_errors("Audit failed", &e);
+                }
+                std::process::exit(1);
             }
         }
         Command::Completion { shell } => {

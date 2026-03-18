@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
+use chrono::NaiveDate;
 use content::{
     AiVisibility, AnswerAudience, AnswerIntent, AnswerVisibility, Library, LlmsPriority, Page,
     TokenBudget,
@@ -321,6 +322,270 @@ pub struct StructuredDataOutput {
     pub json: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuditSeverity {
+    Error,
+    Warn,
+    Info,
+}
+
+impl AuditSeverity {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Warn => "warn",
+            Self::Info => "info",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct AuditFinding {
+    pub severity: AuditSeverity,
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub answer_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_path: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct AuditSummary {
+    pub errors: usize,
+    pub warnings: usize,
+    pub infos: usize,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct AuditReport {
+    pub summary: AuditSummary,
+    pub findings: Vec<AuditFinding>,
+}
+
+impl AuditReport {
+    pub fn push(
+        &mut self,
+        severity: AuditSeverity,
+        code: impl Into<String>,
+        message: impl Into<String>,
+        answer_id: Option<&str>,
+        source_path: Option<&std::path::Path>,
+    ) {
+        match severity {
+            AuditSeverity::Error => self.summary.errors += 1,
+            AuditSeverity::Warn => self.summary.warnings += 1,
+            AuditSeverity::Info => self.summary.infos += 1,
+        }
+
+        self.findings.push(AuditFinding {
+            severity,
+            code: code.into(),
+            message: message.into(),
+            answer_id: answer_id.map(ToOwned::to_owned),
+            source_path: source_path.map(|path| path.display().to_string()),
+        });
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.summary.errors > 0
+    }
+}
+
+pub fn audit_library(
+    library: &Library,
+    answers: &AnswerCorpus,
+    today: NaiveDate,
+) -> AuditReport {
+    let mut report = AuditReport::default();
+    let hidden_ids = answers
+        .iter()
+        .filter(|record| record.ai_visibility == AiVisibility::Hidden)
+        .map(|record| record.id.as_str())
+        .collect::<HashSet<_>>();
+
+    for page in library.pages.values() {
+        let Some(answer) = page.answer() else {
+            continue;
+        };
+
+        let answer_id = Some(answer.id.as_str());
+        let source_path = Some(page.file.path.as_path());
+
+        if !matches!(
+            answer.visibility,
+            AnswerVisibility::Public
+        ) && answer.ai_visibility != AiVisibility::Hidden
+        {
+            report.push(
+                AuditSeverity::Error,
+                "visibility_leak",
+                format!(
+                    "`visibility = {}` requires `ai_visibility = hidden` to avoid exposing non-public content",
+                    visibility_key(&answer.visibility)
+                ),
+                answer_id,
+                source_path,
+            );
+        }
+
+        if answer.priority.as_deref() == Some("high") && answer.related.is_empty() {
+            report.push(
+                AuditSeverity::Error,
+                "missing_related_links",
+                "high-priority answers must define at least one related answer link",
+                answer_id,
+                source_path,
+            );
+        }
+
+        if let Some(review_by) = answer.review_by.as_deref() {
+            match NaiveDate::parse_from_str(review_by, "%Y-%m-%d") {
+                Ok(date) if date < today => {
+                    let severity = if answer.priority.as_deref() == Some("high") {
+                        AuditSeverity::Error
+                    } else {
+                        AuditSeverity::Warn
+                    };
+                    report.push(
+                        severity,
+                        "stale_review_by",
+                        format!("review date `{review_by}` is stale relative to {today}"),
+                        answer_id,
+                        source_path,
+                    );
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    report.push(
+                        AuditSeverity::Error,
+                        "invalid_review_by",
+                        format!("review date `{review_by}` must use YYYY-MM-DD"),
+                        answer_id,
+                        source_path,
+                    );
+                }
+            }
+        } else if answer.priority.as_deref() == Some("high") {
+            report.push(
+                AuditSeverity::Warn,
+                "missing_review_by",
+                "high-priority answers should set `review_by` for freshness tracking",
+                answer_id,
+                source_path,
+            );
+        }
+
+        let has_structured_data_authoring =
+            answer.schema_type.is_some() || page.structured_data_sidecar.is_some();
+        if !has_structured_data_authoring {
+            report.push(
+                AuditSeverity::Warn,
+                "missing_json_ld_type",
+                "answer pages should define `schema_type` or a structured-data sidecar",
+                answer_id,
+                source_path,
+            );
+        }
+
+        match structured_data_for_page(page) {
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+            Err(error) => {
+                report.push(
+                    AuditSeverity::Error,
+                    "structured_data_invalid",
+                    error.to_string(),
+                    answer_id,
+                    source_path,
+                );
+            }
+        }
+
+        if let Some(markdown) = page.canonical_machine_markdown() {
+            let estimated_tokens = estimate_tokens(&markdown);
+            let token_limit = token_budget_limit(&answer.token_budget);
+            if estimated_tokens > token_limit {
+                let severity = if answer.token_budget == TokenBudget::Small {
+                    AuditSeverity::Error
+                } else {
+                    AuditSeverity::Warn
+                };
+                report.push(
+                    severity,
+                    "token_budget_overflow",
+                    format!(
+                        "estimated machine markdown size {estimated_tokens} exceeds the `{}` budget threshold of {token_limit} tokens",
+                        token_budget_key(&answer.token_budget)
+                    ),
+                    answer_id,
+                    source_path,
+                );
+            }
+
+            if answer.ai_visibility == AiVisibility::SummaryOnly
+                && !markdown.contains(&format!("Canonical page: <{}>", page.permalink))
+            {
+                report.push(
+                    AuditSeverity::Error,
+                    "summary_only_leak",
+                    "summary-only machine output is missing the canonical page pointer",
+                    answer_id,
+                    source_path,
+                );
+            }
+        } else if answer.ai_visibility != AiVisibility::Hidden {
+            report.push(
+                AuditSeverity::Error,
+                "missing_machine_output",
+                "AI-visible answers must produce canonical machine markdown",
+                answer_id,
+                source_path,
+            );
+        }
+
+        if answer.ai_visibility == AiVisibility::Hidden && page.canonical_machine_markdown().is_some() {
+            report.push(
+                AuditSeverity::Error,
+                "hidden_content_leak",
+                "hidden answers must not emit canonical machine markdown",
+                answer_id,
+                source_path,
+            );
+        }
+    }
+
+    for record in answers.iter() {
+        let answer_id = Some(record.id.as_str());
+        let source_path = Some(record.source_path.as_path());
+        for related_id in &record.related {
+            if hidden_ids.contains(related_id.as_str()) {
+                report.push(
+                    AuditSeverity::Error,
+                    "related_visibility_leak",
+                    format!(
+                        "`related` references hidden answer `{related_id}`, which would leak non-public graph metadata into machine outputs"
+                    ),
+                    answer_id,
+                    source_path,
+                );
+            }
+        }
+    }
+
+    report.findings.sort_by(|left, right| {
+        severity_rank(&left.severity)
+            .cmp(&severity_rank(&right.severity))
+            .then(left.code.cmp(&right.code))
+            .then(left.answer_id.cmp(&right.answer_id))
+            .then(left.source_path.cmp(&right.source_path))
+            .then(left.message.cmp(&right.message))
+    });
+
+    report
+}
+
 pub fn structured_data_for_page(page: &Page) -> Result<Option<StructuredDataOutput>> {
     if page.answer().is_none() {
         return Ok(None);
@@ -549,4 +814,40 @@ fn audience_key(audience: &AnswerAudience) -> String {
         AnswerAudience::Internal => "internal",
     }
     .to_string()
+}
+
+fn visibility_key(visibility: &AnswerVisibility) -> &'static str {
+    match visibility {
+        AnswerVisibility::Public => "public",
+        AnswerVisibility::Private => "private",
+        AnswerVisibility::Internal => "internal",
+    }
+}
+
+fn token_budget_key(token_budget: &TokenBudget) -> &'static str {
+    match token_budget {
+        TokenBudget::Small => "small",
+        TokenBudget::Medium => "medium",
+        TokenBudget::Full => "full",
+    }
+}
+
+fn token_budget_limit(token_budget: &TokenBudget) -> usize {
+    match token_budget {
+        TokenBudget::Small => 256,
+        TokenBudget::Medium => 768,
+        TokenBudget::Full => 2048,
+    }
+}
+
+fn estimate_tokens(markdown: &str) -> usize {
+    markdown.chars().count().div_ceil(4)
+}
+
+fn severity_rank(severity: &AuditSeverity) -> u8 {
+    match severity {
+        AuditSeverity::Error => 0,
+        AuditSeverity::Warn => 1,
+        AuditSeverity::Info => 2,
+    }
 }

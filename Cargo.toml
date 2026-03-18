@@ -51,6 +51,7 @@ reqwest = { workspace = true }
 ahash = { workspace = true }
 anstream = { workspace = true }
 anstyle = { workspace = true }
+chrono = { workspace = true }
 globset = { workspace = true }
 log = { workspace = true }
 percent-encoding = { workspace = true }

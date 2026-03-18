@@ -2,6 +2,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use clap::ValueEnum;
 use clap_complete::Shell;
 
 #[derive(Parser)]
@@ -24,6 +25,12 @@ pub struct Cli {
 
     #[clap(subcommand)]
     pub command: Command,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum AuditFormat {
+    Human,
+    Json,
 }
 
 #[derive(Subcommand)]
@@ -122,6 +129,17 @@ pub enum Command {
         /// Skip external links
         #[clap(long)]
         skip_external_links: bool,
+    },
+
+    /// Audit answer metadata, freshness, and machine-output quality
+    Audit {
+        /// Include drafts when loading the site
+        #[clap(long)]
+        drafts: bool,
+
+        /// Output format
+        #[clap(long, value_enum, default_value_t = AuditFormat::Human)]
+        format: AuditFormat,
     },
 
     /// Generate shell completion

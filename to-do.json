@@ -374,24 +374,25 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        "src/cmd/serve.rs",
-        "components/config/src/config/mod.rs",
         "components/config/src/config/ansorum.rs",
+        "components/config/src/config/mod.rs",
         "components/config/src/lib.rs",
-        "components/site/src/lib.rs"
+        "components/site/src/lib.rs",
+        "src/cmd/serve.rs",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-003",
         "ANS-010"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:51:43Z"
+      "updated_at": "2026-03-18T19:52:07Z"
     },
     {
       "id": "ANS-012",
       "title": "Add the ansorum audit command for metadata, freshness, and machine-output quality checks",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Introduce a dedicated audit command that checks answer completeness, duplicates, stale review dates, missing related links, token-budget issues, visibility leaks, and structured-data gaps. This is a first-class product feature, not just an internal validator. Audit should become the operator-facing quality gate for authors, reviewers, and CI with clear severities and actionable findings.",
       "steps": [
         "Add a new audit subcommand and wire it into the CLI.",
@@ -406,11 +407,18 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
+        "Cargo.lock",
+        "Cargo.toml",
+        "components/site/src/answers.rs",
+        "components/site/tests/site.rs",
         "src/cli.rs",
-        "src/main.rs",
-        "src/cmd/mod.rs",
         "src/cmd/audit.rs",
-        "components/site/src/answers.rs"
+        "src/cmd/mod.rs",
+        "src/main.rs",
+        "test_sites_invalid/answers_audit/config.toml",
+        "test_sites_invalid/answers_audit/content/internal.md",
+        "test_sites_invalid/answers_audit/content/pricing.md",
+        "test_sites_invalid/answers_audit/content/public.md"
       ],
       "depends_on": [
         "ANS-005",
@@ -418,7 +426,7 @@
         "ANS-009"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T20:20:00Z"
     },
     {
       "id": "ANS-013",
