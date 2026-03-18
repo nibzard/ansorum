@@ -13,6 +13,7 @@ use content::Page;
 use site::Site;
 use site::answers::audit_library;
 use site::sitemap;
+use tempfile::tempdir;
 use utils::types::InsertAnchor;
 
 #[test]
@@ -200,6 +201,57 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
 }
 
 #[test]
+fn machine_markdown_front_matter_stays_parseable_for_special_characters() {
+    let source_root = common::repo_root().join("test_site_answers");
+    let tmp_dir = tempdir().expect("create temp dir");
+    let site_root = tmp_dir.path().join("site");
+    copy_dir(&source_root, &site_root);
+
+    fs::write(
+        site_root.join("content").join("refunds.md"),
+        r#"+++
+title = "Billing: \"Refunds\""
+
+id = "refunds-policy"
+summary = "First line:\n\"Quoted\" details."
+canonical_questions = ["how do refunds: work?", "can i get a \"refund\"?"]
+intent = "policy"
+entity = "billing:core"
+audience = "customer"
+related = ["cancel-subscription"]
+external_refs = ["https://example.com/refunds"]
+schema_type = "FAQPage"
+review_by = 2026-06-01
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+retrieval_aliases = ["refund:policy", "line one\nline two"]
+aliases = ["legacy/refund-policy"]
++++
+
+Refund details for customers."#,
+    )
+    .expect("write refunds fixture");
+
+    let config_file = site_root.join("config.toml");
+    let mut site = Site::new(&site_root, &config_file).unwrap();
+    site.load().unwrap();
+    let public = tmp_dir.path().join("public");
+    site.set_output_path(&public);
+    site.build().expect("Couldn't build the site");
+
+    let markdown = fs::read_to_string(public.join("refunds").join("page.md")).expect("read machine markdown");
+    let front_matter = machine_front_matter(&markdown);
+
+    let yaml: serde_yaml::Value = serde_yaml::from_str(front_matter).expect("parse yaml front matter");
+    assert_eq!(yaml["entity"].as_str(), Some("billing:core"));
+    assert_eq!(yaml["canonical_questions"][0].as_str(), Some("how do refunds: work?"));
+    assert_eq!(yaml["canonical_questions"][1].as_str(), Some("can i get a \"refund\"?"));
+    assert_eq!(yaml["retrieval_aliases"][1].as_str(), Some("line one\nline two"));
+}
+
+#[test]
 fn keeps_retrieval_aliases_out_of_redirect_outputs() {
     let (_, _tmp_dir, public) = build_site("test_site_answers");
 
@@ -212,6 +264,33 @@ fn keeps_retrieval_aliases_out_of_redirect_outputs() {
 
     assert!(!file_exists!(public, "refund policy/index.html"));
     assert!(!file_exists!(public, "refund rules/index.html"));
+}
+
+fn copy_dir(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination).expect("create destination directory");
+    for entry in fs::read_dir(source).expect("read source directory") {
+        let entry = entry.expect("read source entry");
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        if source_path.is_dir() {
+            copy_dir(&source_path, &destination_path);
+        } else {
+            fs::copy(&source_path, &destination_path).unwrap_or_else(|error| {
+                panic!(
+                    "failed to copy `{}` to `{}`: {error}",
+                    source_path.display(),
+                    destination_path.display()
+                )
+            });
+        }
+    }
+}
+
+fn machine_front_matter(markdown: &str) -> &str {
+    markdown
+        .strip_prefix("---\n")
+        .and_then(|rest| rest.split_once("\n---\n").map(|(front_matter, _)| front_matter))
+        .expect("expected yaml front matter")
 }
 
 #[test]

@@ -9,13 +9,13 @@ audience: customer
 llms_priority: core
 token_budget: medium
 canonical_questions:
-  - how do refunds work
-  - can i get a refund
+- how do refunds work
+- can i get a refund
 retrieval_aliases:
-  - refund policy
-  - refund rules
+- refund policy
+- refund rules
 related:
-  - cancel-subscription
+- cancel-subscription
 ---
 
 # Refund policy

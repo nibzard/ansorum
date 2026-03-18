@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use tera::{Context as TeraContext, Tera};
 
@@ -355,18 +356,20 @@ impl Page {
 
         let mut markdown = String::new();
         markdown.push_str("---\n");
-        write_machine_field(&mut markdown, "id", &answer.id);
-        write_machine_field(&mut markdown, "canonical_url", &self.permalink);
-        write_machine_field(&mut markdown, "visibility", answer_visibility(answer));
-        write_machine_field(&mut markdown, "ai_visibility", ai_visibility(answer));
-        write_machine_field(&mut markdown, "intent", answer_intent(answer));
-        write_machine_field(&mut markdown, "entity", &answer.entity);
-        write_machine_field(&mut markdown, "audience", answer_audience(answer));
-        write_machine_field(&mut markdown, "llms_priority", llms_priority(answer));
-        write_machine_field(&mut markdown, "token_budget", token_budget(answer));
-        write_machine_list(&mut markdown, "canonical_questions", &answer.canonical_questions);
-        write_machine_list(&mut markdown, "retrieval_aliases", &answer.retrieval_aliases);
-        write_machine_list(&mut markdown, "related", &answer.related);
+        markdown.push_str(&serialized_machine_front_matter(
+            &answer.id,
+            &self.permalink,
+            answer_visibility(answer),
+            ai_visibility(answer),
+            answer_intent(answer),
+            &answer.entity,
+            answer_audience(answer),
+            llms_priority(answer),
+            token_budget(answer),
+            &answer.canonical_questions,
+            &answer.retrieval_aliases,
+            &answer.related,
+        ));
         markdown.push_str("---\n\n");
 
         let title = self.answer_title();
@@ -535,19 +538,62 @@ fn decode_html_entities(input: impl AsRef<str>) -> String {
         .replace("&nbsp;", " ")
 }
 
-fn write_machine_field(output: &mut String, key: &str, value: &str) {
-    writeln!(output, "{key}: {value}").unwrap();
+fn serialized_machine_front_matter(
+    id: &str,
+    canonical_url: &str,
+    visibility: &str,
+    ai_visibility: &str,
+    intent: &str,
+    entity: &str,
+    audience: &str,
+    llms_priority: &str,
+    token_budget: &str,
+    canonical_questions: &[String],
+    retrieval_aliases: &[String],
+    related: &[String],
+) -> String {
+    let serialized = serde_yaml::to_string(&MachineFrontMatter {
+        id,
+        canonical_url,
+        visibility,
+        ai_visibility,
+        intent,
+        entity,
+        audience,
+        llms_priority,
+        token_budget,
+        canonical_questions,
+        retrieval_aliases,
+        related,
+    })
+    .expect("machine front matter should serialize");
+
+    serialized
+        .trim_start_matches("---\n")
+        .trim_end_matches("...\n")
+        .to_string()
 }
 
-fn write_machine_list(output: &mut String, key: &str, values: &[String]) {
-    if values.is_empty() {
-        return;
-    }
+#[derive(Serialize)]
+struct MachineFrontMatter<'a> {
+    id: &'a str,
+    canonical_url: &'a str,
+    visibility: &'a str,
+    ai_visibility: &'a str,
+    intent: &'a str,
+    entity: &'a str,
+    audience: &'a str,
+    llms_priority: &'a str,
+    token_budget: &'a str,
+    canonical_questions: &'a [String],
+    #[serde(skip_serializing_if = "slice_is_empty")]
+    retrieval_aliases: &'a [String],
+    #[serde(skip_serializing_if = "slice_is_empty")]
+    related: &'a [String],
+}
 
-    writeln!(output, "{key}:").unwrap();
-    for value in values {
-        writeln!(output, "  - {value}").unwrap();
-    }
+fn slice_is_empty(values: &[String]) -> bool {
+    values.is_empty()
 }
 
 fn answer_intent(answer: &AnswerFrontMatter) -> &'static str {
@@ -922,6 +968,49 @@ See the [billing policy](https://example.com/policy)."#;
     }
 
     #[test]
+    fn machine_markdown_front_matter_escapes_special_characters() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Billing: \"Refunds\""
+id = "refunds-policy"
+summary = "First line:\n\"Quoted\" details."
+canonical_questions = ["how do refunds: work?", "can I get a \"refund\"?"]
+intent = "policy"
+entity = "billing:core"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+retrieval_aliases = ["refund:policy", "line one\nline two"]
+related = ["cancel-subscription"]
++++
+Body content."#;
+        let res = Page::parse(Path::new("post.md"), content, &config, &PathBuf::new());
+        assert!(res.is_ok());
+        let mut page = res.unwrap();
+        page.render_markdown(
+            &HashMap::default(),
+            &ZOLA_TERA,
+            &config,
+            InsertAnchor::None,
+            &HashMap::new(),
+        )
+        .unwrap();
+
+        let markdown = page.canonical_machine_markdown().expect("expected machine markdown");
+        let front_matter = machine_front_matter(&markdown);
+
+        let yaml: serde_yaml::Value = serde_yaml::from_str(front_matter).expect("parse yaml front matter");
+        assert_eq!(yaml["entity"].as_str(), Some("billing:core"));
+        assert_eq!(yaml["canonical_questions"][0].as_str(), Some("how do refunds: work?"));
+        assert_eq!(yaml["canonical_questions"][1].as_str(), Some("can I get a \"refund\"?"));
+        assert_eq!(yaml["retrieval_aliases"][1].as_str(), Some("line one\nline two"));
+        assert!(markdown.contains("First line:\n\"Quoted\" details."));
+    }
+
+    #[test]
     fn summary_only_machine_markdown_omits_rendered_body() {
         let config = Config::default_for_test();
         let content = r#"
@@ -988,6 +1077,13 @@ Internal details for operators only."#;
         .unwrap();
 
         assert!(page.canonical_machine_markdown().is_none());
+    }
+
+    fn machine_front_matter(markdown: &str) -> &str {
+        markdown
+            .strip_prefix("---\n")
+            .and_then(|rest| rest.split_once("\n---\n").map(|(front_matter, _)| front_matter))
+            .expect("expected yaml front matter")
     }
 
     #[test]
