@@ -33,6 +33,12 @@ pub enum AuditFormat {
     Json,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum EvalFormat {
+    Human,
+    Json,
+}
+
 #[derive(Subcommand)]
 pub enum Command {
     /// Create a new Ansorum project
@@ -140,6 +146,49 @@ pub enum Command {
         /// Output format
         #[clap(long, value_enum, default_value_t = AuditFormat::Human)]
         format: AuditFormat,
+    },
+
+    /// Evaluate retrieval, answer selection, and rubric-scored quality against fixtures
+    Eval {
+        /// Include drafts when loading the site
+        #[clap(long)]
+        drafts: bool,
+
+        /// Path to the eval fixture file, relative to the project root
+        #[clap(long, default_value = "eval/fixtures.yaml")]
+        fixtures: PathBuf,
+
+        /// Output format
+        #[clap(long, value_enum, default_value_t = EvalFormat::Human)]
+        format: EvalFormat,
+
+        /// Enable LLM rubric scoring even if ansorum.eval.enabled is false
+        #[clap(long)]
+        llm: bool,
+
+        /// Override the GPT-5.4 model for LLM rubric scoring
+        #[clap(long)]
+        model: Option<String>,
+
+        /// Override the OpenAI Responses API base URL
+        #[clap(long)]
+        api_base: Option<String>,
+
+        /// Require at least this overall case pass rate
+        #[clap(long)]
+        min_pass_rate: Option<f64>,
+
+        /// Require at least this average LLM score across scored cases
+        #[clap(long)]
+        min_llm_average: Option<f64>,
+
+        /// Require each LLM-scored case to meet at least this overall score
+        #[clap(long)]
+        min_llm_score: Option<f64>,
+
+        /// Fail if any case does not receive an LLM score
+        #[clap(long)]
+        require_llm: bool,
     },
 
     /// Generate shell completion

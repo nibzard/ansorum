@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use std::time::Instant;
 
 use chrono::Utc;
-use cli::{AuditFormat, Cli, Command};
+use cli::{AuditFormat, Cli, Command, EvalFormat};
 use env_logger::Env;
 use errors::anyhow;
 use log;
@@ -208,6 +208,42 @@ fn main() {
             if let Err(e) = cmd::audit(&root_dir, &config_file, drafts, format) {
                 if format == AuditFormat::Human {
                     messages::unravel_errors("Audit failed", &e);
+                }
+                std::process::exit(1);
+            }
+        }
+        Command::Eval {
+            drafts,
+            fixtures,
+            format,
+            llm,
+            model,
+            api_base,
+            min_pass_rate,
+            min_llm_average,
+            min_llm_score,
+            require_llm,
+        } => {
+            let (root_dir, config_file) = get_config_file_path(&cli_dir, cli.config.as_deref());
+            if format == EvalFormat::Human {
+                log::info!("Running eval...");
+            }
+            if let Err(e) = cmd::eval(
+                &root_dir,
+                &config_file,
+                drafts,
+                &fixtures,
+                format,
+                llm,
+                model.as_deref(),
+                api_base.as_deref(),
+                min_pass_rate,
+                min_llm_average,
+                min_llm_score,
+                require_llm,
+            ) {
+                if format == EvalFormat::Human {
+                    messages::unravel_errors("Eval failed", &e);
                 }
                 std::process::exit(1);
             }

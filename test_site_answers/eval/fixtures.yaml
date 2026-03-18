@@ -1,0 +1,11 @@
+- question: can i get a refund after 30 days
+  expected_ids: [refunds-policy]
+  forbidden_ids: [internal-support-escalation]
+  required_terms: [eligibility, billing policy]
+  rubric_focus: reflect refund eligibility policy without using internal-only content
+
+- question: how do i cancel my subscription
+  expected_ids: [cancel-subscription]
+  forbidden_ids: [internal-support-escalation]
+  required_terms: [canonical page, cancel]
+  rubric_focus: prefer the public cancellation answer and keep canonical links visible
