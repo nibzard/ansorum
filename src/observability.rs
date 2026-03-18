@@ -1,4 +1,6 @@
 use std::sync::LazyLock;
+use std::sync::mpsc::{SyncSender, TrySendError, sync_channel};
+use std::thread;
 use std::time::Duration;
 
 use chrono::{SecondsFormat, Utc};
@@ -10,8 +12,11 @@ use serde_json::{Value as JsonValue, json};
 
 const EVENT_SCHEMA_VERSION: u8 = 1;
 const DEFAULT_HOOK_TIMEOUT_MS: u64 = 2_000;
+const ASYNC_EVENT_QUEUE_CAPACITY: usize = 256;
 
 static EVENT_HOOK: LazyLock<Option<EventHookConfig>> = LazyLock::new(EventHookConfig::from_env);
+static EVENT_DISPATCHER: LazyLock<Option<EventDispatcher>> =
+    LazyLock::new(|| EVENT_HOOK.as_ref().cloned().map(EventDispatcher::start));
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DispatchMode {
@@ -29,6 +34,11 @@ pub struct EventRecord {
 struct EventHookConfig {
     url: String,
     timeout_ms: u64,
+}
+
+#[derive(Clone)]
+struct EventDispatcher {
+    sender: SyncSender<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -97,7 +107,11 @@ pub fn emit_event(
     match dispatch_mode {
         DispatchMode::Sync => send_event_hook(config, serialized),
         DispatchMode::Async => {
-            std::thread::spawn(move || send_event_hook(config, serialized));
+            let Some(dispatcher) = EVENT_DISPATCHER.as_ref() else {
+                return;
+            };
+
+            dispatcher.enqueue(serialized);
         }
     }
 }
@@ -156,6 +170,39 @@ fn send_event_hook(config: EventHookConfig, body: String) {
     }
 }
 
+impl EventDispatcher {
+    fn start(config: EventHookConfig) -> Self {
+        let (sender, receiver) = sync_channel(ASYNC_EVENT_QUEUE_CAPACITY);
+        let thread_config = config.clone();
+
+        thread::Builder::new()
+            .name("ansorum-event-hook".to_string())
+            .spawn(move || {
+                while let Ok(body) = receiver.recv() {
+                    send_event_hook(thread_config.clone(), body);
+                }
+            })
+            .expect("failed to start observability event hook worker");
+
+        Self { sender }
+    }
+
+    fn enqueue(&self, body: String) {
+        match self.sender.try_send(body) {
+            Ok(()) => {}
+            Err(TrySendError::Full(_)) => {
+                log::warn!(
+                    "Dropping observability event because async hook queue is full (capacity {})",
+                    ASYNC_EVENT_QUEUE_CAPACITY
+                );
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                log::warn!("Dropping observability event because async hook worker is unavailable");
+            }
+        }
+    }
+}
+
 fn send_event_hook_inner(config: &EventHookConfig, body: String) -> Result<(), reqwest::Error> {
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -178,9 +225,11 @@ fn send_event_hook_inner(config: &EventHookConfig, body: String) -> Result<(), r
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::sync_channel;
+
     use serde_json::json;
 
-    use super::{EventSource, machine_delivery_event};
+    use super::{EventDispatcher, EventSource, machine_delivery_event};
 
     #[test]
     fn classifies_negotiated_markdown_fetches() {
@@ -259,5 +308,17 @@ mod tests {
                 "command": "serve",
             })
         );
+    }
+
+    #[test]
+    fn bounded_async_dispatcher_drops_when_queue_is_full() {
+        let (sender, receiver) = sync_channel(1);
+        let dispatcher = EventDispatcher { sender };
+
+        dispatcher.enqueue("first".to_string());
+        dispatcher.enqueue("second".to_string());
+
+        assert_eq!(receiver.recv().expect("queued event"), "first");
+        assert!(receiver.try_recv().is_err(), "second event should be dropped");
     }
 }
