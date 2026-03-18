@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ config.title }}{% endblock %}
+
+{% set mode = config.extra.mode | default(value="site") %}
+
+{% block content %}
+{% if mode == "docs" or mode == "book" %}
+{% set root_section = get_section(path="_index.md", required=false) %}
+{% if root_section and root_section.pages %}
+{% set first_page = root_section.pages | first %}
+<script>window.location.href = "{{ first_page.permalink | safe }}";</script>
+<p>Redirecting to <a href="{{ first_page.permalink | safe }}">{{ first_page.title }}</a>...</p>
+{% else %}
+<section class="hero">
+    <h1 class="hero__title">{{ config.title }}</h1>
+    <p class="hero__subtitle">{{ config.description }}</p>
+</section>
+{% endif %}
+{% else %}
+{{ super() }}
+{% endif %}
+{% endblock %}

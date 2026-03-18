@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "url": "https://answers.example.com/cancel/",
+  "description": "How to cancel a subscription, what happens to access, and where to confirm the change.",
+  "identifier": "cancel-subscription",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "How do I cancel my subscription?",
+  "sameAs": [
+    "https://example.com/billing"
+  ],
+  "alternateName": [
+    "cancel subscription",
+    "turn off renewal",
+    "end plan"
+  ]
+}

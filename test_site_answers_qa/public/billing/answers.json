@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "answers": [
+    {
+      "id": "cancel-subscription",
+      "title": "How do I cancel my subscription?",
+      "summary": "How to cancel a subscription, what happens to access, and where to confirm the change.",
+      "canonical_url": "https://answers.example.com/cancel/",
+      "markdown_url": "https://answers.example.com/cancel/page.md",
+      "entity": "billing",
+      "intent": "task",
+      "audience": "customer",
+      "related": [
+        "refunds-policy"
+      ],
+      "canonical_questions": [
+        "how do i cancel my subscription",
+        "stop auto renewal",
+        "cancel workspace plan"
+      ],
+      "retrieval_aliases": [
+        "cancel subscription",
+        "turn off renewal",
+        "end plan"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "optional",
+      "token_budget": "small",
+      "visibility": "public",
+      "ai_visibility": "summary_only"
+    },
+    {
+      "id": "refunds-policy",
+      "title": "Refund policy",
+      "summary": "How refunds work, who qualifies, and when payment returns land.",
+      "canonical_url": "https://answers.example.com/refunds/",
+      "markdown_url": "https://answers.example.com/refunds/page.md",
+      "entity": "billing",
+      "intent": "policy",
+      "audience": "customer",
+      "related": [
+        "cancel-subscription"
+      ],
+      "canonical_questions": [
+        "how do refunds work",
+        "can i get a refund",
+        "how long do refunds take"
+      ],
+      "retrieval_aliases": [
+        "refund policy",
+        "refund rules",
+        "refund timing"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "core",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    }
+  ]
+}

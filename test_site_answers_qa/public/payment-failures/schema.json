@@ -1,0 +1,51 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "url": "https://answers.example.com/payment-failures/",
+  "description": "Retry timing, grace periods, and how to recover a failed subscription payment.",
+  "identifier": "payment-recovery",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "What happens when a payment fails?",
+  "sameAs": [
+    "https://example.com/payments"
+  ],
+  "alternateName": [
+    "failed payment",
+    "retry schedule",
+    "declined charge"
+  ],
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "payment failed",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Retry timing, grace periods, and how to recover a failed subscription payment."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "card declined renewal",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Retry timing, grace periods, and how to recover a failed subscription payment."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "how do retries work",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Retry timing, grace periods, and how to recover a failed subscription payment."
+      }
+    }
+  ]
+}

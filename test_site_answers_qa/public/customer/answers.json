@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "answers": [
+    {
+      "id": "billing-webhooks",
+      "title": "Billing webhooks and invoice events",
+      "summary": "Which billing events are emitted, what payloads look like, and how to build idempotent handlers.",
+      "canonical_url": "https://answers.example.com/billing-webhooks/",
+      "markdown_url": "https://answers.example.com/billing-webhooks/page.md",
+      "entity": "api",
+      "intent": "reference",
+      "audience": "customer",
+      "related": [
+        "payment-recovery",
+        "invoice-download",
+        "usage-credits"
+      ],
+      "canonical_questions": [
+        "billing webhooks",
+        "invoice event payload",
+        "payment failed webhook"
+      ],
+      "retrieval_aliases": [
+        "invoice webhook",
+        "billing events",
+        "payment webhook"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "optional",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    },
+    {
+      "id": "cancel-subscription",
+      "title": "How do I cancel my subscription?",
+      "summary": "How to cancel a subscription, what happens to access, and where to confirm the change.",
+      "canonical_url": "https://answers.example.com/cancel/",
+      "markdown_url": "https://answers.example.com/cancel/page.md",
+      "entity": "billing",
+      "intent": "task",
+      "audience": "customer",
+      "related": [
+        "refunds-policy",
+        "invoice-download",
+        "team-billing-admin"
+      ],
+      "canonical_questions": [
+        "how do i cancel my subscription",
+        "stop auto renewal",
+        "cancel workspace plan"
+      ],
+      "retrieval_aliases": [
+        "cancel subscription",
+        "turn off renewal",
+        "end plan"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "optional",
+      "token_budget": "small",
+      "visibility": "public",
+      "ai_visibility": "summary_only"
+    },
+    {
+      "id": "invoice-download",
+      "title": "Download invoices and receipts",
+      "summary": "Where invoices live, who can export them, and how receipts differ from invoice PDFs.",
+      "canonical_url": "https://answers.example.com/invoices/",
+      "markdown_url": "https://answers.example.com/invoices/page.md",
+      "entity": "billing",
+      "intent": "task",
+      "audience": "customer",
+      "related": [
+        "cancel-subscription",
+        "tax-exemption",
+        "payment-recovery"
+      ],
+      "canonical_questions": [
+        "where can i find invoices",
+        "download receipt",
+        "export billing history"
+      ],
+      "retrieval_aliases": [
+        "invoice pdf",
+        "receipt download",
+        "billing history export"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "core",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    },
+    {
+      "id": "payment-recovery",
+      "title": "What happens when a payment fails?",
+      "summary": "Retry timing, grace periods, and how to recover a failed subscription payment.",
+      "canonical_url": "https://answers.example.com/payment-failures/",
+      "markdown_url": "https://answers.example.com/payment-failures/page.md",
+      "entity": "billing",
+      "intent": "reference",
+      "audience": "customer",
+      "related": [
+        "invoice-download",
+        "cancel-subscription",
+        "team-billing-admin"
+      ],
+      "canonical_questions": [
+        "payment failed",
+        "card declined renewal",
+        "how do retries work"
+      ],
+      "retrieval_aliases": [
+        "failed payment",
+        "retry schedule",
+        "declined charge"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "core",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    },
+    {
+      "id": "refunds-policy",
+      "title": "Refund policy",
+      "summary": "How refunds work, who qualifies, and when payment returns land.",
+      "canonical_url": "https://answers.example.com/refunds/",
+      "markdown_url": "https://answers.example.com/refunds/page.md",
+      "entity": "billing",
+      "intent": "policy",
+      "audience": "customer",
+      "related": [
+        "cancel-subscription",
+        "invoice-download",
+        "tax-exemption"
+      ],
+      "canonical_questions": [
+        "how do refunds work",
+        "can i get a refund",
+        "how long do refunds take"
+      ],
+      "retrieval_aliases": [
+        "refund policy",
+        "refund rules",
+        "refund timing"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "core",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    },
+    {
+      "id": "tax-exemption",
+      "title": "Sales tax, VAT, and tax exemption",
+      "summary": "How tax is calculated, when exemption certificates apply, and what changes on future invoices.",
+      "canonical_url": "https://answers.example.com/taxes/",
+      "markdown_url": "https://answers.example.com/taxes/page.md",
+      "entity": "billing",
+      "intent": "policy",
+      "audience": "customer",
+      "related": [
+        "invoice-download",
+        "refunds-policy"
+      ],
+      "canonical_questions": [
+        "why was i charged tax",
+        "vat invoice",
+        "how do i add a tax exemption certificate"
+      ],
+      "retrieval_aliases": [
+        "sales tax",
+        "vat",
+        "tax certificate"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "optional",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    },
+    {
+      "id": "team-billing-admin",
+      "title": "Manage team billing roles and approvals",
+      "summary": "Who can view invoices, who can change plans, and how approval workflows typically work.",
+      "canonical_url": "https://answers.example.com/team-billing/",
+      "markdown_url": "https://answers.example.com/team-billing/page.md",
+      "entity": "billing",
+      "intent": "reference",
+      "audience": "customer",
+      "related": [
+        "invoice-download",
+        "cancel-subscription",
+        "payment-recovery"
+      ],
+      "canonical_questions": [
+        "who can manage billing",
+        "billing admin permissions",
+        "team approval workflow"
+      ],
+      "retrieval_aliases": [
+        "billing roles",
+        "billing admin",
+        "owner permissions"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "optional",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    },
+    {
+      "id": "usage-credits",
+      "title": "Usage credits and promotional balances",
+      "summary": "How prepaid and promotional credits are applied, how they expire, and when they do not reduce invoices.",
+      "canonical_url": "https://answers.example.com/usage-credits/",
+      "markdown_url": "https://answers.example.com/usage-credits/page.md",
+      "entity": "billing",
+      "intent": "concept",
+      "audience": "customer",
+      "related": [
+        "invoice-download",
+        "refunds-policy",
+        "payment-recovery"
+      ],
+      "canonical_questions": [
+        "how do credits work",
+        "promo balance",
+        "why were credits not applied"
+      ],
+      "retrieval_aliases": [
+        "credit balance",
+        "promotional credits",
+        "prepaid credits"
+      ],
+      "review_by": "2026-09-01",
+      "llms_priority": "optional",
+      "token_budget": "medium",
+      "visibility": "public",
+      "ai_visibility": "public"
+    }
+  ]
+}

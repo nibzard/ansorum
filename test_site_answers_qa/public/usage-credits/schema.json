@@ -1,0 +1,27 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "url": "https://answers.example.com/usage-credits/",
+  "description": "How prepaid and promotional credits are applied, how they expire, and when they do not reduce invoices.",
+  "identifier": "usage-credits",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "Usage credits and promotional balances",
+  "sameAs": [
+    "https://example.com/credits"
+  ],
+  "alternateName": [
+    "credit balance",
+    "promotional credits",
+    "prepaid credits"
+  ],
+  "headline": "Usage credits and promotional balances",
+  "mainEntityOfPage": "https://answers.example.com/usage-credits/"
+}

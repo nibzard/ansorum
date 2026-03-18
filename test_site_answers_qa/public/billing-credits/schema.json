@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "url": "https://answers.example.com/billing-credits/",
+  "description": "Internal-only workflow for issuing courtesy or outage-related billing credits.",
+  "identifier": "billing-credits-internal",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "internal"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "Internal billing credit workflow",
+  "sameAs": [
+    "https://example.com/internal/credits"
+  ],
+  "alternateName": [
+    "courtesy credit workflow"
+  ],
+  "headline": "Internal billing credit workflow",
+  "mainEntityOfPage": "https://answers.example.com/billing-credits/"
+}

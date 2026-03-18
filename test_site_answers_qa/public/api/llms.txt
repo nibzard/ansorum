@@ -1,0 +1,8 @@
+# Acme Billing Help Center QA | api answers
+
+Scoped AI-visible answers for the `api` entity.
+
+## Additional Context
+
+- Billing webhooks and invoice events: Which billing events are emitted, what payloads look like, and how to build idempotent handlers. (https://answers.example.com/billing-webhooks/page.md)
+

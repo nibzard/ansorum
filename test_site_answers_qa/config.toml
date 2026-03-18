@@ -1,0 +1,47 @@
+base_url = "https://answers.example.com"
+title = "Acme Billing Help Center QA"
+description = "Expanded Ansorum QA fixture with realistic billing, support, and API answer content."
+theme = "tanuki"
+generate_feeds = false
+generate_sitemap = false
+generate_robots_txt = false
+build_search_index = true
+
+[markdown.highlighting]
+theme = "catppuccin-mocha"
+
+[extra]
+mode = "docs"
+github = "https://github.com/nibzard/ansorum"
+
+[[extra.nav]]
+name = "Answers JSON"
+url = "/answers.json"
+
+[[extra.nav]]
+name = "llms.txt"
+url = "/llms.txt"
+
+[ansorum.redirects]
+external_host_allowlist = ["docs.example.com"]
+
+[[ansorum.redirects.routes]]
+code = "sales-demo"
+target = "https://docs.example.com/demo"
+
+[[ansorum.redirects.routes]]
+code = "billing-portal"
+target = "/cancel/"
+
+[ansorum.packs]
+auto_entity_packs = true
+auto_audience_packs = true
+
+[[ansorum.packs.curated]]
+name = "billing"
+source = "collections/packs/billing.toml"
+
+[ansorum.eval]
+enabled = false
+model = "gpt-5.4-mini"
+prompt_version = "reference-v1"

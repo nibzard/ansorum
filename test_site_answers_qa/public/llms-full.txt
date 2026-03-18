@@ -1,0 +1,15 @@
+# Acme Billing Help Center QA full export
+
+Expanded Ansorum QA fixture with realistic billing, support, and API answer content.
+
+## AI-visible Answers
+
+- Billing webhooks and invoice events: Which billing events are emitted, what payloads look like, and how to build idempotent handlers. (https://answers.example.com/billing-webhooks/page.md)
+- How do I cancel my subscription?: How to cancel a subscription, what happens to access, and where to confirm the change. (https://answers.example.com/cancel/page.md)
+- Download invoices and receipts: Where invoices live, who can export them, and how receipts differ from invoice PDFs. (https://answers.example.com/invoices/page.md)
+- What happens when a payment fails?: Retry timing, grace periods, and how to recover a failed subscription payment. (https://answers.example.com/payment-failures/page.md)
+- Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)
+- Sales tax, VAT, and tax exemption: How tax is calculated, when exemption certificates apply, and what changes on future invoices. (https://answers.example.com/taxes/page.md)
+- Manage team billing roles and approvals: Who can view invoices, who can change plans, and how approval workflows typically work. (https://answers.example.com/team-billing/page.md)
+- Usage credits and promotional balances: How prepaid and promotional credits are applied, how they expire, and when they do not reduce invoices. (https://answers.example.com/usage-credits/page.md)
+

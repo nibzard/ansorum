@@ -1,0 +1,51 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "url": "https://answers.example.com/taxes/",
+  "description": "How tax is calculated, when exemption certificates apply, and what changes on future invoices.",
+  "identifier": "tax-exemption",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "Sales tax, VAT, and tax exemption",
+  "sameAs": [
+    "https://example.com/tax"
+  ],
+  "alternateName": [
+    "sales tax",
+    "vat",
+    "tax certificate"
+  ],
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "why was i charged tax",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "How tax is calculated, when exemption certificates apply, and what changes on future invoices."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "vat invoice",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "How tax is calculated, when exemption certificates apply, and what changes on future invoices."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "how do i add a tax exemption certificate",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "How tax is calculated, when exemption certificates apply, and what changes on future invoices."
+      }
+    }
+  ]
+}

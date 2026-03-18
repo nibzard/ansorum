@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "url": "https://answers.example.com/invoices/",
+  "description": "Where invoices live, who can export them, and how receipts differ from invoice PDFs.",
+  "identifier": "invoice-download",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "Download invoices and receipts",
+  "sameAs": [
+    "https://example.com/invoices"
+  ],
+  "alternateName": [
+    "invoice pdf",
+    "receipt download",
+    "billing history export"
+  ]
+}
