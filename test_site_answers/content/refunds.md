@@ -19,3 +19,6 @@ aliases = ["refund policy", "refund rules"]
 
 Refund details for customers.
 
+## Eligibility
+
+Refunds follow the [billing policy](https://example.com/policy).

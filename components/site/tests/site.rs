@@ -109,18 +109,18 @@ fn extracts_normalized_answer_records() {
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
 
-    assert_eq!(site.answers.len(), 2);
+    assert_eq!(site.answers.len(), 3);
 
     let refunds = site.answers.get("refunds-policy").expect("missing refunds-policy answer");
     assert_eq!(refunds.title, "Refund policy");
     assert_eq!(refunds.canonical_url, "https://answers.example.com/refunds/");
-    assert_eq!(refunds.markdown_url, "https://answers.example.com/refunds.md");
+    assert_eq!(refunds.markdown_url, "https://answers.example.com/refunds/page.md");
     assert_eq!(refunds.entity, "billing");
 
     let cancel =
         site.answers.get("cancel-subscription").expect("missing cancel-subscription answer");
     assert_eq!(cancel.title, "how do i cancel my subscription");
-    assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel.md");
+    assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel/page.md");
 
     let billing_ids = site
         .answers
@@ -137,6 +137,26 @@ fn extracts_normalized_answer_records() {
         .map(|record| record.id.as_str())
         .collect::<Vec<_>>();
     assert_eq!(related_ids, vec!["cancel-subscription"]);
+}
+
+#[test]
+fn emits_machine_markdown_without_leaking_hidden_content() {
+    let (_, _tmp_dir, public) = build_site("test_site_answers");
+
+    assert!(file_exists!(public, "refunds/page.md"));
+    assert!(file_contains!(public, "refunds/page.md", "# Refund policy"));
+    assert!(file_contains!(public, "refunds/page.md", "canonical_url: https://answers.example.com/refunds/"));
+
+    assert!(file_exists!(public, "cancel/page.md"));
+    assert!(file_contains!(
+        public,
+        "cancel/page.md",
+        "How to cancel a subscription and what happens after."
+    ));
+    assert!(file_contains!(public, "cancel/page.md", "Canonical page: <https://answers.example.com/cancel/>"));
+    assert!(!file_contains!(public, "cancel/page.md", "Cancellation details for customers."));
+
+    assert!(!file_exists!(public, "internal-playbook/page.md"));
 }
 
 #[test]

@@ -1,5 +1,6 @@
 /// A page, can be a blog post or a basic page
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
 use once_cell::sync::Lazy;
@@ -14,7 +15,10 @@ use utils::table_of_contents::Heading;
 use utils::templates::{ShortcodeDefinition, render_template};
 use utils::types::InsertAnchor;
 
-use crate::answer::AnswerFrontMatter;
+use crate::answer::{
+    AiVisibility, AnswerAudience, AnswerFrontMatter, AnswerIntent, AnswerVisibility, LlmsPriority,
+    TokenBudget,
+};
 use crate::file_info::FileInfo;
 use crate::front_matter::{PageFrontMatter, split_page_content};
 use crate::library::Library;
@@ -31,6 +35,27 @@ static RFC3339_DATE: Lazy<Regex> = Lazy::new(|| {
         r"^(?P<datetime>(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(T([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9]|60)(\.[0-9]+)?(Z|(\+|-)([01][0-9]|2[0-3]):([0-5][0-9])))?)(\s?(_|-)(?P<slug>.+$))?"
     ).unwrap()
 });
+static TAG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<[^>]+>").unwrap());
+static PRE_CODE_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?s)<pre><code(?: data-lang="([^"]+)")?>(.*?)</code></pre>"#).unwrap()
+});
+static HEADING_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?s)<h([1-6])[^>]*>(.*?)</h[1-6]>").unwrap());
+static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<p>(.*?)</p>").unwrap());
+static LIST_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<(ul|ol)>(.*?)</(ul|ol)>").unwrap());
+static LIST_ITEM_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<li>(.*?)</li>").unwrap());
+static BLOCKQUOTE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?s)<blockquote>(.*?)</blockquote>").unwrap());
+static LINK_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?s)<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>"#).unwrap());
+static STRONG_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?s)<(strong|b)>(.*?)</(strong|b)>").unwrap());
+static EMPHASIS_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?s)<(em|i)>(.*?)</(em|i)>").unwrap());
+static CODE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<code>(.*?)</code>").unwrap());
+static BREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)<br\\s*/?>").unwrap());
+static CONTINUE_READING_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"<span id="continue-reading"></span>"#).unwrap());
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Page {
@@ -304,6 +329,236 @@ impl Page {
 
     pub fn serialize_without_siblings<'a>(&'a self, library: &'a Library) -> SerializingPage<'a> {
         SerializingPage::new(self, Some(library), false)
+    }
+
+    pub fn canonical_machine_markdown(&self) -> Option<String> {
+        let answer = self.answer()?;
+        if answer.ai_visibility == AiVisibility::Hidden {
+            return None;
+        }
+
+        let mut markdown = String::new();
+        markdown.push_str("---\n");
+        write_machine_field(&mut markdown, "id", &answer.id);
+        write_machine_field(&mut markdown, "canonical_url", &self.permalink);
+        write_machine_field(&mut markdown, "visibility", answer_visibility(answer));
+        write_machine_field(&mut markdown, "ai_visibility", ai_visibility(answer));
+        write_machine_field(&mut markdown, "intent", answer_intent(answer));
+        write_machine_field(&mut markdown, "entity", &answer.entity);
+        write_machine_field(&mut markdown, "audience", answer_audience(answer));
+        write_machine_field(&mut markdown, "llms_priority", llms_priority(answer));
+        write_machine_field(&mut markdown, "token_budget", token_budget(answer));
+        write_machine_list(&mut markdown, "canonical_questions", &answer.canonical_questions);
+        write_machine_list(&mut markdown, "aliases", &answer.aliases);
+        write_machine_list(&mut markdown, "related", &answer.related);
+        markdown.push_str("---\n\n");
+
+        let title = self.answer_title();
+        if !title.is_empty() {
+            writeln!(&mut markdown, "# {title}").unwrap();
+            markdown.push('\n');
+        }
+
+        writeln!(&mut markdown, "{}", answer.summary).unwrap();
+        markdown.push('\n');
+
+        if answer.ai_visibility == AiVisibility::SummaryOnly {
+            writeln!(&mut markdown, "Canonical page: <{}>", self.permalink).unwrap();
+            return Some(markdown);
+        }
+
+        let body = rendered_html_to_markdown(&self.content);
+        if !body.is_empty() {
+            markdown.push_str(&body);
+            if !markdown.ends_with('\n') {
+                markdown.push('\n');
+            }
+        }
+
+        Some(markdown)
+    }
+}
+
+fn rendered_html_to_markdown(html: &str) -> String {
+    let mut markdown = CONTINUE_READING_RE.replace_all(html, "").into_owned();
+    markdown = PRE_CODE_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let language = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let code = decode_html_entities(caps.get(2).map(|m| m.as_str()).unwrap_or(""));
+            if language.is_empty() {
+                format!("\n```\n{}\n```\n", code.trim_end())
+            } else {
+                format!("\n```{language}\n{}\n```\n", code.trim_end())
+            }
+        })
+        .into_owned();
+    markdown = HEADING_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let level = caps.get(1).map(|m| m.as_str()).unwrap_or("1").parse::<usize>().unwrap_or(1);
+            let text = inline_html_to_markdown(caps.get(2).map(|m| m.as_str()).unwrap_or("")).trim().to_string();
+            format!("\n{} {}\n", "#".repeat(level), text)
+        })
+        .into_owned();
+    markdown = BLOCKQUOTE_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let text = inline_html_to_markdown(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
+            let lines = text.lines().map(|line| format!("> {}", line.trim())).collect::<Vec<_>>().join("\n");
+            format!("\n{lines}\n")
+        })
+        .into_owned();
+    markdown = LIST_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let items = LIST_ITEM_RE
+                .captures_iter(caps.get(2).map(|m| m.as_str()).unwrap_or(""))
+                .map(|item| {
+                    let text =
+                        inline_html_to_markdown(item.get(1).map(|m| m.as_str()).unwrap_or(""));
+                    format!("- {}", text.trim())
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("\n{items}\n")
+        })
+        .into_owned();
+    markdown = PARAGRAPH_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let text = inline_html_to_markdown(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
+            format!("\n{}\n", text.trim())
+        })
+        .into_owned();
+    markdown = BREAK_RE.replace_all(&markdown, "\n").into_owned();
+    markdown = TAG_RE.replace_all(&markdown, "").into_owned();
+
+    let mut lines = Vec::new();
+    let mut blank = false;
+    for line in markdown.lines() {
+        let trimmed = line.trim_end();
+        if trimmed.is_empty() {
+            if !blank {
+                lines.push(String::new());
+            }
+            blank = true;
+        } else {
+            lines.push(trimmed.to_string());
+            blank = false;
+        }
+    }
+
+    lines.join("\n").trim().to_string()
+}
+
+fn inline_html_to_markdown(html: &str) -> String {
+    let mut markdown = LINK_RE
+        .replace_all(html, |caps: &regex::Captures<'_>| {
+            let href = decode_html_entities(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
+            let text = inline_html_to_markdown(caps.get(2).map(|m| m.as_str()).unwrap_or(""));
+            format!("[{}]({href})", text.trim())
+        })
+        .into_owned();
+    markdown = STRONG_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let text = inline_html_to_markdown(caps.get(2).map(|m| m.as_str()).unwrap_or(""));
+            format!("**{}**", text.trim())
+        })
+        .into_owned();
+    markdown = EMPHASIS_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let text = inline_html_to_markdown(caps.get(2).map(|m| m.as_str()).unwrap_or(""));
+            format!("*{}*", text.trim())
+        })
+        .into_owned();
+    markdown = CODE_RE
+        .replace_all(&markdown, |caps: &regex::Captures<'_>| {
+            let text = decode_html_entities(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
+            format!("`{}`", text.trim())
+        })
+        .into_owned();
+    markdown = BREAK_RE.replace_all(&markdown, "\n").into_owned();
+    markdown = TAG_RE.replace_all(&markdown, "").into_owned();
+    decode_html_entities(markdown.trim())
+}
+
+fn decode_html_entities(input: impl AsRef<str>) -> String {
+    input
+        .as_ref()
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&#x27;", "'")
+        .replace("&#x2F;", "/")
+        .replace("&nbsp;", " ")
+}
+
+fn write_machine_field(output: &mut String, key: &str, value: &str) {
+    writeln!(output, "{key}: {value}").unwrap();
+}
+
+fn write_machine_list(output: &mut String, key: &str, values: &[String]) {
+    if values.is_empty() {
+        return;
+    }
+
+    writeln!(output, "{key}:").unwrap();
+    for value in values {
+        writeln!(output, "  - {value}").unwrap();
+    }
+}
+
+fn answer_intent(answer: &AnswerFrontMatter) -> &'static str {
+    match answer.intent {
+        AnswerIntent::Concept => "concept",
+        AnswerIntent::Task => "task",
+        AnswerIntent::Policy => "policy",
+        AnswerIntent::Troubleshooting => "troubleshooting",
+        AnswerIntent::Comparison => "comparison",
+        AnswerIntent::Pricing => "pricing",
+        AnswerIntent::Integration => "integration",
+        AnswerIntent::Faq => "faq",
+        AnswerIntent::Reference => "reference",
+    }
+}
+
+fn answer_audience(answer: &AnswerFrontMatter) -> &'static str {
+    match answer.audience {
+        AnswerAudience::Customer => "customer",
+        AnswerAudience::Prospect => "prospect",
+        AnswerAudience::Developer => "developer",
+        AnswerAudience::Admin => "admin",
+        AnswerAudience::Internal => "internal",
+    }
+}
+
+fn answer_visibility(answer: &AnswerFrontMatter) -> &'static str {
+    match answer.visibility {
+        AnswerVisibility::Public => "public",
+        AnswerVisibility::Private => "private",
+        AnswerVisibility::Internal => "internal",
+    }
+}
+
+fn ai_visibility(answer: &AnswerFrontMatter) -> &'static str {
+    match answer.ai_visibility {
+        AiVisibility::Public => "public",
+        AiVisibility::Hidden => "hidden",
+        AiVisibility::SummaryOnly => "summary_only",
+    }
+}
+
+fn llms_priority(answer: &AnswerFrontMatter) -> &'static str {
+    match answer.llms_priority {
+        LlmsPriority::Core => "core",
+        LlmsPriority::Optional => "optional",
+        LlmsPriority::Hidden => "hidden",
+    }
+}
+
+fn token_budget(answer: &AnswerFrontMatter) -> &'static str {
+    match answer.token_budget {
+        TokenBudget::Small => "small",
+        TokenBudget::Medium => "medium",
+        TokenBudget::Full => "full",
     }
 }
 
@@ -581,6 +836,81 @@ Hello world"#;
         assert_eq!(serialized["answer"]["id"], "refunds-policy");
         assert_eq!(serialized["answer"]["summary"], "How refunds work.");
         assert!(serialized["extra"].get("answer").is_none());
+    }
+
+    #[test]
+    fn emits_public_machine_markdown_from_rendered_content() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
++++
+## Eligibility
+
+See the [billing policy](https://example.com/policy)."#;
+        let res = Page::parse(Path::new("post.md"), content, &config, &PathBuf::new());
+        assert!(res.is_ok());
+        let mut page = res.unwrap();
+        page.render_markdown(
+            &HashMap::default(),
+            &ZOLA_TERA,
+            &config,
+            InsertAnchor::None,
+            &HashMap::new(),
+        )
+        .unwrap();
+
+        let markdown = page.canonical_machine_markdown().expect("expected machine markdown");
+        assert!(markdown.contains(&format!("canonical_url: {}", page.permalink)));
+        assert!(markdown.contains("# Refund policy"));
+        assert!(markdown.contains("## Eligibility"));
+        assert!(markdown.contains("[billing policy](https://example.com/policy)"));
+    }
+
+    #[test]
+    fn summary_only_machine_markdown_omits_rendered_body() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Cancel subscription"
+id = "cancel-subscription"
+summary = "How to cancel."
+canonical_questions = ["how do i cancel my subscription"]
+intent = "task"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "summary_only"
+llms_priority = "optional"
+token_budget = "small"
++++
+Cancellation details for customers."#;
+        let res = Page::parse(Path::new("cancel.md"), content, &config, &PathBuf::new());
+        assert!(res.is_ok());
+        let mut page = res.unwrap();
+        page.render_markdown(
+            &HashMap::default(),
+            &ZOLA_TERA,
+            &config,
+            InsertAnchor::None,
+            &HashMap::new(),
+        )
+        .unwrap();
+
+        let markdown = page.canonical_machine_markdown().expect("expected machine markdown");
+        assert!(markdown.contains("How to cancel."));
+        assert!(markdown.contains(&format!("Canonical page: <{}>", page.permalink)));
+        assert!(!markdown.contains("Cancellation details for customers."));
     }
 
     #[test]

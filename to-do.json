@@ -100,13 +100,14 @@
         "components/config/src/config/mod.rs",
         "components/config/src/config/search.rs",
         "components/config/src/lib.rs",
-        "components/site/src/lib.rs"
+        "components/site/src/lib.rs",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-001"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:03:13Z"
+      "updated_at": "2026-03-18T19:03:45Z"
     },
     {
       "id": "ANS-004",
@@ -133,16 +134,17 @@
         "components/content/src/front_matter/answer.rs",
         "components/content/src/front_matter/mod.rs",
         "components/content/src/front_matter/page.rs",
+        "components/content/src/lib.rs",
         "components/content/src/page.rs",
         "components/content/src/ser.rs",
-        "components/content/src/lib.rs"
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-001",
         "ANS-002"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:10:00Z"
+      "updated_at": "2026-03-18T19:11:10Z"
     },
     {
       "id": "ANS-005",
@@ -172,8 +174,8 @@
         "components/site/tests/site.rs",
         "src/messages.rs",
         "test_site_answers/config.toml",
-        "test_site_answers/content/refunds.md",
         "test_site_answers/content/cancel.md",
+        "test_site_answers/content/refunds.md",
         "test_sites_invalid/answers_duplicate_id/config.toml",
         "test_sites_invalid/answers_duplicate_id/content/one.md",
         "test_sites_invalid/answers_duplicate_id/content/two.md",
@@ -186,13 +188,13 @@
         "ANS-004"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:18:22Z"
+      "updated_at": "2026-03-18T19:20:29Z"
     },
     {
       "id": "ANS-006",
       "title": "Emit canonical machine markdown at /page.md from the rendered content model",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Ansorum's machine markdown must come from the rendered content model, not from raw source files. Add a dedicated export path so each answer page emits a canonical markdown representation at /page.md. The export should preserve rendered headings and links while respecting ai_visibility so hidden or summary-only content does not leak.",
       "steps": [
         "Design the machine-markdown rendering path and file naming rules.",
@@ -205,18 +207,20 @@
         "outputs"
       ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
-        "components/site/src/lib.rs",
-        "components/site/src/answers.rs",
         "components/content/src/page.rs",
-        "templates",
-        "docs"
+        "components/site/src/answers.rs",
+        "components/site/src/lib.rs",
+        "components/site/tests/site.rs",
+        "test_site_answers/content/cancel.md",
+        "test_site_answers/content/internal-playbook.md",
+        "test_site_answers/content/refunds.md",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-005"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:26:18Z"
     },
     {
       "id": "ANS-007",

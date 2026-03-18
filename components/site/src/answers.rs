@@ -239,11 +239,7 @@ impl AnswerRecord {
 
 fn markdown_url_from_page(page: &Page) -> String {
     let trimmed = page.permalink.trim_end_matches('/');
-    if page.path == "/" {
-        format!("{trimmed}/index.md")
-    } else {
-        format!("{trimmed}.md")
-    }
+    format!("{trimmed}/page.md")
 }
 
 fn normalize_key(value: &str) -> String {

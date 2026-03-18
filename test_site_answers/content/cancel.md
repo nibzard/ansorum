@@ -16,3 +16,6 @@ aliases = ["cancel subscription"]
 
 Cancellation details for customers.
 
+## Keep access
+
+Use the [billing portal](https://example.com/billing) to manage changes.
