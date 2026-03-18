@@ -88,6 +88,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "ansorum"
+version = "0.1.0-alpha.0"
+dependencies = [
+ "ahash 0.8.12",
+ "anstream",
+ "anstyle",
+ "axum",
+ "clap 4.5.54",
+ "clap_complete",
+ "clap_mangen",
+ "console 0.1.0",
+ "ctrlc",
+ "env_logger 0.11.8",
+ "errors",
+ "globset",
+ "link_checker",
+ "log",
+ "mime",
+ "mime_guess",
+ "notify-debouncer-full",
+ "open",
+ "percent-encoding",
+ "relative-path",
+ "reqwest",
+ "same-file",
+ "search",
+ "serde_json",
+ "site",
+ "tauri-winres",
+ "templates",
+ "time",
+ "tokio",
+ "url",
+ "utils",
+]
+
+[[package]]
 name = "anstream"
 version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -739,6 +776,7 @@ dependencies = [
  "serde",
  "toml",
  "unic-langid",
+ "url",
  "utils",
 ]
 
@@ -786,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "content"
-version = "0.21.0"
+version = "0.1.0-alpha.0"
 dependencies = [
  "ahash 0.8.12",
  "config",
@@ -798,6 +836,7 @@ dependencies = [
  "rayon",
  "regex",
  "serde",
+ "serde_json",
  "serde_yaml",
  "tempfile",
  "templates",
@@ -4717,9 +4756,11 @@ dependencies = [
  "relative-path",
  "search",
  "serde",
+ "serde_json",
  "tempfile",
  "templates",
  "tera",
+ "toml",
  "url",
  "utils",
  "walkdir",
@@ -6103,43 +6144,6 @@ name = "zmij"
 version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfcd145825aace48cff44a8844de64bf75feec3080e0aa5cdbde72961ae51a65"
-
-[[package]]
-name = "zola"
-version = "0.22.1"
-dependencies = [
- "ahash 0.8.12",
- "anstream",
- "anstyle",
- "axum",
- "clap 4.5.54",
- "clap_complete",
- "clap_mangen",
- "console 0.1.0",
- "ctrlc",
- "env_logger 0.11.8",
- "errors",
- "globset",
- "link_checker",
- "log",
- "mime",
- "mime_guess",
- "notify-debouncer-full",
- "open",
- "percent-encoding",
- "relative-path",
- "reqwest",
- "same-file",
- "search",
- "serde_json",
- "site",
- "tauri-winres",
- "templates",
- "time",
- "tokio",
- "url",
- "utils",
-]
 
 [[package]]
 name = "zune-core"

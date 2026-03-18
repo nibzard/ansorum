@@ -5,10 +5,11 @@ use std::path::{Path, PathBuf};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde_json::Value as JsonValue;
 use tera::{Context as TeraContext, Tera};
 
 use config::Config;
-use errors::{Context, Result};
+use errors::{Context, Result, bail};
 use markdown::{RenderContext, render_content};
 use utils::slugs::slugify_paths;
 use utils::table_of_contents::Heading;
@@ -108,6 +109,8 @@ pub struct Page {
     pub internal_links: Vec<(String, Option<String>)>,
     /// The list of all links to external webpages. They can be validated by the `link_checker`.
     pub external_links: Vec<String>,
+    /// Optional JSON-LD sidecar loaded from `<page>.schema.json`
+    pub structured_data_sidecar: Option<JsonValue>,
 }
 
 impl Page {
@@ -215,6 +218,15 @@ impl Page {
         self.meta.answer.as_ref()
     }
 
+    pub fn structured_data_sidecar_path(&self) -> PathBuf {
+        self.file.path.with_extension("schema.json")
+    }
+
+    pub fn structured_data_sidecar_source_path(&self) -> Option<PathBuf> {
+        self.structured_data_sidecar.as_ref()?;
+        Some(self.structured_data_sidecar_path())
+    }
+
     pub fn answer_title(&self) -> &str {
         self.meta
             .title
@@ -228,6 +240,7 @@ impl Page {
         let path = path.as_ref();
         let content = read_file(path)?;
         let mut page = Page::parse(path, &content, config, base_path)?;
+        page.structured_data_sidecar = page.load_structured_data_sidecar()?;
 
         if page.file.name == "index" {
             let parent_dir = path.parent().unwrap();
@@ -376,6 +389,34 @@ impl Page {
         }
 
         Some(markdown)
+    }
+
+    fn load_structured_data_sidecar(&self) -> Result<Option<JsonValue>> {
+        if self.answer().is_none() {
+            return Ok(None);
+        }
+
+        let sidecar_path = self.structured_data_sidecar_path();
+        if !sidecar_path.exists() {
+            return Ok(None);
+        }
+
+        let contents = read_file(&sidecar_path)?;
+        let sidecar: JsonValue = serde_json::from_str(&contents).map_err(|error| {
+            errors::Error::msg(format!(
+                "Failed to parse structured-data sidecar `{}`: {error}",
+                sidecar_path.display()
+            ))
+        })?;
+
+        if !sidecar.is_object() {
+            bail!(
+                "Structured-data sidecar `{}` must contain a top-level JSON object",
+                sidecar_path.display()
+            );
+        }
+
+        Ok(Some(sidecar))
     }
 }
 

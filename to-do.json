@@ -276,21 +276,22 @@
         "components/site/src/lib.rs",
         "components/site/src/llms.rs",
         "components/site/tests/site.rs",
+        "test_site_answers/collections/packs/billing.toml",
         "test_site_answers/config.toml",
-        "test_site_answers/collections/packs/billing.toml"
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-005",
         "ANS-007"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T20:05:00Z"
+      "updated_at": "2026-03-18T19:35:57Z"
     },
     {
       "id": "ANS-009",
       "title": "Load structured-data sidecar files and embed JSON-LD in page outputs",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Support answer-specific structured data via sidecar files such as content/foo/bar.schema.json. The build should validate and merge sidecar data with answer metadata and emit JSON-LD in HTML plus any needed machine-facing sidecar output. Built-in presets should cover common schema types immediately, but arbitrary sidecar JSON-LD must remain possible without further core changes.",
       "steps": [
         "Define sidecar discovery rules and file naming conventions.",
@@ -304,17 +305,25 @@
         "outputs"
       ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
-        "components/site/src/lib.rs",
-        "components/site/src/answers.rs",
+        "components/content/Cargo.toml",
         "components/content/src/page.rs",
-        "templates"
+        "components/site/src/answers.rs",
+        "components/site/src/lib.rs",
+        "components/site/tests/site.rs",
+        "components/site/tests/invalid.rs",
+        "test_site_answers/content/refunds.md",
+        "test_site_answers/content/cancel.md",
+        "test_site_answers/content/refunds.schema.json",
+        "test_sites_invalid/answers_invalid_schema_sidecar/config.toml",
+        "test_sites_invalid/answers_invalid_schema_sidecar/content/refunds.md",
+        "test_sites_invalid/answers_invalid_schema_sidecar/content/refunds.schema.json",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-005"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:41:42Z"
     },
     {
       "id": "ANS-010",

@@ -7,6 +7,7 @@ entity = "billing"
 audience = "customer"
 related = ["refunds-policy"]
 external_refs = []
+schema_type = "HowTo"
 visibility = "public"
 ai_visibility = "summary_only"
 llms_priority = "optional"

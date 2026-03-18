@@ -7,6 +7,7 @@ use content::{
 };
 use errors::{Result, anyhow};
 use serde::Serialize;
+use serde_json::{Map as JsonMap, Value as JsonValue, json};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AnswerRecord {
@@ -315,9 +316,192 @@ impl<'a> From<&'a AnswerRecord> for SerializedAnswerRecord<'a> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StructuredDataOutput {
+    pub json: String,
+}
+
+pub fn structured_data_for_page(page: &Page) -> Result<Option<StructuredDataOutput>> {
+    if page.answer().is_none() {
+        return Ok(None);
+    }
+
+    let mut document = match (structured_data_preset(page), page.structured_data_sidecar.as_ref()) {
+        (Some(mut preset), Some(sidecar)) => {
+            merge_json(&mut preset, sidecar.clone());
+            preset
+        }
+        (Some(preset), None) => preset,
+        (None, Some(sidecar)) => sidecar.clone(),
+        (None, None) => return Ok(None),
+    };
+
+    let object = document.as_object_mut().expect("structured data sidecars are validated as objects");
+    object
+        .entry("@context".to_string())
+        .or_insert_with(|| JsonValue::String("https://schema.org".to_string()));
+
+    if !object.contains_key("@type") && !object.contains_key("@graph") {
+        return Err(anyhow!(
+            "{}: structured data must contain `@type` or `@graph`",
+            page.file.path.display()
+        ));
+    }
+
+    let json = serde_json::to_string_pretty(&document).map_err(|error| {
+        anyhow!(
+            "{}: failed to serialize structured data: {error}",
+            page.file.path.display()
+        )
+    })?;
+
+    Ok(Some(StructuredDataOutput { json }))
+}
+
 fn markdown_url_from_page(page: &Page) -> String {
     let trimmed = page.permalink.trim_end_matches('/');
     format!("{trimmed}/page.md")
+}
+
+fn structured_data_preset(page: &Page) -> Option<JsonValue> {
+    let answer = page.answer()?;
+    let schema_type = answer.schema_type.as_deref()?;
+
+    let title = page.answer_title();
+    let mut object = JsonMap::new();
+    object.insert("@context".to_string(), JsonValue::String("https://schema.org".to_string()));
+    object.insert("@type".to_string(), JsonValue::String(schema_type.to_string()));
+    object.insert("url".to_string(), JsonValue::String(page.permalink.clone()));
+    object.insert("description".to_string(), JsonValue::String(answer.summary.clone()));
+    object.insert("identifier".to_string(), JsonValue::String(answer.id.clone()));
+    object.insert(
+        "inLanguage".to_string(),
+        JsonValue::String(page.lang.clone()),
+    );
+    object.insert(
+        "audience".to_string(),
+        json!({
+            "@type": "Audience",
+            "audienceType": audience_key(&answer.audience),
+        }),
+    );
+    object.insert(
+        "about".to_string(),
+        json!({
+            "@type": "Thing",
+            "name": answer.entity,
+        }),
+    );
+
+    if !title.is_empty() {
+        object.insert("name".to_string(), JsonValue::String(title.to_string()));
+    }
+    if let Some(description) = page.meta.description.as_ref().filter(|value| !value.trim().is_empty()) {
+        object.insert("description".to_string(), JsonValue::String(description.clone()));
+    }
+    if let Some(updated) = page.meta.updated.as_ref().or(page.meta.date.as_ref()) {
+        object.insert("dateModified".to_string(), JsonValue::String(updated.clone()));
+    }
+    if !answer.external_refs.is_empty() {
+        object.insert(
+            "sameAs".to_string(),
+            JsonValue::Array(
+                answer
+                    .external_refs
+                    .iter()
+                    .cloned()
+                    .map(JsonValue::String)
+                    .collect(),
+            ),
+        );
+    }
+    if !answer.aliases.is_empty() {
+        object.insert(
+            "alternateName".to_string(),
+            JsonValue::Array(
+                answer.aliases.iter().cloned().map(JsonValue::String).collect(),
+            ),
+        );
+    }
+
+    match schema_type {
+        "WebPage" | "Article" | "TechArticle" => {
+            if !title.is_empty() {
+                object.insert("headline".to_string(), JsonValue::String(title.to_string()));
+            }
+            object.insert("mainEntityOfPage".to_string(), JsonValue::String(page.permalink.clone()));
+        }
+        "FAQPage" => {
+            object.insert(
+                "mainEntity".to_string(),
+                JsonValue::Array(
+                    answer
+                        .canonical_questions
+                        .iter()
+                        .map(|question| {
+                            json!({
+                                "@type": "Question",
+                                "name": question,
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": answer.summary,
+                                }
+                            })
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        "DefinedTerm" => {
+            if !title.is_empty() {
+                object.insert("termCode".to_string(), JsonValue::String(answer.id.clone()));
+                object.insert("name".to_string(), JsonValue::String(title.to_string()));
+            }
+            object.insert(
+                "description".to_string(),
+                JsonValue::String(answer.summary.clone()),
+            );
+        }
+        "BreadcrumbList" => {
+            let items = page
+                .components
+                .iter()
+                .enumerate()
+                .map(|(index, component)| {
+                    let item_path = format!(
+                        "{}/",
+                        page.components[..=index].join("/")
+                    );
+                    json!({
+                        "@type": "ListItem",
+                        "position": index + 1,
+                        "name": component,
+                        "item": format!("{}{}", page.permalink.trim_end_matches(&page.path), item_path),
+                    })
+                })
+                .collect::<Vec<_>>();
+            object.insert("itemListElement".to_string(), JsonValue::Array(items));
+        }
+        _ => {}
+    }
+
+    Some(JsonValue::Object(object))
+}
+
+fn merge_json(base: &mut JsonValue, overlay: JsonValue) {
+    match (base, overlay) {
+        (JsonValue::Object(base), JsonValue::Object(overlay)) => {
+            for (key, value) in overlay {
+                match base.get_mut(&key) {
+                    Some(existing) => merge_json(existing, value),
+                    None => {
+                        base.insert(key, value);
+                    }
+                }
+            }
+        }
+        (base, overlay) => *base = overlay,
+    }
 }
 
 fn normalize_key(value: &str) -> String {

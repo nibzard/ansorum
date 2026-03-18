@@ -19,7 +19,7 @@ use rayon::prelude::*;
 use tera::{Context, Tera};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::answers::AnswerCorpus;
+use crate::answers::{AnswerCorpus, structured_data_for_page};
 use config::{Config, IndexFormat, get_config};
 use content::{Library, Page, Paginator, Section, Taxonomy};
 use errors::{Result, anyhow, bail};
@@ -613,6 +613,19 @@ impl Site {
         html
     }
 
+    fn inject_structured_data(&self, mut html: String, json: &str) -> String {
+        let script = format!(r#"<script type="application/ld+json">{json}</script>"#);
+        if let Some(index) = html.rfind("</head>") {
+            html.insert_str(index, &script);
+        } else if let Some(index) = html.rfind("</body>") {
+            html.insert_str(index, &script);
+        } else {
+            html.push_str(&script);
+        }
+
+        html
+    }
+
     /// Copy the main `static` folder and the theme `static` folder if a theme is used
     pub fn copy_static_directories(&self) -> Result<()> {
         // The user files will overwrite the theme files
@@ -730,15 +743,29 @@ impl Site {
         }
 
         let output = page.render_html(&self.tera, &self.config, &self.library.read().unwrap())?;
-        let content = self.inject_livereload(output);
+        let structured_data = structured_data_for_page(page)?;
+        let content = match structured_data.as_ref() {
+            Some(structured_data) => self.inject_structured_data(output, &structured_data.json),
+            None => output,
+        };
+        let content = self.inject_livereload(content);
         let components: Vec<&str> = page.path.split('/').collect();
         let current_path = self.write_content(&components, "index.html", content)?;
         if let Some(machine_markdown) = page.canonical_machine_markdown() {
             self.write_content(&components, "page.md", machine_markdown)?;
         }
+        if let Some(structured_data) = structured_data {
+            self.write_content(&components, "schema.json", structured_data.json)?;
+        }
 
         // Copy any asset we found previously into the same directory as the index.html
-        self.copy_assets(page.file.path.parent().unwrap(), &page.assets, &current_path)?;
+        let structured_data_sidecar = page.structured_data_sidecar_source_path();
+        let assets = page
+            .assets
+            .iter()
+            .filter(|asset| structured_data_sidecar.as_ref().is_none_or(|sidecar| *asset != sidecar))
+            .collect::<Vec<_>>();
+        self.copy_assets(page.file.path.parent().unwrap(), &assets, &current_path)?;
 
         Ok(())
     }

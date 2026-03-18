@@ -45,3 +45,16 @@ fn errors_on_unknown_related_answer_ids() {
     let err = res.unwrap_err();
     assert!(err.to_string().contains("`related` references unknown answer id `missing-answer`"));
 }
+
+#[test]
+fn errors_on_invalid_structured_data_sidecar() {
+    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    path.push("test_sites_invalid");
+    path.push("answers_invalid_schema_sidecar");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+    let res = site.load();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert!(err.to_string().contains("Failed to parse structured-data sidecar"));
+}

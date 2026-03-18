@@ -9,6 +9,7 @@ entity = "billing"
 audience = "customer"
 related = ["cancel-subscription"]
 external_refs = ["https://example.com/refunds"]
+schema_type = "FAQPage"
 review_by = 2026-06-01
 visibility = "public"
 ai_visibility = "public"

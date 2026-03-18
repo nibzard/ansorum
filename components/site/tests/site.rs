@@ -161,6 +161,22 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
 }
 
 #[test]
+fn embeds_json_ld_and_writes_schema_sidecars() {
+    let (_, _tmp_dir, public) = build_site("test_site_answers");
+
+    assert!(file_exists!(public, "refunds/schema.json"));
+    assert!(file_contains!(public, "refunds/schema.json", "\"@type\": \"FAQPage\""));
+    assert!(file_contains!(public, "refunds/schema.json", "\"name\": \"Refund policy\""));
+    assert!(file_contains!(public, "refunds/schema.json", "\"publisher\""));
+    assert!(file_contains!(public, "refunds/index.html", "<script type=\"application/ld+json\">"));
+    assert!(file_contains!(public, "refunds/index.html", "\"@type\": \"FAQPage\""));
+
+    assert!(file_exists!(public, "cancel/schema.json"));
+    assert!(file_contains!(public, "cancel/schema.json", "\"@type\": \"HowTo\""));
+    assert!(file_contains!(public, "cancel/schema.json", "\"name\": \"how do i cancel my subscription\""));
+}
+
+#[test]
 fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
     let (_, _tmp_dir, public) = build_site("test_site_answers");
 
