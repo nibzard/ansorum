@@ -15,8 +15,8 @@ pub struct Ansorum {
 }
 
 impl Ansorum {
-    pub fn validate(&self) -> Result<()> {
-        self.redirects.validate()?;
+    pub fn validate(&self, base_url: &Url) -> Result<()> {
+        self.redirects.validate(base_url)?;
         self.packs.validate()?;
         self.eval.validate()?;
         self.delivery.validate()?;
@@ -40,10 +40,18 @@ impl Default for Ansorum {
 #[serde(default, deny_unknown_fields)]
 pub struct Redirects {
     pub external_host_allowlist: Vec<String>,
+    pub routes: Vec<RedirectRoute>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RedirectRoute {
+    pub code: String,
+    pub target: String,
 }
 
 impl Redirects {
-    fn validate(&self) -> Result<()> {
+    fn validate(&self, base_url: &Url) -> Result<()> {
         let mut seen = HashSet::new();
         for host in &self.external_host_allowlist {
             let host = host.trim();
@@ -72,14 +80,105 @@ impl Redirects {
             }
         }
 
+        let mut seen_codes = HashSet::new();
+        for route in &self.routes {
+            route.validate(base_url, &seen, &mut seen_codes)?;
+        }
+
         Ok(())
     }
 }
 
 impl Default for Redirects {
     fn default() -> Self {
-        Self { external_host_allowlist: Vec::new() }
+        Self { external_host_allowlist: Vec::new(), routes: Vec::new() }
     }
+}
+
+impl RedirectRoute {
+    fn validate(
+        &self,
+        base_url: &Url,
+        external_host_allowlist: &HashSet<String>,
+        seen_codes: &mut HashSet<String>,
+    ) -> Result<()> {
+        let code = self.code.trim();
+        if code.is_empty() {
+            bail!("ansorum.redirects.routes.code cannot be empty");
+        }
+
+        if !code
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
+            bail!(
+                "Invalid ansorum.redirects.routes.code `{}`: use lowercase ASCII letters, digits, `-`, or `_`",
+                self.code
+            );
+        }
+
+        if !seen_codes.insert(code.to_string()) {
+            bail!("Duplicate ansorum.redirects.routes.code `{code}` is not allowed");
+        }
+
+        validate_redirect_target(self.target.trim(), base_url, external_host_allowlist)?;
+
+        Ok(())
+    }
+}
+
+fn validate_redirect_target(
+    target: &str,
+    base_url: &Url,
+    external_host_allowlist: &HashSet<String>,
+) -> Result<()> {
+    if target.is_empty() {
+        bail!("ansorum.redirects.routes.target cannot be empty");
+    }
+
+    if target.starts_with("//") {
+        bail!(
+            "Invalid ansorum.redirects.routes.target `{target}`: protocol-relative URLs are not allowed"
+        );
+    }
+
+    if target.starts_with('/') {
+        return Ok(());
+    }
+
+    let url = Url::parse(target).map_err(|_| {
+        anyhow!(
+            "Invalid ansorum.redirects.routes.target `{target}`: expected an absolute http(s) URL or a site-relative path starting with `/`"
+        )
+    })?;
+
+    if url.scheme() != "http" && url.scheme() != "https" {
+        bail!(
+            "Invalid ansorum.redirects.routes.target `{target}`: only http and https URLs are supported"
+        );
+    }
+
+    if same_origin(base_url, &url) {
+        return Ok(());
+    }
+
+    let host = url.host_str().ok_or_else(|| {
+        anyhow!("Invalid ansorum.redirects.routes.target `{target}`: expected a host name")
+    })?;
+    let normalized_host = host.to_ascii_lowercase();
+    if !external_host_allowlist.contains(&normalized_host) {
+        bail!(
+            "Invalid ansorum.redirects.routes.target `{target}`: external host `{host}` is not present in ansorum.redirects.external_host_allowlist"
+        );
+    }
+
+    Ok(())
+}
+
+fn same_origin(left: &Url, right: &Url) -> bool {
+    left.scheme() == right.scheme()
+        && left.host_str() == right.host_str()
+        && left.port_or_known_default() == right.port_or_known_default()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

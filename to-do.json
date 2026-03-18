@@ -305,14 +305,15 @@
         "outputs"
       ],
       "files": [
+        "Cargo.lock",
         "components/content/Cargo.toml",
         "components/content/src/page.rs",
         "components/site/src/answers.rs",
         "components/site/src/lib.rs",
-        "components/site/tests/site.rs",
         "components/site/tests/invalid.rs",
-        "test_site_answers/content/refunds.md",
+        "components/site/tests/site.rs",
         "test_site_answers/content/cancel.md",
+        "test_site_answers/content/refunds.md",
         "test_site_answers/content/refunds.schema.json",
         "test_sites_invalid/answers_invalid_schema_sidecar/config.toml",
         "test_sites_invalid/answers_invalid_schema_sidecar/content/refunds.md",
@@ -323,7 +324,7 @@
         "ANS-005"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:41:42Z"
+      "updated_at": "2026-03-18T19:42:22Z"
     },
     {
       "id": "ANS-010",
@@ -352,13 +353,13 @@
         "ANS-006"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:45:57Z"
+      "updated_at": "2026-03-18T19:47:45Z"
     },
     {
       "id": "ANS-011",
       "title": "Implement /r/:code redirect handling with external allowlist enforcement",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Add Ansorum's path-based redirect capability for attribution and controlled forwarding. Redirect destinations may be external, but only when the configured allowlist permits them. Misconfigured or disallowed targets should fail validation. This route is both attribution plumbing and a safety boundary, so external redirects must never bypass config validation or logging.",
       "steps": [
         "Define redirect source-of-truth format and config integration.",
@@ -375,6 +376,8 @@
         "ANSWER_COMPILER_SPEC.md",
         "src/cmd/serve.rs",
         "components/config/src/config/mod.rs",
+        "components/config/src/config/ansorum.rs",
+        "components/config/src/lib.rs",
         "components/site/src/lib.rs"
       ],
       "depends_on": [
@@ -382,7 +385,7 @@
         "ANS-010"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:51:43Z"
     },
     {
       "id": "ANS-012",

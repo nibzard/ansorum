@@ -4,7 +4,10 @@ mod theme;
 use std::path::Path;
 
 pub use crate::config::{
-    ansorum::{AiVisibilityDefault, Ansorum, CuratedPack, Delivery, Eval, EvalBackend, Packs, Redirects},
+    ansorum::{
+        AiVisibilityDefault, Ansorum, CuratedPack, Delivery, Eval, EvalBackend, Packs,
+        RedirectRoute, Redirects,
+    },
     Config,
     languages::LanguageOptions,
     link_checker::LinkChecker,

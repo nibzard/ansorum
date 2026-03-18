@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use globset::GlobSet;
 use serde::{Deserialize, Serialize};
 use toml::Value as Toml;
+use url::Url;
 
 use crate::theme::Theme;
 use errors::{Result, anyhow, bail};
@@ -163,7 +164,8 @@ impl Config {
         config.add_default_language()?;
         config.slugify_taxonomies();
         config.link_checker.resolve_globset()?;
-        config.ansorum.validate()?;
+        let redirect_base_url = base_url_for_redirect_validation(&config.base_url)?;
+        config.ansorum.validate(&redirect_base_url)?;
 
         let content_glob_set = build_ignore_glob_set(&config.ignored_content, "content")?;
         config.ignored_content_globset = Some(content_glob_set);
@@ -372,6 +374,23 @@ impl Config {
             exclude_paginated_pages_in_sitemap: self.exclude_paginated_pages_in_sitemap,
         }
     }
+}
+
+fn base_url_for_redirect_validation(base_url: &str) -> Result<Url> {
+    let candidate = if base_url.contains("://") {
+        base_url.to_string()
+    } else {
+        format!("http://{base_url}")
+    };
+
+    let url = Url::parse(&candidate)
+        .map_err(|_| anyhow!("Invalid base_url `{base_url}`: expected a valid absolute URL"))?;
+
+    if url.host_str().is_none() {
+        bail!("Invalid base_url `{base_url}`: expected a host name");
+    }
+
+    Ok(url)
 }
 
 // merge TOML data that can be a table, or anything else
@@ -1105,6 +1124,14 @@ base_url = "https://example.com"
 [ansorum.redirects]
 external_host_allowlist = ["docs.example.com", "support.example.com"]
 
+[[ansorum.redirects.routes]]
+code = "sales-demo"
+target = "https://docs.example.com/demo"
+
+[[ansorum.redirects.routes]]
+code = "refunds"
+target = "/billing/refunds"
+
 [ansorum.packs]
 auto_entity_packs = true
 auto_audience_packs = false
@@ -1129,6 +1156,9 @@ default_ai_visibility = "summary_only"
             config.ansorum.redirects.external_host_allowlist,
             vec!["docs.example.com", "support.example.com"]
         );
+        assert_eq!(config.ansorum.redirects.routes.len(), 2);
+        assert_eq!(config.ansorum.redirects.routes[0].code, "sales-demo");
+        assert_eq!(config.ansorum.redirects.routes[0].target, "https://docs.example.com/demo");
         assert!(config.ansorum.packs.auto_entity_packs);
         assert!(!config.ansorum.packs.auto_audience_packs);
         assert_eq!(config.ansorum.packs.curated.len(), 1);
@@ -1153,6 +1183,45 @@ external_host_allowlist = ["https://evil.example.com/path"]
         assert_eq!(
             error.to_string(),
             "Invalid ansorum.redirects.external_host_allowlist entry `https://evil.example.com/path`: expected a bare host name"
+        );
+    }
+
+    #[test]
+    fn rejects_disallowed_external_redirect_targets() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.redirects]
+external_host_allowlist = ["docs.example.com"]
+
+[[ansorum.redirects.routes]]
+code = "sales-demo"
+target = "https://evil.example.com/demo"
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid ansorum.redirects.routes.target `https://evil.example.com/demo`: external host `evil.example.com` is not present in ansorum.redirects.external_host_allowlist"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_redirect_route_codes() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.redirects]
+
+[[ansorum.redirects.routes]]
+code = "Sales Demo"
+target = "/sales/demo"
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid ansorum.redirects.routes.code `Sales Demo`: use lowercase ASCII letters, digits, `-`, or `_`"
         );
     }
 

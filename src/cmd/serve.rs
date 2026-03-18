@@ -22,6 +22,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::net::{IpAddr, SocketAddr, TcpListener};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
@@ -78,7 +79,14 @@ static SERVE_ERROR: Mutex<Cell<Option<(&'static str, Error)>>> = Mutex::new(Cell
 struct AppState {
     static_root: PathBuf,
     base_path: String,
+    redirects: HashMap<String, RedirectTarget>,
     reload_tx: broadcast::Sender<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RedirectTarget {
+    target: String,
+    external: bool,
 }
 
 fn clear_serve_error() {
@@ -146,6 +154,13 @@ async fn handle_request(
     // Handle only simple path requests
     if req.uri().scheme_str().is_some() || req.uri().host().is_some() {
         return not_found();
+    }
+
+    if let Some(code) = redirect_code(&decoded_path)
+        && let Some(redirect) = state.redirects.get(code)
+    {
+        log_redirect_hit(req.method(), path_str, code, redirect);
+        return redirect_response(redirect);
     }
 
     let markdown_variant = markdown_variant_path(&path);
@@ -382,6 +397,37 @@ fn accepts_markdown(headers: &HeaderMap) -> bool {
                 .filter_map(|part| part.split(';').next())
                 .any(|mime| mime.trim().eq_ignore_ascii_case("text/markdown"))
         })
+}
+
+fn redirect_code(path: &str) -> Option<&str> {
+    let trimmed = path.trim_matches('/');
+    let mut parts = trimmed.split('/');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some("r"), Some(code), None) if !code.is_empty() => Some(code),
+        _ => None,
+    }
+}
+
+fn redirect_response(redirect: &RedirectTarget) -> Response {
+    Response::builder()
+        .status(StatusCode::TEMPORARY_REDIRECT)
+        .header(header::LOCATION, &redirect.target)
+        .body(Body::empty())
+        .expect("Could not build redirect response")
+}
+
+fn log_redirect_hit(method: &Method, path: &str, code: &str, redirect: &RedirectTarget) {
+    log::info!(
+        "{}",
+        json!({
+            "event": "ansorum.redirect.hit",
+            "method": method.as_str(),
+            "path": path,
+            "code": code,
+            "target": redirect.target,
+            "external": redirect.external,
+        })
+    );
 }
 
 fn content_type_from_extension(extension: Option<&str>) -> &'static str {
@@ -661,6 +707,20 @@ pub fn serve(
     // Create broadcast channel for WebSocket live reload
     let (reload_tx, _) = broadcast::channel::<String>(100);
     let broadcaster = reload_tx.clone();
+    let redirects = site
+        .config
+        .ansorum
+        .redirects
+        .routes
+        .iter()
+        .map(|route| {
+            let external = !route.target.starts_with('/');
+            (
+                route.code.clone(),
+                RedirectTarget { target: route.target.clone(), external },
+            )
+        })
+        .collect::<HashMap<_, _>>();
 
     // Start Axum server in a separate thread
     thread::spawn(move || {
@@ -670,7 +730,7 @@ pub fn serve(
             .expect("Could not build tokio runtime");
 
         rt.block_on(async {
-            let state = Arc::new(AppState { static_root, base_path, reload_tx });
+            let state = Arc::new(AppState { static_root, base_path, redirects, reload_tx });
 
             let app = Router::new()
                 .route("/livereload.js", get(serve_livereload_js))
@@ -962,7 +1022,7 @@ pub fn serve(
 
 #[cfg(test)]
 mod tests {
-    use super::{AppState, construct_url, create_new_site, handle_request};
+    use super::{AppState, RedirectTarget, construct_url, create_new_site, handle_request};
     use axum::{
         body::{Body, to_bytes},
         extract::Request,
@@ -970,6 +1030,7 @@ mod tests {
     };
     use relative_path::RelativePathBuf;
     use site::SITE_CONTENT;
+    use std::collections::HashMap;
     use std::fs;
     use crate::get_config_file_path;
     use std::net::{IpAddr, SocketAddr};
@@ -1140,8 +1201,15 @@ mod tests {
     }
 
     fn test_app_state(static_root: PathBuf) -> Arc<AppState> {
+        test_app_state_with_redirects(static_root, HashMap::new())
+    }
+
+    fn test_app_state_with_redirects(
+        static_root: PathBuf,
+        redirects: HashMap<String, RedirectTarget>,
+    ) -> Arc<AppState> {
         let (reload_tx, _) = broadcast::channel(1);
-        Arc::new(AppState { static_root, base_path: "/".to_string(), reload_tx })
+        Arc::new(AppState { static_root, base_path: "/".to_string(), redirects, reload_tx })
     }
 
     fn run_request(req: Request, state: Arc<AppState>) -> (StatusCode, axum::http::HeaderMap, String) {
@@ -1227,5 +1295,38 @@ mod tests {
         assert_eq!(body, "# Refunds");
 
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn serves_internal_redirect_route_from_configured_code() {
+        let redirects = HashMap::from([(
+            "sales-demo".to_string(),
+            RedirectTarget { target: "/demo".to_string(), external: false },
+        )]);
+
+        let state = test_app_state_with_redirects(std::env::temp_dir(), redirects);
+        let (status, headers, body) = run_request(request("/r/sales-demo", None), state);
+
+        assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(headers[header::LOCATION], "/demo");
+        assert!(body.is_empty());
+    }
+
+    #[test]
+    fn serves_external_redirect_route_from_configured_code() {
+        let redirects = HashMap::from([(
+            "partner".to_string(),
+            RedirectTarget {
+                target: "https://docs.example.com/guide".to_string(),
+                external: true,
+            },
+        )]);
+
+        let state = test_app_state_with_redirects(std::env::temp_dir(), redirects);
+        let (status, headers, body) = run_request(request("/r/partner/", None), state);
+
+        assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(headers[header::LOCATION], "https://docs.example.com/guide");
+        assert!(body.is_empty());
     }
 }
