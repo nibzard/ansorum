@@ -81,6 +81,8 @@ static SERVE_ERROR: Mutex<Cell<Option<(&'static str, Error)>>> = Mutex::new(Cell
 struct AppState {
     static_root: PathBuf,
     base_path: String,
+    markdown_routes: bool,
+    markdown_negotiation: bool,
     redirects: HashMap<String, RedirectTarget>,
     reload_tx: broadcast::Sender<String>,
 }
@@ -207,9 +209,13 @@ async fn handle_request(
         return redirect_response(redirect);
     }
 
-    let markdown_variant = markdown_variant_path(&path);
-    let vary_accept = markdown_variant.is_some();
-    let accept_markdown = accepts_markdown(req.headers());
+    if !state.markdown_routes && is_markdown_route(&path) {
+        return not_found();
+    }
+
+    let markdown_variant = state.markdown_routes.then(|| markdown_variant_path(&path)).flatten();
+    let vary_accept = state.markdown_negotiation && markdown_variant.is_some();
+    let accept_markdown = state.markdown_negotiation && accepts_markdown(req.headers());
 
     if accept_markdown
         && let Some(markdown_path) = markdown_variant.as_ref()
@@ -457,6 +463,11 @@ fn markdown_variant_path(path: &RelativePathBuf) -> Option<RelativePathBuf> {
     let mut markdown_path = path.clone();
     markdown_path.push("page.md");
     Some(markdown_path)
+}
+
+fn is_markdown_route(path: &RelativePathBuf) -> bool {
+    let normalized = path.as_str().trim_matches('/');
+    normalized == "page.md" || normalized.ends_with("/page.md")
 }
 
 fn accepts_markdown(headers: &HeaderMap) -> bool {
@@ -825,7 +836,14 @@ pub fn serve(
             .expect("Could not build tokio runtime");
 
         rt.block_on(async {
-            let state = Arc::new(AppState { static_root, base_path, redirects, reload_tx });
+            let state = Arc::new(AppState {
+                static_root,
+                base_path,
+                markdown_routes: site.config.ansorum.delivery.markdown_routes,
+                markdown_negotiation: site.config.ansorum.delivery.markdown_negotiation,
+                redirects,
+                reload_tx,
+            });
 
             let app = Router::new()
                 .route("/livereload.js", get(serve_livereload_js))
@@ -1341,8 +1359,25 @@ mod tests {
         base_path: String,
         redirects: HashMap<String, RedirectTarget>,
     ) -> Arc<AppState> {
+        test_app_state_with_delivery(static_root, base_path, true, true, redirects)
+    }
+
+    fn test_app_state_with_delivery(
+        static_root: PathBuf,
+        base_path: String,
+        markdown_routes: bool,
+        markdown_negotiation: bool,
+        redirects: HashMap<String, RedirectTarget>,
+    ) -> Arc<AppState> {
         let (reload_tx, _) = broadcast::channel(1);
-        Arc::new(AppState { static_root, base_path, redirects, reload_tx })
+        Arc::new(AppState {
+            static_root,
+            base_path,
+            markdown_routes,
+            markdown_negotiation,
+            redirects,
+            reload_tx,
+        })
     }
 
     fn run_request(req: Request, state: Arc<AppState>) -> (StatusCode, axum::http::HeaderMap, String) {
@@ -1436,6 +1471,58 @@ mod tests {
         assert_eq!(body, "# Refunds");
 
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn does_not_negotiate_markdown_when_markdown_negotiation_is_disabled() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state_with_delivery(
+            std::env::temp_dir(),
+            "/".to_string(),
+            true,
+            false,
+            HashMap::new(),
+        );
+        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert!(headers.get(header::VARY).is_none());
+        assert_eq!(body, "<html>Refunds</html>");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn does_not_serve_markdown_routes_when_markdown_routes_are_disabled() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state_with_delivery(
+            std::env::temp_dir(),
+            "/".to_string(),
+            false,
+            false,
+            HashMap::new(),
+        );
+
+        let (html_status, html_headers, html_body) =
+            run_request(request("/refunds/", Some("text/markdown")), state.clone());
+        assert_eq!(html_status, StatusCode::OK);
+        assert_eq!(html_headers[header::CONTENT_TYPE], "text/html");
+        assert!(html_headers.get(header::VARY).is_none());
+        assert_eq!(html_body, "<html>Refunds</html>");
+
+        let (markdown_status, _, _) = run_request(request("/refunds/page.md", None), state);
+        assert_eq!(markdown_status, StatusCode::NOT_FOUND);
+
+        SITE_CONTENT.write().unwrap().clear();
     }
 
     #[test]

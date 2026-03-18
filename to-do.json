@@ -896,14 +896,14 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:42:00Z",
-      "updated_at": "2026-03-18T22:03:45Z",
+      "updated_at": "2026-03-18T22:04:22Z",
       "blockers": []
     },
     {
       "id": "ANS-026",
       "title": "Honor delivery configuration for markdown routes and Accept negotiation",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "The Ansorum delivery config exposes `markdown_routes` and `markdown_negotiation`, but build and serve ignore those switches and always emit `/page.md` plus negotiation behavior. That makes the config misleading and weakens operator control over machine endpoints. References: components/config/src/config/ansorum.rs:339-353, components/site/src/lib.rs:754-790, src/cmd/serve.rs:167-176 and 206-217.",
       "steps": [
         "Define the expected contract for `markdown_routes` and `markdown_negotiation` at build time and serve time.",
@@ -918,15 +918,15 @@
         "delivery"
       ],
       "files": [
-        "components/config/src/config/ansorum.rs",
         "components/site/src/lib.rs",
-        "docs/content/documentation/getting-started/overview.md",
-        "README.md",
         "src/cmd/serve.rs",
+        "components/site/tests/site.rs",
+        "README.md",
+        "docs/content/documentation/getting-started/overview.md",
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:43:00Z",
-      "updated_at": "2026-03-18T21:43:00Z"
+      "updated_at": "2026-03-18T22:07:02Z"
     },
     {
       "id": "ANS-027",

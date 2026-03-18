@@ -18,7 +18,7 @@ with typed metadata describing:
 Ansorum compiles that answer corpus into:
 
 - HTML for humans
-- canonical Markdown at `/page.md`
+- canonical Markdown at `/page.md` when `ansorum.delivery.markdown_routes` is enabled
 - root and scoped machine indexes such as `answers.json`
 - `llms.txt` and `llms-full.txt`
 - structured data outputs from `<answer-stem>.schema.json`
@@ -114,11 +114,15 @@ Build all compiled outputs:
 ansorum build
 ```
 
-Serve the answer corpus locally with HTML, Markdown negotiation, and redirects:
+Serve the answer corpus locally with HTML, optional Markdown negotiation, and redirects:
 
 ```bash
 ansorum serve
 ```
+
+Set `ansorum.delivery.markdown_routes = false` to suppress `/page.md` outputs
+and direct Markdown delivery. Set `ansorum.delivery.markdown_negotiation = false`
+to keep `/page.md` routes while always serving HTML from canonical page URLs.
 
 Audit metadata quality, freshness, and visibility issues before publish:
 

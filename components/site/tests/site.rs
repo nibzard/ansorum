@@ -195,6 +195,30 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
 }
 
 #[test]
+fn keeps_machine_markdown_when_only_markdown_negotiation_is_disabled() {
+    let (_, _tmp_dir, public) = build_site_with_setup("test_site_answers", |mut site| {
+        site.config.ansorum.delivery.markdown_negotiation = false;
+        (site, true)
+    });
+
+    assert!(file_exists!(public, "refunds/page.md"));
+    assert!(file_exists!(public, "cancel/page.md"));
+}
+
+#[test]
+fn skips_machine_markdown_outputs_when_markdown_routes_are_disabled() {
+    let (_, _tmp_dir, public) = build_site_with_setup("test_site_answers", |mut site| {
+        site.config.ansorum.delivery.markdown_routes = false;
+        site.config.ansorum.delivery.markdown_negotiation = false;
+        (site, true)
+    });
+
+    assert!(!file_exists!(public, "refunds/page.md"));
+    assert!(!file_exists!(public, "cancel/page.md"));
+    assert!(!file_exists!(public, "internal-playbook/page.md"));
+}
+
+#[test]
 fn matches_answer_first_golden_outputs() {
     let (_, _tmp_dir, public) = build_site("test_site_answers");
 

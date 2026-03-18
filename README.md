@@ -102,7 +102,9 @@ Ansorum then compiles that answer into canonical HTML, canonical machine
 Markdown at `/page.md`, answer indexes, `llms.txt` outputs, and structured data
 sidecars when present. Sidecars follow a single v0 convention: a sibling file
 named from the Markdown stem, such as `content/refunds.md` alongside
-`content/refunds.schema.json`.
+`content/refunds.schema.json`. You can disable direct Markdown route emission
+with `ansorum.delivery.markdown_routes = false`, and disable only `Accept:
+text/markdown` negotiation with `ansorum.delivery.markdown_negotiation = false`.
 
 ## Current Direction
 

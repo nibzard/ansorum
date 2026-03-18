@@ -751,7 +751,9 @@ impl Site {
         let content = self.inject_livereload(content);
         let components: Vec<&str> = page.path.split('/').collect();
         let current_path = self.write_content(&components, "index.html", content)?;
-        if let Some(machine_markdown) = page.canonical_machine_markdown() {
+        if self.config.ansorum.delivery.markdown_routes
+            && let Some(machine_markdown) = page.canonical_machine_markdown()
+        {
             self.write_content(&components, "page.md", machine_markdown)?;
         }
         if let Some(structured_data) = structured_data {
