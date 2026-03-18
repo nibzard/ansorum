@@ -38,7 +38,7 @@ The repository's canonical answer-first example project lives in
 
 ## First Run
 
-`ansorum init` creates the base project skeleton and `config.toml`:
+`ansorum init` creates an answer-first starter project:
 
 ```bash
 ansorum init my-answers
@@ -49,25 +49,31 @@ You will be asked for:
 
 ```text
 > What is the URL of your site? (https://example.com):
-> Do you want to enable Sass compilation? [Y/n]:
-> Do you want to build a search index of the content? [y/N]:
 ```
 
-The generated scaffold is currently minimal:
+The generated scaffold includes starter answers, a sidecar, a curated pack, and
+deterministic eval fixtures:
 
 ```text
 my-answers/
+├── README.md
+├── collections/
+│   └── packs/
+│       └── billing.toml
 ├── config.toml
 ├── content/
-├── static/
-├── templates/
-├── themes/
-└── sass/        # only when enabled during init
+│   ├── cancel.md
+│   ├── internal-playbook.md
+│   ├── refunds.md
+│   └── refunds.schema.json
+├── eval/
+│   └── fixtures.yaml
+└── static/
 ```
 
-That scaffold is enough to start, but it does not yet generate a full
-answer-first starter corpus. For the current best-practice project shape, copy
-the patterns from `test_site_answers/`.
+That scaffold is ready to run through `build`, `serve`, `audit`, and `eval`
+without hand edits. `test_site_answers/` remains the fuller reference corpus
+for additional patterns.
 
 ## Author Your First Answer
 

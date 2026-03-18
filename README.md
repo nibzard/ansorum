@@ -109,9 +109,13 @@ ansorum audit
 ansorum eval
 ```
 
-`ansorum init` currently creates the base project skeleton and configuration.
-Use `test_site_answers/` as the reference for the answer-first content shape
-until the scaffold itself becomes answer-first.
+`ansorum init` now creates an answer-first starter project with:
+
+- starter answers in `content/`
+- a JSON-LD sidecar example in `content/refunds.schema.json`
+- redirects and pack configuration in `config.toml`
+- a curated pack definition in `collections/packs/billing.toml`
+- deterministic eval fixtures in `eval/fixtures.yaml`
 
 That project demonstrates:
 

@@ -521,13 +521,13 @@
       ],
       "files": [
         "README.md",
-        "docs/content/documentation/getting-started/overview.md",
-        "docs/content/documentation/getting-started/cli-usage.md",
-        "docs/content/documentation/getting-started/reference-project.md",
-        "docs/content/documentation/getting-started/directory-structure.md",
-        "docs/content/documentation/getting-started/configuration.md",
         "docs/content/documentation/content/overview.md",
         "docs/content/documentation/content/page.md",
+        "docs/content/documentation/getting-started/cli-usage.md",
+        "docs/content/documentation/getting-started/configuration.md",
+        "docs/content/documentation/getting-started/directory-structure.md",
+        "docs/content/documentation/getting-started/overview.md",
+        "docs/content/documentation/getting-started/reference-project.md",
         "to-do.json"
       ],
       "depends_on": [
@@ -539,13 +539,13 @@
         "ANS-013"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T20:40:00Z"
+      "updated_at": "2026-03-18T20:22:01Z"
     },
     {
       "id": "ANS-016",
       "title": "Implement ansorum init as an answer-first project scaffold",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Replace the inherited generic site bootstrap with an Ansorum-specific project scaffold. The init flow should create an answer-first repo shape, starter content, sidecar examples, collections/packs examples, and the configuration needed for machine outputs, audit, and eval. A fresh scaffold should be able to build, serve, audit, and eval successfully on first run without hand edits.",
       "steps": [
         "Design the generated project layout for answer-first repos.",
@@ -560,10 +560,13 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
+        "README.md",
+        "docs/content/documentation/getting-started/cli-usage.md",
+        "docs/content/documentation/getting-started/directory-structure.md",
+        "docs/content/documentation/getting-started/overview.md",
         "src/cmd/init.rs",
         "src/prompt.rs",
-        "README.md",
-        "docs/content/documentation/getting-started"
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-001",
@@ -573,7 +576,7 @@
         "ANS-013"
       ],
       "created_at": "2026-03-18T17:20:00Z",
-      "updated_at": "2026-03-18T17:20:00Z"
+      "updated_at": "2026-03-18T20:27:16Z"
     },
     {
       "id": "ANS-017",

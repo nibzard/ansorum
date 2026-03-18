@@ -17,20 +17,25 @@ for command-specific flags.
 
 ## init
 
-Creates the base project structure at the given directory after asking a few
-configuration questions. Choices made during `init` can be changed later in
-`config.toml`.
+Creates an answer-first project scaffold at the given directory after asking for
+the site URL. Choices made during `init` can be changed later in the generated
+files.
 
 ```bash
 ansorum init my_answers
 ansorum init
 ```
 
-`init` currently creates the project skeleton and configuration, not a complete
-answer-first starter corpus. Use
-[the reference project](@/documentation/getting-started/reference-project.md)
-as the current source of truth for authored answer files, sidecars, packs, and
-eval fixtures.
+`init` writes a working starter corpus, including:
+
+- answer-first Markdown under `content/`
+- a sidecar JSON-LD example
+- redirect and pack configuration in `config.toml`
+- a curated pack in `collections/packs/`
+- deterministic eval fixtures in `eval/fixtures.yaml`
+
+The generated project is meant to pass `ansorum build`, `ansorum serve`,
+`ansorum audit`, and `ansorum eval` on first run.
 
 If the target directory already exists, Ansorum only populates it when it
 contains only hidden files. If no directory argument is passed, Ansorum tries
@@ -44,6 +49,9 @@ Typical flow:
 ```bash
 git init
 ansorum init
+ansorum build
+ansorum audit
+ansorum eval
 ```
 
 ## build

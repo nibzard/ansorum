@@ -1,28 +1,181 @@
 use std::fs::{canonicalize, create_dir};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use errors::{Result, bail};
-use utils::fs::create_file;
+use utils::fs::{create_directory, create_file};
 
-use crate::prompt::{ask_bool, ask_url};
+#[cfg(test)]
+use utils::fs::read_file;
+
+use crate::prompt::ask_url;
 
 const CONFIG: &str = r#"
-# The URL the site will be built for
 base_url = "%BASE_URL%"
+title = "%PROJECT_TITLE%"
+description = "Starter Ansorum project for an answer-first knowledge corpus."
+generate_feeds = false
+generate_sitemap = false
+generate_robots_txt = false
+build_search_index = false
 
-# Whether to automatically compile all Sass files in the sass directory
-compile_sass = %COMPILE_SASS%
+[ansorum.redirects]
+external_host_allowlist = ["docs.example.com"]
 
-# Whether to build a search index to be used later on by a JavaScript library
-build_search_index = %SEARCH%
+[[ansorum.redirects.routes]]
+code = "sales-demo"
+target = "https://docs.example.com/demo"
 
-[markdown]
+[[ansorum.redirects.routes]]
+code = "billing-portal"
+target = "/cancel/"
 
-[markdown.highlighting]
-theme = "catppuccin-mocha"
+[ansorum.packs]
+auto_entity_packs = true
+auto_audience_packs = true
 
-[extra]
-# Put all your custom variables here
+[[ansorum.packs.curated]]
+name = "billing"
+source = "collections/packs/billing.toml"
+
+[ansorum.eval]
+enabled = false
+model = "gpt-5.4-mini"
+prompt_version = "starter-v1"
+"#;
+
+const README: &str = r#"# %PROJECT_TITLE%
+
+This project was scaffolded by `ansorum init`.
+
+It includes:
+
+- answer-first starter content in `content/`
+- a JSON-LD sidecar example at `content/refunds.schema.json`
+- a curated pack definition in `collections/packs/billing.toml`
+- deterministic eval fixtures in `eval/fixtures.yaml`
+
+Run the full workflow:
+
+```bash
+ansorum build
+ansorum serve
+ansorum audit
+ansorum eval
+```
+
+Use `ansorum eval --llm` only when `OPENAI_API_KEY` is set and you want OpenAI
+Responses API rubric scoring.
+"#;
+
+const REFUNDS: &str = r#"+++
+title = "Refund policy"
+
+id = "refunds-policy"
+summary = "How refunds work, who qualifies, and when payment returns land."
+canonical_questions = ["how do refunds work", "can i get a refund"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+related = ["cancel-subscription"]
+external_refs = ["https://example.com/refunds"]
+schema_type = "FAQPage"
+review_by = 2026-06-01
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+aliases = ["refund policy", "refund rules"]
++++
+
+Refund details for customers.
+
+## Eligibility
+
+Refunds follow the [billing policy](https://example.com/policy).
+"#;
+
+const CANCEL: &str = r#"+++
+title = "Cancel a subscription"
+
+id = "cancel-subscription"
+summary = "How to cancel a subscription and what happens after."
+canonical_questions = ["how do i cancel my subscription"]
+intent = "task"
+entity = "billing"
+audience = "customer"
+related = ["refunds-policy"]
+external_refs = []
+schema_type = "HowTo"
+visibility = "public"
+ai_visibility = "summary_only"
+llms_priority = "optional"
+token_budget = "small"
+aliases = ["cancel subscription"]
++++
+
+Cancellation details for customers.
+
+## Keep access
+
+Use the [billing portal](https://example.com/billing) to manage changes.
+"#;
+
+const INTERNAL_PLAYBOOK: &str = r#"+++
+title = "Internal support escalation"
+
+id = "internal-support-escalation"
+summary = "Internal escalation process for complex billing cases."
+canonical_questions = ["how do support agents escalate billing issues"]
+intent = "reference"
+entity = "support"
+audience = "internal"
+related = []
+external_refs = []
+schema_type = "Article"
+visibility = "internal"
+ai_visibility = "hidden"
+llms_priority = "hidden"
+token_budget = "small"
+aliases = ["billing escalation playbook"]
++++
+
+Escalation details for internal teams only.
+"#;
+
+const REFUNDS_SCHEMA: &str = r#"{
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ansorum Billing"
+  },
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Who qualifies for a refund?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Most unused subscriptions are refundable within 30 days."
+      }
+    }
+  ]
+}
+"#;
+
+const BILLING_PACK: &str = r#"title = "Billing answers"
+description = "Curated billing pack for customer-visible billing answers."
+answers = ["refunds-policy", "cancel-subscription"]
+"#;
+
+const EVAL_FIXTURES: &str = r#"- question: can i get a refund after 30 days
+  expected_ids: [refunds-policy]
+  forbidden_ids: [internal-support-escalation]
+  required_terms: [eligibility, billing policy]
+  rubric_focus: reflect refund eligibility policy without using internal-only content
+
+- question: how do i cancel my subscription
+  expected_ids: [cancel-subscription]
+  forbidden_ids: [internal-support-escalation]
+  required_terms: [canonical page, cancel]
+  rubric_focus: prefer the public cancellation answer and keep canonical links visible
 "#;
 
 // canonicalize(path) function on windows system returns a path with UNC.
@@ -87,48 +240,103 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
     }
 
     console::info("Welcome to Ansorum!");
-    console::info("Please answer a few questions to get started quickly.");
-    console::info("Any choices made can be changed by modifying the `config.toml` file later.");
+    console::info("This scaffold creates an answer-first project with starter content, packs, redirects, and eval fixtures.");
+    console::info("Any choices made can be changed by modifying the generated files later.");
 
     let base_url = ask_url("> What is the URL of your site?", "https://example.com")?;
-    let compile_sass = ask_bool("> Do you want to enable Sass compilation?", true)?;
-    let search = ask_bool("> Do you want to build a search index of the content?", false)?;
+    let project_title = project_title(path);
 
     let config = CONFIG
         .trim_start()
         .replace("%BASE_URL%", &base_url)
-        .replace("%COMPILE_SASS%", &format!("{compile_sass}"))
-        .replace("%SEARCH%", &format!("{search}"));
+        .replace("%PROJECT_TITLE%", &project_title);
 
-    populate(path, compile_sass, &config)?;
+    populate(path, &project_title, &config)?;
 
     println!();
     console::success(&format!(
-        "Done! Your site was created in {}",
+        "Done! Your answer-first project was created in {}",
         strip_unc(&canonicalize(path).unwrap())
     ));
     println!();
-    console::info(
-        "Get started by moving into the directory and using the built-in server: `ansorum serve`",
-    );
+    console::info("Next steps: `ansorum build`, `ansorum serve`, `ansorum audit`, and `ansorum eval`.");
     println!("Visit https://ansorum.com/documentation/ for the full documentation.");
     Ok(())
 }
 
-fn populate(path: &Path, compile_sass: bool, config: &str) -> Result<()> {
+fn populate(path: &Path, project_title: &str, config: &str) -> Result<()> {
     if !path.exists() {
         create_dir(path)?;
     }
+
     create_file(&path.join("config.toml"), config)?;
-    create_dir(path.join("content"))?;
-    create_dir(path.join("templates"))?;
-    create_dir(path.join("static"))?;
-    create_dir(path.join("themes"))?;
-    if compile_sass {
-        create_dir(path.join("sass"))?;
-    }
+    create_file(&path.join("README.md"), README.replace("%PROJECT_TITLE%", project_title))?;
+
+    create_directory(&path.join("collections/packs"))?;
+    create_directory(&path.join("content"))?;
+    create_directory(&path.join("eval"))?;
+    create_directory(&path.join("static"))?;
+
+    create_file(&path.join("collections/packs/billing.toml"), BILLING_PACK)?;
+    create_file(&path.join("content/refunds.md"), REFUNDS)?;
+    create_file(&path.join("content/cancel.md"), CANCEL)?;
+    create_file(&path.join("content/internal-playbook.md"), INTERNAL_PLAYBOOK)?;
+    create_file(&path.join("content/refunds.schema.json"), REFUNDS_SCHEMA)?;
+    create_file(&path.join("eval/fixtures.yaml"), EVAL_FIXTURES)?;
 
     Ok(())
+}
+
+fn project_title(path: &Path) -> String {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty() && *name != ".")
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            canonicalize(path)
+                .ok()
+                .as_deref()
+                .and_then(Path::file_name)
+                .and_then(|name| name.to_str())
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| current_dir_name())
+        .unwrap_or_else(|| "ansorum-answers".to_string());
+
+    title_case_slug(&file_name)
+}
+
+fn current_dir_name() -> Option<String> {
+    canonicalize(PathBuf::from("."))
+        .ok()
+        .as_deref()
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str())
+        .map(ToOwned::to_owned)
+}
+
+fn title_case_slug(input: &str) -> String {
+    let words: Vec<String> = input
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => {
+                    format!("{}{}", first.to_ascii_uppercase(), chars.as_str().to_ascii_lowercase())
+                }
+                None => String::new(),
+            }
+        })
+        .filter(|part| !part.is_empty())
+        .collect();
+
+    if words.is_empty() {
+        "Ansorum Answers".to_string()
+    } else {
+        words.join(" ")
+    }
 }
 
 #[cfg(test)]
@@ -196,14 +404,24 @@ mod tests {
             remove_dir_all(&dir).expect("Could not free test directory");
         }
         create_dir(&dir).expect("Could not create test directory");
-        populate(&dir, true, "").expect("Could not populate ansorum directories");
+        let config = CONFIG
+            .trim_start()
+            .replace("%BASE_URL%", "https://example.com")
+            .replace("%PROJECT_TITLE%", "Test Existing Dir");
+        populate(&dir, "Test Existing Dir", &config).expect("Could not populate ansorum directories");
 
         assert!(dir.join("config.toml").exists());
-        assert!(dir.join("content").exists());
-        assert!(dir.join("templates").exists());
+        assert!(dir.join("README.md").exists());
+        assert!(dir.join("collections/packs/billing.toml").exists());
+        assert!(dir.join("content/refunds.md").exists());
+        assert!(dir.join("content/cancel.md").exists());
+        assert!(dir.join("content/internal-playbook.md").exists());
+        assert!(dir.join("content/refunds.schema.json").exists());
+        assert!(dir.join("eval/fixtures.yaml").exists());
         assert!(dir.join("static").exists());
-        assert!(dir.join("themes").exists());
-        assert!(dir.join("sass").exists());
+        assert!(dir.join("content").exists());
+        assert!(read_file(&dir.join("config.toml")).unwrap().contains("[ansorum.redirects]"));
+        assert!(read_file(&dir.join("eval/fixtures.yaml")).unwrap().contains("expected_ids"));
 
         remove_dir_all(&dir).unwrap();
     }
@@ -215,32 +433,29 @@ mod tests {
         if dir.exists() {
             remove_dir_all(&dir).expect("Could not free test directory");
         }
-        populate(&dir, true, "").expect("Could not populate ansorum directories");
+        let config = CONFIG
+            .trim_start()
+            .replace("%BASE_URL%", "https://example.com")
+            .replace("%PROJECT_TITLE%", "Test Non Existing Dir");
+        populate(&dir, "Test Non Existing Dir", &config)
+            .expect("Could not populate ansorum directories");
 
         assert!(dir.exists());
         assert!(dir.join("config.toml").exists());
+        assert!(dir.join("README.md").exists());
+        assert!(dir.join("collections/packs/billing.toml").exists());
         assert!(dir.join("content").exists());
-        assert!(dir.join("templates").exists());
-        assert!(dir.join("static").exists());
-        assert!(dir.join("themes").exists());
-        assert!(dir.join("sass").exists());
+        assert!(dir.join("content/refunds.md").exists());
+        assert!(dir.join("content/refunds.schema.json").exists());
+        assert!(dir.join("eval/fixtures.yaml").exists());
 
         remove_dir_all(&dir).unwrap();
     }
 
     #[test]
-    fn populate_without_sass() {
-        let mut dir = temp_dir();
-        dir.push("test_wihout_sass_dir");
-        if dir.exists() {
-            remove_dir_all(&dir).expect("Could not free test directory");
-        }
-        create_dir(&dir).expect("Could not create test directory");
-        populate(&dir, false, "").expect("Could not populate ansorum directories");
-
-        assert!(!dir.join("sass").exists());
-
-        remove_dir_all(&dir).unwrap();
+    fn project_title_uses_directory_name() {
+        assert_eq!(project_title(Path::new("customer-answers")), "Customer Answers");
+        assert_eq!(title_case_slug("internal_support"), "Internal Support");
     }
 
     #[test]
