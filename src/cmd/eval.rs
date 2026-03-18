@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use config::{Config, DEFAULT_EVAL_MODEL};
-use content::AiVisibility;
+use content::is_machine_ai_visible;
 use errors::{Error, Result, anyhow, bail};
 use reqwest::blocking::Client;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
@@ -615,7 +615,7 @@ fn rank_answers(question: &str, site: &Site) -> Vec<RankedAnswer> {
     let mut ranked = site
         .answers
         .iter()
-        .filter(|answer| answer.ai_visibility != AiVisibility::Hidden)
+        .filter(|answer| is_machine_ai_visible(&answer.visibility, &answer.ai_visibility))
         .map(|answer| {
             let mut score = 0;
             let title = normalize_text(&answer.title);
@@ -1004,6 +1004,33 @@ mod tests {
         let ranked = rank_answers("can i get a refund", &site);
         assert_eq!(ranked[0].id, "refunds-policy");
         assert!(ranked.iter().all(|candidate| candidate.id != "internal-support-escalation"));
+    }
+
+    #[test]
+    fn eval_ranking_excludes_non_public_machine_invisible_answers() {
+        let path = env::current_dir().unwrap().join("test_sites_invalid/answers_visibility_outputs");
+        let config_file = path.join("config.toml");
+        let mut site = Site::new(&path, &config_file).unwrap();
+        site.load().unwrap();
+
+        let internal_ranked = rank_answers("internal billing notes", &site);
+        assert!(
+            internal_ranked.iter().all(|candidate| candidate.id != "internal-only"),
+            "internal-only should never rank when machine visibility excludes it"
+        );
+
+        let private_ranked = rank_answers("private support workflow", &site);
+        assert!(
+            private_ranked.iter().all(|candidate| candidate.id != "private-playbook"),
+            "private-playbook should never rank when machine visibility excludes it"
+        );
+
+        let visible_ranked = rank_answers("where can i find billing help", &site);
+        let selected = visible_ranked
+            .iter()
+            .find(|candidate| candidate.id != "internal-only" && candidate.id != "private-playbook")
+            .expect("expected a visible answer");
+        assert_eq!(selected.id, "billing-overview");
     }
 
     #[test]

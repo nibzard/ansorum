@@ -1122,6 +1122,33 @@
       ],
       "created_at": "2026-03-18T21:50:00Z",
       "updated_at": "2026-03-18T22:33:22Z"
+    },
+    {
+      "id": "ANS-034",
+      "title": "Make eval respect machine visibility filters during ranking and selection",
+      "priority": 2,
+      "status": "done",
+      "details": "Final review found that `src/cmd/eval.rs` ranks every answer whose `ai_visibility` is not `hidden`, which is broader than the machine-output contract already enforced by `answers.json`, `llms.txt`, and `/page.md`. Misconfigured `private` or `internal` answers can therefore appear in eval retrieval results even though the rest of the product excludes them from machine-visible surfaces. Align eval candidate filtering with `is_machine_ai_visible` and add regression coverage using the existing `test_sites_invalid/answers_visibility_outputs` fixture so forbidden internal/private answers never rank or select.",
+      "steps": [
+        "Filter eval candidates with the same machine-visibility rule used by `AnswerCorpus` and LLMS generation, not `ai_visibility != hidden` alone.",
+        "Add a regression test proving eval ranking excludes `internal-only` and `private-playbook` from `test_sites_invalid/answers_visibility_outputs`.",
+        "Verify deterministic eval still passes on `test_site_answers` after the filter change."
+      ],
+      "tags": [
+        "eval",
+        "governance",
+        "visibility"
+      ],
+      "files": [
+        "src/cmd/eval.rs",
+        "test_sites_invalid/answers_visibility_outputs/config.toml",
+        "test_sites_invalid/answers_visibility_outputs/content/internal.md",
+        "test_sites_invalid/answers_visibility_outputs/content/private.md",
+        "components/site/tests/site.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T22:36:34Z",
+      "updated_at": "2026-03-18T22:38:49Z"
     }
   ]
 }
