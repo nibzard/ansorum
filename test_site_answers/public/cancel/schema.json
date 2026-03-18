@@ -1,0 +1,20 @@
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "url": "https://answers.example.com/cancel/",
+  "description": "How to cancel a subscription and what happens after.",
+  "identifier": "cancel-subscription",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "how do i cancel my subscription",
+  "alternateName": [
+    "cancel subscription"
+  ]
+}

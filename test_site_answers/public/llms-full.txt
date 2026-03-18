@@ -1,0 +1,9 @@
+# Acme Billing Answers full export
+
+Reference Ansorum project for a billing and support answer corpus.
+
+## AI-visible Answers
+
+- how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)
+- Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)
+

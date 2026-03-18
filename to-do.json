@@ -837,13 +837,13 @@
         "components/site/src/llms.rs",
         "components/site/tests/site.rs",
         "test_sites_invalid/answers_visibility_outputs/config.toml",
-        "test_sites_invalid/answers_visibility_outputs/content/public.md",
         "test_sites_invalid/answers_visibility_outputs/content/internal.md",
         "test_sites_invalid/answers_visibility_outputs/content/private.md",
+        "test_sites_invalid/answers_visibility_outputs/content/public.md",
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:40:00Z",
-      "updated_at": "2026-03-18T21:54:40Z",
+      "updated_at": "2026-03-18T21:55:03Z",
       "blockers": []
     },
     {
@@ -869,14 +869,14 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:41:00Z",
-      "updated_at": "2026-03-18T21:57:40Z",
+      "updated_at": "2026-03-18T21:58:30Z",
       "blockers": []
     },
     {
       "id": "ANS-025",
       "title": "Preserve remove events in the file watcher so serve rebuilds on deletions",
       "priority": 1,
-      "status": "todo",
+      "status": "doing",
       "details": "The serve watcher currently drops file-system remove events because `filter_events` ignores any event whose path no longer exists. That leaves stale pages and assets in memory or on disk until restart. References: src/fs_utils.rs:94-120 and src/cmd/serve.rs:935-969.",
       "steps": [
         "Change event filtering so remove events are retained even when the path has already disappeared from disk.",
@@ -896,7 +896,7 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:42:00Z",
-      "updated_at": "2026-03-18T21:42:00Z"
+      "updated_at": "2026-03-18T21:58:30Z"
     },
     {
       "id": "ANS-026",

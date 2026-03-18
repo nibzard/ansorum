@@ -1,0 +1,12 @@
+# Acme Billing Answers | Billing answers
+
+Curated billing pack for customer-visible billing answers.
+
+## Core Answers
+
+- Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)
+
+## Additional Context
+
+- how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)
+

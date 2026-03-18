@@ -1,0 +1,22 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "url": "https://answers.example.com/internal-playbook/",
+  "description": "Internal escalation process for complex billing cases.",
+  "identifier": "internal-support-escalation",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "internal"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "support"
+  },
+  "name": "Internal support escalation",
+  "alternateName": [
+    "billing escalation playbook"
+  ],
+  "headline": "Internal support escalation",
+  "mainEntityOfPage": "https://answers.example.com/internal-playbook/"
+}
