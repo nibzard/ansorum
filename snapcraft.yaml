@@ -1,21 +1,20 @@
-name: zola 
-version: 0.22.1
-title: Zola
-summary: A fast static site generator in a single binary with everything built-in.
+name: ansorum
+version: 0.1.0-alpha.0
+title: Ansorum
+summary: An answer-first compiler for agent-readable and human-readable knowledge.
 description: |
-  A fast static site generator in a single binary with everything built-in.
-website: https://www.getzola.org
+  An answer-first compiler for agent-readable and human-readable knowledge.
+website: https://ansorum.com
 
 base: core22
-grade: stable  # must be 'stable' to release into candidate/stable channels
+grade: devel  # alpha builds should not ship as stable
 confinement: strict  # use 'strict' once you have the right plugs and slots
 
 parts:
-  zola:
+  ansorum:
     plugin: rust
     rust-channel: stable
-    source: https://github.com/getzola/zola.git
-    source-tag: v0.22.1
+    source: .
     build-packages:
       - build-essential
       - cmake
@@ -23,8 +22,8 @@ parts:
       - libssl-dev
 
 apps:
-  zola:
-    command: bin/zola
+  ansorum:
+    command: bin/ansorum
     plugs:
       - home
       - network

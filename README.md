@@ -1,36 +1,75 @@
-# zola (né Gutenberg) <img src="docs/static/logos/Zola-logo-main-coffee.svg" align="right" alt="zola logo" width="30%"/>
+# ansorum
 
-[![Build Status](https://dev.azure.com/getzola/zola/_apis/build/status/getzola.zola?branchName=master)](https://dev.azure.com/getzola/zola/_build/latest?definitionId=1&branchName=master)
-![GitHub all releases](https://img.shields.io/github/downloads/getzola/zola/total)
+[![GitHub all releases](https://img.shields.io/github/downloads/nibzard/ansorum/total)](https://github.com/nibzard/ansorum/releases)
 
-A fast static site generator in a single binary with everything built-in.
+An answer-first compiler for agent-readable and human-readable knowledge.
 
-To find out more see the [Zola Documentation](https://www.getzola.org/documentation/getting-started/overview/), look
-in the [docs/content](docs/content) folder of this repository or visit the [Zola community forum](https://zola.discourse.group).
+Ansorum turns Markdown content into an authoritative answer system with:
 
-This tool and its template engine [tera](https://keats.github.io/tera/) were born from an intense dislike of the (insane) Golang template engine and therefore of
-Hugo that I was using before for 6+ sites.
+- canonical HTML for humans
+- canonical Markdown for agents
+- `llms.txt` and `llms-full.txt`
+- machine indexes like `answers.json`
+- structured data outputs
+- audit and evaluation loops for answer quality
 
-## List of features
+The product is not "a lighter website framework." The product is:
 
-- [Single binary](https://www.getzola.org/documentation/getting-started/cli-usage/)
-- [Syntax highlighting](https://www.getzola.org/documentation/content/syntax-highlighting/)
-- [Sass compilation](https://www.getzola.org/documentation/content/sass/)
-- Assets co-location
-- [Multilingual site support](https://www.getzola.org/documentation/content/multilingual/) (Basic currently)
-- [Image processing](https://www.getzola.org/documentation/content/image-processing/)
-- [Themes](https://www.getzola.org/documentation/themes/overview/)
-- [Shortcodes](https://www.getzola.org/documentation/content/shortcodes/)
-- [Internal links](https://www.getzola.org/documentation/content/linking/)
-- [External link checker](https://www.getzola.org/documentation/getting-started/cli-usage/#check)
-- [Table of contents automatic generation](https://www.getzola.org/documentation/content/table-of-contents/)
-- Automatic header anchors
-- [Aliases](https://www.getzola.org/documentation/content/page/#front-matter)
-- [Pagination](https://www.getzola.org/documentation/templates/pagination/)
-- [Custom taxonomies](https://www.getzola.org/documentation/templates/taxonomies/)
-- [Search with no servers or any third parties involved](https://www.getzola.org/documentation/content/search/)
-- [Live reload](https://www.getzola.org/documentation/getting-started/cli-usage/#serve)
-- Deploy on many platforms easily: [Netlify](https://www.getzola.org/documentation/deployment/netlify/), [Vercel](https://www.getzola.org/documentation/deployment/vercel/), [Cloudflare Pages](https://www.getzola.org/documentation/deployment/cloudflare-pages/), etc
+- Git-native answer storage
+- typed Markdown answer units
+- a compiler that emits multiple machine and human views of the same corpus
+- a lightweight gateway for Markdown negotiation and redirects
+- audit and eval tooling so answer quality is testable before publish
+
+## Jobs To Be Done
+
+Ansorum is for teams that need one canonical answer layer behind docs, support,
+help centers, product knowledge, and AI systems.
+
+It should help teams:
+
+- make one answer authoritative and reusable everywhere
+- control what agents can see and at what fidelity
+- detect stale, duplicate, conflicting, or weak answers before publishing
+- evaluate whether the corpus actually answers real questions well
+
+## Current Direction
+
+This repository started as a fork of Zola and still reuses substantial parts of
+its Rust implementation. The direction of the fork is now explicitly
+answer-first, not upstream-compatible by default.
+
+The current product specification lives in
+[ANSWER_COMPILER_SPEC.md](ANSWER_COMPILER_SPEC.md).
+
+Repository provenance and release reset details live in
+[PROVENANCE.md](PROVENANCE.md).
+
+Future MIT-only restart rules live in
+[CLEAN_ROOM_READINESS.md](CLEAN_ROOM_READINESS.md).
+
+## v0 Shape
+
+The near-term Ansorum build should provide:
+
+- first-class answer frontmatter
+- `/page.md` outputs
+- `Accept: text/markdown` negotiation
+- `llms.txt` and scoped packs
+- JSON-LD sidecar support
+- `audit` and `eval` commands
+
+## Why Ansorum
+
+The wedge is not just `llms.txt`.
+
+The wedge is:
+
+- answer-first authoring rather than page-first authoring
+- explicit AI visibility controls
+- multiple compiled machine outputs from one canonical source
+- built-in governance, audit, and eval loops
+- static, Git-native operation without a heavy app platform
 
 ## License
 

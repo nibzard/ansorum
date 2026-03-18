@@ -16,7 +16,7 @@ pub struct Cli {
     #[clap(short = 'r', long, default_value = ".")]
     pub root: PathBuf,
 
-    /// Path to a config file other than zola.toml or config.toml in the root of project
+    /// Path to a config file other than config.toml in the root of project
     #[clap(short = 'c', long)]
     pub config: Option<PathBuf>,
 
@@ -26,7 +26,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Create a new Zola project
+    /// Create a new Ansorum project
     Init {
         /// Name of the project. Will create a new directory with that name in the current directory
         #[clap(default_value = ".")]

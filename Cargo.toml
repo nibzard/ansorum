@@ -1,16 +1,16 @@
 [package]
-name = "zola"
-version = "0.22.1"
+name = "ansorum"
+version = "0.1.0-alpha.0"
 authors = ["Vincent Prouillet <hello@vincentprouillet.com>"]
 edition = "2024"
 license = "EUPL-1.2"
 readme = "README.md"
-description = "A fast static site generator with everything built-in"
-homepage = "https://www.getzola.org"
-repository = "https://github.com/getzola/zola"
-keywords = ["static", "site", "generator", "blog"]
+description = "An answer-first compiler for agent-readable and human-readable knowledge"
+homepage = "https://ansorum.com"
+repository = "https://github.com/nibzard/ansorum"
+keywords = ["answers", "knowledge", "compiler", "markdown", "static"]
 
-include = ["src/**/*", "LICENSE", "README.md"]
+include = ["src/**/*", "LICENSE", "LICENSE-MIT", "README.md"]
 
 [build-dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -20,7 +20,7 @@ tauri-winres = "0.3"
 time = "0.3"
 
 [[bin]]
-name = "zola"
+name = "ansorum"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -73,7 +73,7 @@ indexing-ja = ["search/indexing-ja"]
 members = ["components/*"]
 
 [workspace.package]
-version = "0.21.0"
+version = "0.1.0-alpha.0"
 
 [workspace.dependencies]
 # External dependencies
@@ -145,5 +145,5 @@ strip = true
 debug = 0
 
 [package.metadata.winres]
-OriginalFilename = "zola.exe"
-InternalName = "zola"
+OriginalFilename = "ansorum.exe"
+InternalName = "ansorum"

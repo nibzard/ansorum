@@ -1,5 +1,15 @@
 # Changelog
 
+Ansorum-specific release history starts at `0.1.0-alpha.0`.
+Earlier entries below are inherited from the upstream Zola history carried into
+this fork.
+
+## 0.1.0-alpha.0 (2026-03-18)
+
+- Rename the repository and primary binary to `ansorum`
+- Reset the release line from inherited `0.22.x` numbering to an Ansorum alpha
+- Update package, container, and metadata surfaces to match the new product identity
+
 ## 0.22.1 (2026-01-22)
 
 - Update deps to fix some JPEG decoding issue + highlighting speed

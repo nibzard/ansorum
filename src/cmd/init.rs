@@ -86,9 +86,9 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
         }
     }
 
-    console::info("Welcome to Zola!");
+    console::info("Welcome to Ansorum!");
     console::info("Please answer a few questions to get started quickly.");
-    console::info("Any choices made can be changed by modifying the `zola.toml` file later.");
+    console::info("Any choices made can be changed by modifying the `config.toml` file later.");
 
     let base_url = ask_url("> What is the URL of your site?", "https://example.com")?;
     let compile_sass = ask_bool("> Do you want to enable Sass compilation?", true)?;
@@ -109,9 +109,9 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
     ));
     println!();
     console::info(
-        "Get started by moving into the directory and using the built-in server: `zola serve`",
+        "Get started by moving into the directory and using the built-in server: `ansorum serve`",
     );
-    println!("Visit https://www.getzola.org for the full documentation.");
+    println!("Visit https://ansorum.com/documentation/ for the full documentation.");
     Ok(())
 }
 
@@ -119,7 +119,7 @@ fn populate(path: &Path, compile_sass: bool, config: &str) -> Result<()> {
     if !path.exists() {
         create_dir(path)?;
     }
-    create_file(&path.join("zola.toml"), config)?;
+    create_file(&path.join("config.toml"), config)?;
     create_dir(path.join("content"))?;
     create_dir(path.join("templates"))?;
     create_dir(path.join("static"))?;
@@ -196,9 +196,9 @@ mod tests {
             remove_dir_all(&dir).expect("Could not free test directory");
         }
         create_dir(&dir).expect("Could not create test directory");
-        populate(&dir, true, "").expect("Could not populate zola directories");
+        populate(&dir, true, "").expect("Could not populate ansorum directories");
 
-        assert!(dir.join("zola.toml").exists());
+        assert!(dir.join("config.toml").exists());
         assert!(dir.join("content").exists());
         assert!(dir.join("templates").exists());
         assert!(dir.join("static").exists());
@@ -215,10 +215,10 @@ mod tests {
         if dir.exists() {
             remove_dir_all(&dir).expect("Could not free test directory");
         }
-        populate(&dir, true, "").expect("Could not populate zola directories");
+        populate(&dir, true, "").expect("Could not populate ansorum directories");
 
         assert!(dir.exists());
-        assert!(dir.join("zola.toml").exists());
+        assert!(dir.join("config.toml").exists());
         assert!(dir.join("content").exists());
         assert!(dir.join("templates").exists());
         assert!(dir.join("static").exists());
@@ -236,7 +236,7 @@ mod tests {
             remove_dir_all(&dir).expect("Could not free test directory");
         }
         create_dir(&dir).expect("Could not create test directory");
-        populate(&dir, false, "").expect("Could not populate zola directories");
+        populate(&dir, false, "").expect("Could not populate ansorum directories");
 
         assert!(!dir.join("sass").exists());
 

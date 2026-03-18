@@ -1,6 +1,6 @@
-base_url = "https://www.getzola.org/"
-title = "Zola"
-description = "Everything you need to make a static site engine in one binary."
+base_url = "https://ansorum.com/"
+title = "Ansorum"
+description = "An answer-first compiler for agent-readable and human-readable knowledge."
 
 compile_sass = true
 build_search_index = true

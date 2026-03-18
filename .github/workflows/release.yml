@@ -67,22 +67,22 @@ jobs:
         if: ${{ endsWith(matrix.target, 'linux-musl') }}
 
       - name: Show version
-        run: ./target/${{ matrix.target }}/release/zola --version
+        run: ./target/${{ matrix.target }}/release/ansorum --version
 
       - name: Archive (UNIX)
         run: |
           mkdir -p artifacts
-          cp -av target/${{ matrix.target }}/release/zola .
-          OUTPUT_DIR="$(find target -path '*/zola-*/out' -type d)"
+          cp -av target/${{ matrix.target }}/release/ansorum .
+          OUTPUT_DIR="$(find target -path '*/ansorum-*/out' -type d)"
           cp -av "$OUTPUT_DIR"/* artifacts
-          tar -czf ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz zola artifacts LICENSE LICENSE-MIT
+          tar -czf ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz ansorum artifacts LICENSE LICENSE-MIT
         if: ${{ ! startsWith(matrix.os, 'windows') }}
 
       - name: Archive (Windows)
         run: |
           mkdir -p artifacts
-          cp target/${{ matrix.target }}/release/zola.exe .
-          Compress-Archive zola.exe,LICENSE,LICENSE-MIT ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.target }}.zip
+          cp target/${{ matrix.target }}/release/ansorum.exe .
+          Compress-Archive ansorum.exe,LICENSE,LICENSE-MIT ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.target }}.zip
         if: ${{ startsWith(matrix.os, 'windows') }}
 
       - name: Attest Build Provenance
@@ -122,7 +122,7 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           body: |
-            Welcome to this new release of Zola ${{ github.ref_name }}!
+            Welcome to this new release of Ansorum ${{ github.ref_name }}!
 
             All artifacts are signed with this repos identity using Sigstore.
             You can verify the signatures using the `GitHub` CLI.
@@ -131,7 +131,7 @@ jobs:
             gh attestation verify --owner ${{ github.repository_owner }} <my-artifact>
             ```
           token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: ${{ contains(github.ref, '-pre') }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: artifacts/*
 
   Release-Container-Image:
@@ -171,7 +171,7 @@ jobs:
           push: true
           build-args: |
             USE_GH_RELEASE=true
-            ZOLA_RELEASE_VERSION=${{ github.ref_name }}
+            ANSORUM_RELEASE_VERSION=${{ github.ref_name }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

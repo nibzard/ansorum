@@ -3,7 +3,27 @@ title = "Overview"
 weight = 5
 +++
 
-## Zola at a Glance
+## Ansorum at a Glance
+
+Ansorum is an answer-first compiler for teams that need authoritative knowledge
+to work for both humans and agent systems. This repository still reuses large
+parts of Zola's implementation, so much of the current documentation reflects
+that foundation, but the product direction of the fork is now different.
+
+Ansorum's goal is to compile one canonical answer corpus into:
+
+- HTML for humans
+- Markdown for agents
+- `llms.txt` and scoped packs
+- machine indexes such as `answers.json`
+- structured data outputs
+- audit and evaluation artifacts
+
+The rest of this documentation still describes the inherited Zola model and
+engine behavior. Treat it as implementation context while Ansorum-specific docs
+are being written.
+
+## Zola Foundation
 
 Zola is a static site generator (SSG), similar to [Hugo](https://gohugo.io/), [Pelican](https://blog.getpelican.com/), and [Jekyll](https://jekyllrb.com/) (for a comprehensive list of SSGs, please see [Jamstack](https://jamstack.org/generators)). It is written in [Rust](https://www.rust-lang.org/) and uses the [Tera](https://keats.github.io/tera/) template engine, which is similar to [Jinja2](https://jinja.palletsprojects.com/en/2.10.x/), [Django templates](https://docs.djangoproject.com/en/2.2/topics/templates/), [Liquid](https://shopify.github.io/liquid/), and [Twig](https://twig.symfony.com/).
 

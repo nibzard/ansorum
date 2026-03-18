@@ -1,0 +1,504 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "ansorum",
+    "root": "/home/agent/zola"
+  },
+  "source_files": [
+    "ANSWER_COMPILER_SPEC.md",
+    "README.md",
+    "docs/content/documentation/getting-started/overview.md"
+  ],
+  "tasks": [
+    {
+      "id": "ANS-001",
+      "title": "Rename the binary and primary CLI surface from zola to ansorum",
+      "priority": 1,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Replace the remaining runtime-facing zola identity with ansorum. This includes the package/bin metadata, clap help text, generated shell completion/manpage naming, init flow prompts, and any hard-coded user-facing command strings. Do not preserve a zola compatibility alias. Definition of done: the built binary, help output, completions, and generated manpages all present ansorum as the only supported command surface.",
+      "steps": [
+        "Update Cargo package/bin metadata and build.rs outputs for ansorum naming.",
+        "Rename clap command/about/help text to ansorum and adjust subcommand examples.",
+        "Update init command output and any user-facing command suggestions from zola to ansorum.",
+        "Verify completion/manpage generation and local command help text remain coherent."
+      ],
+      "tags": ["branding", "cli", "foundation"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "Cargo.toml",
+        "build.rs",
+        "src/cli.rs",
+        "src/main.rs",
+        "src/cmd/init.rs",
+        "README.md"
+      ],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-002",
+      "title": "Establish answer-first fixtures and golden-output tests for the compiler contract",
+      "priority": 1,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Create a thin but decisive answer-first test harness immediately after the CLI rename so development can proceed deterministically. The goal is not a full inherited-test rewrite. The goal is to lock down the new compiler contract: first-class answer frontmatter parsing, fail-fast validation, canonical machine outputs, and AI visibility behavior. Treat these fixtures as the protected contract for future refactors in the content, site, markdown, and serve layers.",
+      "steps": [
+        "Add dedicated answer-first test fixtures under test_site or a new focused fixture tree.",
+        "Add parser tests for first-class answer frontmatter in both TOML and YAML forms.",
+        "Add fail-fast validation tests for missing required fields, duplicate ids, and invalid enums.",
+        "Add golden-output tests for /page.md, answers.json, llms.txt, and structured-data sidecar behavior."
+      ],
+      "tags": ["tests", "fixtures", "foundation"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "test_site",
+        "components/content",
+        "components/site",
+        "components/markdown"
+      ],
+      "depends_on": ["ANS-001"],
+      "created_at": "2026-03-18T17:12:00Z",
+      "updated_at": "2026-03-18T17:12:00Z"
+    },
+    {
+      "id": "ANS-003",
+      "title": "Introduce an ansorum-specific config surface for packs, redirects, eval, and AI delivery",
+      "priority": 1,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Add first-class configuration for Ansorum behavior instead of hiding these concerns in generic extras. The config must cover external redirect allowlists, scoped pack generation, eval backend defaults, and machine-delivery options such as markdown negotiation and AI visibility defaults where needed. This config layer should become the product-level source of truth for gateway, pack, and eval behavior rather than scattering policy across templates or extras.",
+      "steps": [
+        "Design new config structs and TOML shape under the config component.",
+        "Support redirect allowlist configuration for /r/:code behavior.",
+        "Support pack generation configuration for automatic entity/audience packs plus curated collections.",
+        "Support eval configuration for OpenAI Responses API and GPT-5.4 model selection.",
+        "Wire config parsing and validation into the existing config load path."
+      ],
+      "tags": ["config", "foundation"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/config/src/lib.rs",
+        "components/config/src/config/mod.rs",
+        "components/config/src/config/search.rs",
+        "components/site/src/lib.rs"
+      ],
+      "depends_on": ["ANS-001"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-004",
+      "title": "Add first-class answer frontmatter to the content model",
+      "priority": 1,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Promote answer metadata from extra.answer into explicit first-class frontmatter fields. The parser and serialized content model should treat Ansorum answer fields as core data with typed enums and validation, not as arbitrary extras. Required fields and controlled vocabularies should follow the spec exactly so answer pages have a stable authoring contract.",
+      "steps": [
+        "Add dedicated answer frontmatter structs and enums.",
+        "Parse answer fields from page frontmatter in both TOML and YAML modes.",
+        "Preserve compatibility only where it does not conflict with answer-first semantics.",
+        "Expose answer metadata through page serialization so templates and emitters can consume it cleanly."
+      ],
+      "tags": ["content", "schema", "foundation"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/content/src/front_matter/page.rs",
+        "components/content/src/front_matter/mod.rs",
+        "components/content/src/page.rs",
+        "components/content/src/ser.rs",
+        "components/content/src/lib.rs"
+      ],
+      "depends_on": ["ANS-001", "ANS-002"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-005",
+      "title": "Build AnswerRecord extraction and fail-fast schema validation into the site load/build pipeline",
+      "priority": 1,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Create a normalized internal AnswerRecord model derived from authored pages and integrate it into the site pipeline. Missing required answer metadata, invalid enums, duplicate ids, and similar structural errors should fail the build by default. AnswerRecord is the compiler boundary that later emitters, audit, and eval code should consume instead of re-deriving answer semantics from raw pages.",
+      "steps": [
+        "Define the normalized AnswerRecord type and collection APIs.",
+        "Extract answer records from parsed pages during site load.",
+        "Implement validation for required fields, duplicates, and answer graph invariants.",
+        "Plumb validation failures into build/check output with actionable messages."
+      ],
+      "tags": ["build", "validation", "foundation"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/site/src/lib.rs",
+        "components/site/src/answers.rs",
+        "components/content/src/page.rs",
+        "src/messages.rs",
+        "src/cmd/build.rs",
+        "src/cmd/check.rs"
+      ],
+      "depends_on": ["ANS-003", "ANS-004"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-006",
+      "title": "Emit canonical machine markdown at /page.md from the rendered content model",
+      "priority": 2,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Ansorum's machine markdown must come from the rendered content model, not from raw source files. Add a dedicated export path so each answer page emits a canonical markdown representation at /page.md. The export should preserve rendered headings and links while respecting ai_visibility so hidden or summary-only content does not leak.",
+      "steps": [
+        "Design the machine-markdown rendering path and file naming rules.",
+        "Ensure the export reflects rendered content and answer metadata, not raw author source only.",
+        "Write markdown output through the existing build pipeline.",
+        "Cover edge cases such as summary-only and hidden AI visibility modes."
+      ],
+      "tags": ["markdown", "outputs"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/site/src/lib.rs",
+        "components/site/src/answers.rs",
+        "components/content/src/page.rs",
+        "templates",
+        "docs"
+      ],
+      "depends_on": ["ANS-005"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-007",
+      "title": "Generate the canonical answers.json machine index",
+      "priority": 2,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Emit a stable answers.json index from the normalized AnswerRecord collection. This file is the canonical machine-readable answer catalog and should include canonical URLs, markdown URLs, metadata, and relationship fields required by downstream retrieval and eval flows. Keep the output deterministic in ordering and shape so CI snapshots, retrieval logic, and downstream tooling can rely on it.",
+      "steps": [
+        "Define the JSON shape and serialization path for answers.json.",
+        "Emit the file during build using normalized AnswerRecord data.",
+        "Respect visibility and AI visibility rules in index generation.",
+        "Add tests for output shape and deterministic ordering."
+      ],
+      "tags": ["outputs", "json", "machine-index"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/site/src/answers.rs",
+        "components/site/src/lib.rs",
+        "templates",
+        "test_site"
+      ],
+      "depends_on": ["ANS-005"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-008",
+      "title": "Generate llms.txt, llms-full.txt, and scoped packs from the answer corpus",
+      "priority": 2,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Implement curated and full machine exports rooted in the answer graph. Ansorum should emit llms.txt, llms-full.txt, automatic entity/audience packs, and curated packs from collections/packs/*.toml using one canonical answer model. llms.txt is the curated root index, llms-full.txt is the broad AI-visible corpus export, and packs are filtered subsets with the same canonical record semantics.",
+      "steps": [
+        "Design llms.txt and llms-full.txt generation from AnswerRecord data.",
+        "Implement automatic packs by entity and audience.",
+        "Implement curated pack loading from collections/packs/*.toml.",
+        "Respect llms_priority and AI visibility in all machine exports."
+      ],
+      "tags": ["llms", "packs", "outputs"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/site/src/llms.rs",
+        "components/site/src/answers.rs",
+        "components/site/src/lib.rs",
+        "collections/packs",
+        "templates"
+      ],
+      "depends_on": ["ANS-005", "ANS-007"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-009",
+      "title": "Load structured-data sidecar files and embed JSON-LD in page outputs",
+      "priority": 2,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Support answer-specific structured data via sidecar files such as content/foo/bar.schema.json. The build should validate and merge sidecar data with answer metadata and emit JSON-LD in HTML plus any needed machine-facing sidecar output. Built-in presets should cover common schema types immediately, but arbitrary sidecar JSON-LD must remain possible without further core changes.",
+      "steps": [
+        "Define sidecar discovery rules and file naming conventions.",
+        "Load and validate sidecar JSON for answers during build.",
+        "Embed JSON-LD into rendered HTML outputs.",
+        "Support built-in schema presets while allowing arbitrary schema payloads."
+      ],
+      "tags": ["structured-data", "json-ld", "outputs"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/site/src/lib.rs",
+        "components/site/src/answers.rs",
+        "components/content/src/page.rs",
+        "templates"
+      ],
+      "depends_on": ["ANS-005"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-010",
+      "title": "Serve /page.md and Accept: text/markdown with cache-safe negotiation",
+      "priority": 2,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Extend the local and future gateway behavior to serve canonical markdown cleanly. The server must support explicit /page.md routes and Accept negotiation on the canonical HTML route, returning Vary: Accept so caches remain correct. Keep disk-backed and in-memory serve behavior aligned because this becomes the reference developer experience for machine delivery.",
+      "steps": [
+        "Add route resolution for markdown artifacts in serve mode.",
+        "Implement Accept: text/markdown negotiation on canonical page routes.",
+        "Return Vary: Accept and correct content types for markdown responses.",
+        "Ensure in-memory and disk-backed serve modes both behave consistently."
+      ],
+      "tags": ["serve", "markdown", "gateway"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "src/cmd/serve.rs",
+        "components/site/src/lib.rs"
+      ],
+      "depends_on": ["ANS-006"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-011",
+      "title": "Implement /r/:code redirect handling with external allowlist enforcement",
+      "priority": 3,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Add Ansorum's path-based redirect capability for attribution and controlled forwarding. Redirect destinations may be external, but only when the configured allowlist permits them. Misconfigured or disallowed targets should fail validation. This route is both attribution plumbing and a safety boundary, so external redirects must never bypass config validation or logging.",
+      "steps": [
+        "Define redirect source-of-truth format and config integration.",
+        "Implement /r/:code handling in serve mode.",
+        "Validate external targets against the configured allowlist.",
+        "Emit structured log events for redirect hits."
+      ],
+      "tags": ["redirects", "gateway", "security"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "src/cmd/serve.rs",
+        "components/config/src/config/mod.rs",
+        "components/site/src/lib.rs"
+      ],
+      "depends_on": ["ANS-003", "ANS-010"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-012",
+      "title": "Add the ansorum audit command for metadata, freshness, and machine-output quality checks",
+      "priority": 3,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Introduce a dedicated audit command that checks answer completeness, duplicates, stale review dates, missing related links, token-budget issues, visibility leaks, and structured-data gaps. This is a first-class product feature, not just an internal validator. Audit should become the operator-facing quality gate for authors, reviewers, and CI with clear severities and actionable findings.",
+      "steps": [
+        "Add a new audit subcommand and wire it into the CLI.",
+        "Run answer-graph checks that go beyond current build/check behavior.",
+        "Produce both human-readable and JSON output modes.",
+        "Align audit error severity with fail-fast product decisions."
+      ],
+      "tags": ["audit", "cli", "quality"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "src/cli.rs",
+        "src/main.rs",
+        "src/cmd/mod.rs",
+        "src/cmd/audit.rs",
+        "components/site/src/answers.rs"
+      ],
+      "depends_on": ["ANS-005", "ANS-007", "ANS-009"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-013",
+      "title": "Add the ansorum eval command backed by OpenAI Responses API and GPT-5.4",
+      "priority": 3,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Implement fixture-driven evaluation of the answer corpus using retrieval checks, answer selection checks, and LLM-scored rubric grading via the OpenAI Responses API. Results should be reproducible, machine-readable, and suitable for CI thresholds. Eval is part of the product proof, so reports must stamp model and prompt versions and distinguish deterministic retrieval checks from model-scored judgments.",
+      "steps": [
+        "Add a new eval subcommand and fixture format.",
+        "Implement deterministic retrieval and answer-selection checks against AnswerRecord data.",
+        "Integrate OpenAI Responses API support for GPT-5.4-based rubric scoring.",
+        "Stamp reports with model and prompt version information and emit machine-readable results."
+      ],
+      "tags": ["eval", "openai", "quality"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "src/cli.rs",
+        "src/main.rs",
+        "src/cmd/mod.rs",
+        "src/cmd/eval.rs",
+        "components/site/src/answers.rs"
+      ],
+      "depends_on": ["ANS-003", "ANS-006", "ANS-007"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-014",
+      "title": "Add test fixtures and integration coverage for answer-first authoring, build outputs, serve behavior, audit, and eval",
+      "priority": 4,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. The new product shape changes the core content model and public outputs, so the fork needs durable fixtures and integration tests that cover frontmatter parsing, build failures, markdown delivery, llms outputs, structured data, redirects, audit, and eval. This is the broader regression layer that protects the public product surface once the earlier compiler-contract harness is in place.",
+      "steps": [
+        "Create answer-first test content and fixtures.",
+        "Add coverage for frontmatter parsing and fail-fast build validation.",
+        "Add integration tests for outputs such as /page.md, answers.json, llms files, and structured data.",
+        "Add serve, redirect, audit, and eval coverage where practical."
+      ],
+      "tags": ["tests", "fixtures", "quality"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "test_site",
+        "components/content",
+        "components/site",
+        "src/cmd/serve.rs",
+        "src/cmd/audit.rs",
+        "src/cmd/eval.rs"
+      ],
+      "depends_on": ["ANS-006", "ANS-008", "ANS-009", "ANS-010", "ANS-011", "ANS-012", "ANS-013"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-015",
+      "title": "Rewrite the core docs and examples around Ansorum authoring, commands, and customer workflow",
+      "priority": 4,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. The repo's high-level messaging has started shifting to Ansorum, but the detailed documentation and examples still mostly describe upstream Zola behavior. Rewrite the critical docs so users can actually onboard into Ansorum's answer-first model and command surface. The docs should teach the JTBD, authoring contract, governance model, and operator workflow rather than inheriting the old page-first Zola framing.",
+      "steps": [
+        "Replace core getting-started flows with ansorum init/build/serve/audit/eval guidance.",
+        "Document first-class answer frontmatter and sidecar schema usage.",
+        "Document machine outputs, visibility controls, packs, redirects, and eval workflow.",
+        "Update examples and test content to reflect answer-first authoring."
+      ],
+      "tags": ["docs", "examples", "adoption"],
+      "files": [
+        "README.md",
+        "ANSWER_COMPILER_SPEC.md",
+        "docs/content/documentation",
+        "docs/templates",
+        "test_site"
+      ],
+      "depends_on": ["ANS-001", "ANS-004", "ANS-006", "ANS-008", "ANS-012", "ANS-013"],
+      "created_at": "2026-03-18T17:05:00Z",
+      "updated_at": "2026-03-18T17:05:00Z"
+    },
+    {
+      "id": "ANS-016",
+      "title": "Implement ansorum init as an answer-first project scaffold",
+      "priority": 4,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Replace the inherited generic site bootstrap with an Ansorum-specific project scaffold. The init flow should create an answer-first repo shape, starter content, sidecar examples, collections/packs examples, and the configuration needed for machine outputs, audit, and eval. A fresh scaffold should be able to build, serve, audit, and eval successfully on first run without hand edits.",
+      "steps": [
+        "Design the generated project layout for answer-first repos.",
+        "Update the init command prompts and defaults around answer-first use cases.",
+        "Generate starter answer content, packs, and schema sidecar examples.",
+        "Ensure the scaffold works with build, serve, audit, and eval immediately."
+      ],
+      "tags": ["init", "scaffold", "adoption"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "src/cmd/init.rs",
+        "src/prompt.rs",
+        "README.md",
+        "docs/content/documentation/getting-started"
+      ],
+      "depends_on": ["ANS-001", "ANS-003", "ANS-004", "ANS-012", "ANS-013"],
+      "created_at": "2026-03-18T17:20:00Z",
+      "updated_at": "2026-03-18T17:20:00Z"
+    },
+    {
+      "id": "ANS-017",
+      "title": "Define and implement structured log and event-hook schemas for machine and governance events",
+      "priority": 4,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. V0 promises logs and event hooks instead of external analytics integrations, so those outputs need a stable contract. Define event shapes for markdown fetches, llms fetches, redirects, audit results, and eval runs, then implement them consistently across serve and command surfaces. Keep event names and payloads stable because they are the v0 observability API for downstream consumers.",
+      "steps": [
+        "Design the event taxonomy and JSON log shape.",
+        "Emit structured events for machine-delivery routes and redirects.",
+        "Emit structured events for audit and eval runs.",
+        "Document the event-hook contract for downstream integrations."
+      ],
+      "tags": ["logging", "hooks", "observability"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "src/cmd/serve.rs",
+        "src/cmd/audit.rs",
+        "src/cmd/eval.rs",
+        "README.md",
+        "docs"
+      ],
+      "depends_on": ["ANS-010", "ANS-011", "ANS-012", "ANS-013"],
+      "created_at": "2026-03-18T17:20:00Z",
+      "updated_at": "2026-03-18T17:20:00Z"
+    },
+    {
+      "id": "ANS-018",
+      "title": "Resolve and implement the remaining v0 specification decisions for sidecar naming and default eval model tier",
+      "priority": 4,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. The spec still leaves two operational questions open: the exact structured-data sidecar naming convention beyond the initial pattern, and the default GPT-5.4 tier for eval. Close these decisions in code and docs so the product contract is fully defined for alpha users. These defaults should become explicit conventions with tests so alpha users are not forced to guess or rediscover them.",
+      "steps": [
+        "Choose and document the canonical structured-data sidecar naming convention.",
+        "Choose and document the default GPT-5.4 eval tier or explicit selection behavior.",
+        "Implement both decisions in config, docs, and runtime behavior.",
+        "Add tests to prevent these conventions from drifting."
+      ],
+      "tags": ["spec", "defaults", "productization"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "components/config/src/config/mod.rs",
+        "components/site/src/lib.rs",
+        "src/cmd/eval.rs",
+        "README.md",
+        "docs"
+      ],
+      "depends_on": ["ANS-003", "ANS-009", "ANS-013"],
+      "created_at": "2026-03-18T17:20:00Z",
+      "updated_at": "2026-03-18T17:20:00Z"
+    },
+    {
+      "id": "ANS-019",
+      "title": "Create a reference Ansorum project that demonstrates the full answer-first workflow",
+      "priority": 3,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Add a small but realistic reference project that shows how Ansorum is supposed to be used. It should demonstrate first-class answer frontmatter, canonical markdown outputs, packs, structured-data sidecars, redirects, audit, and eval fixtures in one coherent example. Treat this as the canonical example corpus used across docs, screenshots, tests, and future contributor onboarding.",
+      "steps": [
+        "Design a small reference corpus around a real domain such as billing or support.",
+        "Include answer pages, sidecar structured data, pack definitions, and redirect examples.",
+        "Include eval fixtures and expected build outputs.",
+        "Use the project in docs and tests as a canonical reference."
+      ],
+      "tags": ["reference", "examples", "adoption"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        "test_site",
+        "docs/content/documentation",
+        "README.md"
+      ],
+      "depends_on": ["ANS-006", "ANS-008", "ANS-009", "ANS-010", "ANS-012", "ANS-013"],
+      "created_at": "2026-03-18T17:20:00Z",
+      "updated_at": "2026-03-18T17:20:00Z"
+    },
+    {
+      "id": "ANS-020",
+      "title": "Wire CI to enforce tests, audit, and eval for Ansorum's compiler contract",
+      "priority": 5,
+      "status": "todo",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Ansorum's promise of governed, testable answers is not credible unless CI enforces it. Add GitHub Actions coverage for unit/integration tests, audit, and eval so regressions in answer quality and machine outputs are caught automatically. CI should enforce the governed-answer contract, not merely prove that the Rust workspace still compiles.",
+      "steps": [
+        "Design a CI workflow that runs the answer-first test harness and integration tests.",
+        "Run ansorum audit in CI with fail-fast behavior.",
+        "Run ansorum eval in CI with stable configuration suitable for automated execution.",
+        "Document the expected local and CI workflow for contributors."
+      ],
+      "tags": ["ci", "quality", "release"],
+      "files": [
+        "ANSWER_COMPILER_SPEC.md",
+        ".github",
+        "README.md",
+        "src/cmd/audit.rs",
+        "src/cmd/eval.rs",
+        "test_site"
+      ],
+      "depends_on": ["ANS-002", "ANS-012", "ANS-013", "ANS-014"],
+      "created_at": "2026-03-18T17:20:00Z",
+      "updated_at": "2026-03-18T17:20:00Z"
+    }
+  ]
+}

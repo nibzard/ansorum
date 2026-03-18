@@ -35,19 +35,19 @@ fn get_config_file_path(dir: &Path, config_path: Option<&Path>) -> (PathBuf, Pat
             (root, path.to_path_buf())
         }
         None => {
-            // Try zola.toml first, then fall back to config.toml
-            let zola_config = Path::new("zola.toml");
-            let legacy_config = Path::new("config.toml");
+            // Try config.toml first, then fall back to legacy zola.toml.
+            let config = Path::new("config.toml");
+            let legacy_config = Path::new("zola.toml");
 
-            if let Some(root) = dir.ancestors().find(|a| a.join(zola_config).exists()) {
-                (root, zola_config.to_path_buf())
+            if let Some(root) = dir.ancestors().find(|a| a.join(config).exists()) {
+                (root, config.to_path_buf())
             } else if let Some(root) = dir.ancestors().find(|a| a.join(legacy_config).exists()) {
                 (root, legacy_config.to_path_buf())
             } else {
                 messages::unravel_errors(
                     "",
                     &anyhow!(
-                        "zola.toml (or config.toml) not found in current directory or ancestors, current_dir is {}",
+                        "config.toml (or legacy zola.toml) not found in current directory or ancestors, current_dir is {}",
                         dir.display()
                     ),
                 );
@@ -74,8 +74,8 @@ static SHOULD_COLOR_OUTPUT: LazyLock<anstream::ColorChoice> =
     LazyLock::new(|| anstream::AutoStream::choice(&std::io::stderr()));
 
 fn main() {
-    // ensure that logging uses the “info” level for anything in Zola by default
-    let env = Env::new().default_filter_or("zola=info");
+    // Ensure that logging uses the info level for the main Ansorum binary by default.
+    let env = Env::new().default_filter_or("ansorum=info");
     env_logger::Builder::from_env(env)
         .format(|f, record| {
             use std::io::Write;

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<component type="console-application">
+  <id>com.ansorum.ansorum</id>
+
+  <name>Ansorum</name>
+  <summary>An answer-first compiler for agent-readable and human-readable knowledge</summary>
+  <developer id="com.ansorum">
+    <name>Vincent Prouillet and contributors</name>
+  </developer>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>EUPL-1.2</project_license>
+
+  <description>
+    <p>
+      Ansorum compiles one Markdown answer corpus into human and machine-facing
+      outputs from the same source.
+    </p>
+    <p>
+      The product direction is answer-first: canonical HTML, canonical
+      Markdown, machine indexes, and governed AI-facing outputs.
+    </p>
+    <p>
+      This repository still reuses substantial parts of Zola's implementation,
+      but it no longer presents itself as an upstream-compatible Zola release.
+    </p>
+    <p>
+      Ansorum is being developed around typed answer metadata, machine
+      negotiation, and audit and evaluation loops.
+    </p>
+  </description>
+
+  <categories>
+    <category>Development</category>
+    <category>WebDevelopment</category>
+  </categories>
+
+  <url type="homepage">https://ansorum.com/</url>
+  <url type="bugtracker">https://github.com/nibzard/ansorum/issues</url>
+  <url type="help">https://ansorum.com/documentation/</url>
+
+  <provides>
+    <binary>ansorum</binary>
+  </provides>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="0.1.0-alpha.0" date="2026-03-18">
+      <description>
+        <p>Ansorum release line reset from inherited Zola numbering.</p>
+      </description>
+    </release>
+  </releases>
+
+</component>
