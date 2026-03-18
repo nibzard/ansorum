@@ -1048,7 +1048,7 @@
       "id": "ANS-031",
       "title": "Implement or remove the dead default_ai_visibility configuration knob",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "The config surface defines `ansorum.delivery.default_ai_visibility`, but answer parsing still requires explicit `ai_visibility` on answer pages and never applies the configured default. This leaves a dead knob in the product contract. References: components/config/src/config/ansorum.rs:339-364, components/content/src/front_matter/answer.rs:106-119, components/content/src/front_matter/page.rs:150-170.",
       "steps": [
         "Decide whether `default_ai_visibility` should apply during answer normalization or be removed from the public config surface.",
@@ -1063,15 +1063,15 @@
         "cleanup"
       ],
       "files": [
-        "README.md",
         "components/config/src/config/ansorum.rs",
-        "components/content/src/front_matter/answer.rs",
+        "components/config/src/config/mod.rs",
+        "components/config/src/lib.rs",
         "components/content/src/front_matter/page.rs",
-        "docs/content/documentation/getting-started/overview.md",
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:48:00Z",
-      "updated_at": "2026-03-18T21:48:00Z"
+      "updated_at": "2026-03-18T23:05:00Z",
+      "blockers": []
     },
     {
       "id": "ANS-032",

@@ -1148,7 +1148,6 @@ prompt_version = "2026-03-18"
 [ansorum.delivery]
 markdown_routes = true
 markdown_negotiation = true
-default_ai_visibility = "summary_only"
 "#;
         let config = Config::parse(config).unwrap();
 
@@ -1164,10 +1163,8 @@ default_ai_visibility = "summary_only"
         assert_eq!(config.ansorum.packs.curated.len(), 1);
         assert!(config.ansorum.eval.enabled);
         assert_eq!(config.ansorum.eval.model.as_deref(), Some("gpt-5.4-mini"));
-        assert_eq!(
-            config.ansorum.delivery.default_ai_visibility,
-            ansorum::AiVisibilityDefault::SummaryOnly
-        );
+        assert!(config.ansorum.delivery.markdown_routes);
+        assert!(config.ansorum.delivery.markdown_negotiation);
     }
 
     #[test]
@@ -1284,6 +1281,23 @@ markdown_negotiation = true
         assert_eq!(
             error.to_string(),
             "Invalid ansorum.delivery configuration: markdown_negotiation requires markdown_routes to be enabled"
+        );
+    }
+
+    #[test]
+    fn rejects_removed_default_ai_visibility_setting() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.delivery]
+default_ai_visibility = "summary_only"
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("unknown field `default_ai_visibility`")
         );
     }
 

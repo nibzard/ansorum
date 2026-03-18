@@ -326,20 +326,11 @@ impl Default for Eval {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AiVisibilityDefault {
-    Public,
-    SummaryOnly,
-    Hidden,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Delivery {
     pub markdown_routes: bool,
     pub markdown_negotiation: bool,
-    pub default_ai_visibility: AiVisibilityDefault,
 }
 
 impl Delivery {
@@ -356,10 +347,6 @@ impl Delivery {
 
 impl Default for Delivery {
     fn default() -> Self {
-        Self {
-            markdown_routes: true,
-            markdown_negotiation: true,
-            default_ai_visibility: AiVisibilityDefault::Public,
-        }
+        Self { markdown_routes: true, markdown_negotiation: true }
     }
 }

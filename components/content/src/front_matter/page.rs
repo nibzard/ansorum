@@ -888,6 +888,29 @@ intent = "policy"
     }
 
     #[test]
+    fn errors_when_answer_ai_visibility_is_missing() {
+        let res = PageFrontMatter::parse(&RawFrontMatter::Toml(
+            r#"
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+"#,
+        ));
+
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "An answer page requires `ai_visibility`"
+        );
+    }
+
+    #[test]
     fn errors_when_answer_enum_is_invalid() {
         let res = PageFrontMatter::parse(&RawFrontMatter::Toml(
             r#"
