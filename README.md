@@ -149,6 +149,20 @@ ansorum audit
 ansorum eval
 ```
 
+The main CI workflow enforces the same governed-answer contract on every push
+and pull request. In addition to the cross-platform Rust build matrix, GitHub
+Actions runs this deterministic gate on `test_site_answers/`:
+
+```bash
+cargo test --locked --all
+./target/debug/ansorum --root test_site_answers build
+./target/debug/ansorum --root test_site_answers audit --format json
+./target/debug/ansorum --root test_site_answers eval --format json --min-pass-rate 1.0
+```
+
+That CI path is intentionally offline and deterministic. Do not add `--llm` to
+the default contract gate; reserve LLM scoring for explicit, credentialed runs.
+
 `ansorum init` now creates an answer-first starter project with:
 
 - starter answers in `content/`

@@ -136,6 +136,19 @@ Use `ansorum eval --llm` only when `OPENAI_API_KEY` is configured and you want
 OpenAI Responses API grading. If you do not set `ansorum.eval.model` or
 `--model`, Ansorum uses `gpt-5.4-mini` by default.
 
+For contributor parity with CI, run the deterministic compiler-contract gate
+from the repository root:
+
+```bash
+cargo test --locked --all
+./target/debug/ansorum --root test_site_answers build
+./target/debug/ansorum --root test_site_answers audit --format json
+./target/debug/ansorum --root test_site_answers eval --format json --min-pass-rate 1.0
+```
+
+That is the default automation path because it verifies the answer-first
+reference corpus without requiring network access or OpenAI credentials.
+
 ## What "Done" Looks Like
 
 For a healthy answer-first project, one authored answer should compile into:

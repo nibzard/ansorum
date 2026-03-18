@@ -57,3 +57,27 @@ jobs:
 
       - name: Cargo test
         run: cargo test --all
+
+  Governed-Answer-Contract:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build ansorum
+        run: cargo build --locked
+
+      - name: Run workspace tests
+        run: cargo test --locked --all
+
+      - name: Build reference answer corpus
+        run: ./target/debug/ansorum --root test_site_answers build
+
+      - name: Audit compiler contract
+        run: ./target/debug/ansorum --root test_site_answers audit --format json
+
+      - name: Evaluate compiler contract
+        run: ./target/debug/ansorum --root test_site_answers eval --format json --min-pass-rate 1.0

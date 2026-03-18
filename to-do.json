@@ -655,7 +655,7 @@
         "ANS-013"
       ],
       "created_at": "2026-03-18T17:20:00Z",
-      "updated_at": "2026-03-18T20:39:18Z"
+      "updated_at": "2026-03-18T20:39:57Z"
     },
     {
       "id": "ANS-019",
@@ -700,7 +700,7 @@
       "id": "ANS-020",
       "title": "Wire CI to enforce tests, audit, and eval for Ansorum's compiler contract",
       "priority": 5,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Ansorum's promise of governed, testable answers is not credible unless CI enforces it. Add GitHub Actions coverage for unit/integration tests, audit, and eval so regressions in answer quality and machine outputs are caught automatically. CI should enforce the governed-answer contract, not merely prove that the Rust workspace still compiles.",
       "steps": [
         "Design a CI workflow that runs the answer-first test harness and integration tests.",
@@ -715,11 +715,12 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        ".github",
+        ".github/workflows/build-and-test.yml",
         "README.md",
+        "docs/content/documentation/getting-started/overview.md",
         "src/cmd/audit.rs",
         "src/cmd/eval.rs",
-        "test_site"
+        "test_site_answers"
       ],
       "depends_on": [
         "ANS-002",
@@ -728,7 +729,7 @@
         "ANS-014"
       ],
       "created_at": "2026-03-18T17:20:00Z",
-      "updated_at": "2026-03-18T17:20:00Z"
+      "updated_at": "2026-03-18T20:42:15Z"
     }
   ]
 }
