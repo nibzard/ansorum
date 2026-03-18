@@ -37,7 +37,7 @@ use axum::{
         State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
-    http::{HeaderValue, Method, StatusCode, header},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     middleware,
     response::{IntoResponse, Response},
     routing::get,
@@ -137,10 +137,6 @@ async fn handle_request(
         path.push(c);
     }
 
-    if let Some(content) = SITE_CONTENT.read().unwrap().get(&path) {
-        return in_memory_content(&path, content);
-    }
-
     // Handle only `GET`/`HEAD` requests
     match *req.method() {
         Method::HEAD | Method::GET => {}
@@ -150,6 +146,21 @@ async fn handle_request(
     // Handle only simple path requests
     if req.uri().scheme_str().is_some() || req.uri().host().is_some() {
         return not_found();
+    }
+
+    let markdown_variant = markdown_variant_path(&path);
+    let vary_accept = markdown_variant.is_some();
+    let accept_markdown = accepts_markdown(req.headers());
+
+    if accept_markdown
+        && let Some(markdown_path) = markdown_variant.as_ref()
+        && let Some(content) = SITE_CONTENT.read().unwrap().get(markdown_path).cloned()
+    {
+        return in_memory_content(markdown_path, &content, true);
+    }
+
+    if let Some(content) = SITE_CONTENT.read().unwrap().get(&path).cloned() {
+        return in_memory_content(&path, &content, vary_accept);
     }
 
     // Remove the first slash from the request path
@@ -174,6 +185,17 @@ async fn handle_request(
         Ok(metadata) => metadata,
     };
     if metadata.is_dir() {
+        if accept_markdown {
+            let markdown_root = root.join("page.md");
+            if let Ok(contents) = tokio::fs::read(&markdown_root).await {
+                return build_content_response(
+                    content_type_from_extension(markdown_root.extension().and_then(OsStr::to_str)),
+                    contents,
+                    true,
+                );
+            }
+        }
+
         // if root is a directory, append index.html to try to read that instead
         root.push("index.html");
     };
@@ -185,15 +207,11 @@ async fn handle_request(
         Ok(contents) => contents,
     };
 
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(
-            header::CONTENT_TYPE,
-            mimetype_from_path(&root).first_or_octet_stream().essence_str(),
-        )
-        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-        .body(Body::from(contents))
-        .unwrap()
+    build_content_response(
+        disk_content_type(&root),
+        contents,
+        vary_accept && root.file_name() == Some(OsStr::new("index.html")),
+    )
 }
 
 /// WebSocket handler for live reload
@@ -336,21 +354,68 @@ async fn error_injection_middleware(response: Response) -> Response {
     Response::from_parts(parts, Body::from(bytes))
 }
 
-fn in_memory_content(path: &RelativePathBuf, content: &str) -> Response {
-    let content_type = match path.extension() {
-        Some(ext) => match ext {
-            "xml" => "text/xml",
-            "json" => "application/json",
-            "txt" => "text/plain",
-            _ => "text/html",
-        },
-        None => "text/html",
-    };
-    Response::builder()
-        .header(header::CONTENT_TYPE, content_type)
+fn in_memory_content(path: &RelativePathBuf, content: &str, vary_accept: bool) -> Response {
+    build_content_response(
+        content_type_from_extension(path.extension()),
+        content.to_owned(),
+        vary_accept,
+    )
+}
+
+fn markdown_variant_path(path: &RelativePathBuf) -> Option<RelativePathBuf> {
+    if path.extension().is_some() {
+        return None;
+    }
+
+    let mut markdown_path = path.clone();
+    markdown_path.push("page.md");
+    Some(markdown_path)
+}
+
+fn accepts_markdown(headers: &HeaderMap) -> bool {
+    headers
+        .get(header::ACCEPT)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| {
+            value
+                .split(',')
+                .filter_map(|part| part.split(';').next())
+                .any(|mime| mime.trim().eq_ignore_ascii_case("text/markdown"))
+        })
+}
+
+fn content_type_from_extension(extension: Option<&str>) -> &'static str {
+    match extension {
+        Some("xml") => "text/xml",
+        Some("json") => "application/json",
+        Some("txt") => "text/plain",
+        Some("md") => "text/markdown",
+        _ => "text/html",
+    }
+}
+
+fn disk_content_type(path: &Path) -> String {
+    path.extension()
+        .and_then(OsStr::to_str)
+        .map(|extension| content_type_from_extension(Some(extension)).to_string())
+        .unwrap_or_else(|| mimetype_from_path(path).first_or_octet_stream().essence_str().to_string())
+}
+
+fn build_content_response(
+    content_type: impl AsRef<str>,
+    content: impl Into<Body>,
+    vary_accept: bool,
+) -> Response {
+    let mut builder = Response::builder()
         .status(StatusCode::OK)
-        .body(Body::from(content.to_owned()))
-        .expect("Could not build HTML response")
+        .header(header::CONTENT_TYPE, content_type.as_ref())
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+
+    if vary_accept {
+        builder = builder.header(header::VARY, "Accept");
+    }
+
+    builder.body(content.into()).unwrap()
 }
 
 fn method_not_allowed() -> Response {
@@ -897,12 +962,24 @@ pub fn serve(
 
 #[cfg(test)]
 mod tests {
-    use super::{construct_url, create_new_site};
+    use super::{AppState, construct_url, create_new_site, handle_request};
+    use axum::{
+        body::{Body, to_bytes},
+        extract::Request,
+        http::{Method, StatusCode, header},
+    };
+    use relative_path::RelativePathBuf;
+    use site::SITE_CONTENT;
+    use std::fs;
     use crate::get_config_file_path;
     use std::net::{IpAddr, SocketAddr};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::str::FromStr;
+    use std::sync::{Arc, Mutex};
+    use tokio::sync::broadcast;
     use url::Url;
+
+    static SITE_CONTENT_TEST_GUARD: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_construct_url_base_url_is_slash() {
@@ -1060,5 +1137,95 @@ mod tests {
             false,
             String::from("https://example.com:1111/path/to/site"),
         );
+    }
+
+    fn test_app_state(static_root: PathBuf) -> Arc<AppState> {
+        let (reload_tx, _) = broadcast::channel(1);
+        Arc::new(AppState { static_root, base_path: "/".to_string(), reload_tx })
+    }
+
+    fn run_request(req: Request, state: Arc<AppState>) -> (StatusCode, axum::http::HeaderMap, String) {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let response = rt.block_on(handle_request(axum::extract::State(state), req));
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body = rt
+            .block_on(async { to_bytes(response.into_body(), usize::MAX).await.expect("body") });
+        (status, headers, String::from_utf8(body.to_vec()).expect("utf8 body"))
+    }
+
+    fn request(path: &str, accept: Option<&str>) -> Request {
+        let mut builder = Request::builder().method(Method::GET).uri(path);
+        if let Some(accept) = accept {
+            builder = builder.header(header::ACCEPT, accept);
+        }
+        builder.body(Body::empty()).expect("request")
+    }
+
+    #[test]
+    fn serves_markdown_variant_from_memory_when_accept_header_requests_it() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state(std::env::temp_dir());
+        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "# Refunds");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn serves_html_with_vary_header_on_canonical_route_without_markdown_accept() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state(std::env::temp_dir());
+        let (status, headers, body) = run_request(request("/refunds/", Some("text/html")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "<html>Refunds</html>");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn serves_markdown_variant_from_disk_when_accept_header_requests_it() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = std::env::temp_dir().join(format!(
+            "ansorum-serve-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+        let refunds = root.join("refunds");
+        fs::create_dir_all(&refunds).expect("create dir");
+        fs::write(refunds.join("index.html"), "<html>Refunds</html>").expect("write html");
+        fs::write(refunds.join("page.md"), "# Refunds").expect("write markdown");
+
+        let state = test_app_state(root.clone());
+        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown, text/html;q=0.8")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "# Refunds");
+
+        fs::remove_dir_all(root).expect("cleanup");
     }
 }

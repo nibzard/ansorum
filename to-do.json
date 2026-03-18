@@ -329,7 +329,7 @@
       "id": "ANS-010",
       "title": "Serve /page.md and Accept: text/markdown with cache-safe negotiation",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Extend the local and future gateway behavior to serve canonical markdown cleanly. The server must support explicit /page.md routes and Accept negotiation on the canonical HTML route, returning Vary: Accept so caches remain correct. Keep disk-backed and in-memory serve behavior aligned because this becomes the reference developer experience for machine delivery.",
       "steps": [
         "Add route resolution for markdown artifacts in serve mode.",
@@ -344,14 +344,15 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
+        "components/site/src/lib.rs",
         "src/cmd/serve.rs",
-        "components/site/src/lib.rs"
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-006"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:45:57Z"
     },
     {
       "id": "ANS-011",
