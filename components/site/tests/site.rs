@@ -112,7 +112,7 @@ fn extracts_normalized_answer_records() {
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
 
-    assert_eq!(site.answers.len(), 3);
+    assert_eq!(site.answers.len(), 4);
 
     let refunds = site.answers.get("refunds-policy").expect("missing refunds-policy answer");
     assert_eq!(refunds.title, "Refund policy");
@@ -125,13 +125,21 @@ fn extracts_normalized_answer_records() {
     assert_eq!(cancel.title, "how do i cancel my subscription");
     assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel/page.md");
 
+    let credits = site.answers.get("billing-credits").expect("missing billing-credits answer");
+    assert_eq!(credits.title, "Billing credits");
+    assert_eq!(credits.summary, "How billing credits are issued and when they are applied.");
+    assert_eq!(credits.canonical_url, "https://answers.example.com/billing-credits/");
+    assert_eq!(credits.markdown_url, "https://answers.example.com/billing-credits/page.md");
+    assert_eq!(credits.entity, "billing");
+    assert_eq!(credits.related, vec!["refunds-policy".to_string()]);
+
     let billing_ids = site
         .answers
         .same_entity("billing")
         .into_iter()
         .map(|record| record.id.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(billing_ids, vec!["cancel-subscription", "refunds-policy"]);
+    assert_eq!(billing_ids, vec!["billing-credits", "cancel-subscription", "refunds-policy"]);
 
     let related_ids = site
         .answers

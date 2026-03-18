@@ -1029,6 +1029,7 @@ mod tests {
         http::{Method, StatusCode, header},
     };
     use relative_path::RelativePathBuf;
+    use site::Site;
     use site::SITE_CONTENT;
     use std::collections::HashMap;
     use std::fs;
@@ -1295,6 +1296,37 @@ mod tests {
         assert_eq!(body, "# Refunds");
 
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn serves_reference_project_machine_markdown_route_from_built_output() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+        let mut site = Site::new(&root, &config_file).expect("site");
+        site.load().expect("load site");
+
+        let output_root = std::env::temp_dir().join(format!(
+            "ansorum-serve-reference-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+        site.set_output_path(&output_root);
+        site.build().expect("build site");
+
+        let state = test_app_state(output_root.clone());
+        let (status, headers, body) = run_request(request("/refunds/page.md", None), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
+        assert!(body.contains("# Refund policy"));
+        assert!(body.contains("canonical_url: https://answers.example.com/refunds/"));
+
+        fs::remove_dir_all(output_root).expect("cleanup");
     }
 
     #[test]

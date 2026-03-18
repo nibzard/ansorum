@@ -93,3 +93,33 @@ fn print_failure_report(format: AuditFormat, code: &str, message: &str) -> Resul
     };
     print_json_report(&report)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use super::audit;
+    use crate::cli::AuditFormat;
+
+    fn fixture_root(name: &str) -> std::path::PathBuf {
+        env::current_dir().unwrap().join(name)
+    }
+
+    #[test]
+    fn reference_project_audit_passes_in_human_and_json_modes() {
+        let root = fixture_root("test_site_answers");
+        let config_file = root.join("config.toml");
+
+        audit(&root, &config_file, false, AuditFormat::Human).expect("human audit should pass");
+        audit(&root, &config_file, false, AuditFormat::Json).expect("json audit should pass");
+    }
+
+    #[test]
+    fn invalid_reference_project_audit_fails() {
+        let root = fixture_root("test_sites_invalid/answers_audit");
+        let config_file = root.join("config.toml");
+
+        let err = audit(&root, &config_file, false, AuditFormat::Json).expect_err("audit should fail");
+        assert_eq!(err.to_string(), "Audit failed");
+    }
+}

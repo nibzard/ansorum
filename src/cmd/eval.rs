@@ -787,7 +787,7 @@ mod tests {
     use std::env;
     use std::path::Path;
 
-    use super::{contains_term, finalize_report, load_fixture_file, rank_answers, resolve_fixture_path};
+    use super::{contains_term, eval, finalize_report, load_fixture_file, rank_answers, resolve_fixture_path};
     use crate::cli::EvalFormat;
     use site::Site;
 
@@ -911,5 +911,50 @@ mod tests {
         let resolved = resolve_fixture_path(root, Path::new(super::DEFAULT_FIXTURES_PATH));
         assert_eq!(resolved, Path::new("/tmp/site/eval/fixtures.yaml"));
         let _ = EvalFormat::Human;
+    }
+
+    #[test]
+    fn reference_project_eval_command_passes_without_llm() {
+        let root = env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+
+        eval(
+            &root,
+            &config_file,
+            false,
+            Path::new(super::DEFAULT_FIXTURES_PATH),
+            EvalFormat::Json,
+            false,
+            None,
+            None,
+            Some(1.0),
+            None,
+            None,
+            false,
+        )
+        .expect("eval should pass");
+    }
+
+    #[test]
+    fn eval_command_fails_when_thresholds_are_unmet() {
+        let root = env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+
+        let err = eval(
+            &root,
+            &config_file,
+            false,
+            Path::new(super::DEFAULT_FIXTURES_PATH),
+            EvalFormat::Human,
+            false,
+            None,
+            None,
+            Some(1.0),
+            None,
+            Some(1.0),
+            true,
+        )
+        .expect_err("eval should fail when llm is required");
+        assert_eq!(err.to_string(), "Eval failed");
     }
 }
