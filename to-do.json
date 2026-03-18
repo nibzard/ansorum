@@ -1077,7 +1077,7 @@
       "id": "ANS-032",
       "title": "Add explicit request timeouts and better failure classification to OpenAI eval calls",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "The OpenAI eval client currently builds a blocking reqwest client without an explicit timeout. A slow or hung API call can block `ansorum eval` indefinitely. References: src/cmd/eval.rs:352-374.",
       "steps": [
         "Add explicit connect and total request timeouts to the eval client.",
@@ -1096,7 +1096,7 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:49:00Z",
-      "updated_at": "2026-03-18T21:49:00Z"
+      "updated_at": "2026-03-18T22:30:17Z"
     },
     {
       "id": "ANS-033",

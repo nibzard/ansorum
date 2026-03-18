@@ -1,12 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use config::{Config, DEFAULT_EVAL_MODEL};
 use content::AiVisibility;
-use errors::{Result, anyhow, bail};
+use errors::{Error, Result, anyhow, bail};
 use reqwest::blocking::Client;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 use site::Site;
@@ -16,6 +18,8 @@ use crate::observability::{self, DispatchMode};
 
 const DEFAULT_FIXTURES_PATH: &str = "eval/fixtures.yaml";
 const OPENAI_RESPONSES_URL: &str = "https://api.openai.com/v1/responses";
+const OPENAI_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const OPENAI_REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub fn eval(
     root_dir: &Path,
@@ -348,6 +352,13 @@ struct OpenAiEvalClient {
     model: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OpenAiFailureContext {
+    status: Option<StatusCode>,
+    is_timeout: bool,
+    is_connect: bool,
+}
+
 impl OpenAiEvalClient {
     fn new(api_base: &str, model: Option<&str>) -> Result<Self> {
         let model = model.ok_or_else(|| {
@@ -370,7 +381,11 @@ impl OpenAiEvalClient {
                 .map_err(|error| anyhow!("Invalid OPENAI_API_KEY header value: {error}"))?,
         );
 
-        let client = Client::builder().default_headers(headers).build()?;
+        let client = Client::builder()
+            .connect_timeout(OPENAI_CONNECT_TIMEOUT)
+            .timeout(OPENAI_REQUEST_TIMEOUT)
+            .default_headers(headers)
+            .build()?;
         Ok(Self { client, api_base: api_base.to_string(), model: model.to_string() })
     }
 
@@ -431,7 +446,7 @@ impl OpenAiEvalClient {
             }
         });
 
-        let response = self
+        let request = self
             .client
             .post(&self.api_base)
             .json(&json!({
@@ -454,10 +469,12 @@ impl OpenAiEvalClient {
                         "schema": llm_grade_schema(),
                     }
                 }
-            }))
-            .send()?
-            .error_for_status()?
-            .json::<JsonValue>()?;
+            }));
+        let response = request.send().map_err(|error| self.classify_request_error(error))?;
+        let response = response.error_for_status().map_err(|error| self.classify_request_error(error))?;
+        let response = response
+            .json::<JsonValue>()
+            .map_err(|error| anyhow!("OpenAI Responses API returned invalid JSON: {error}"))?;
 
         let output = extract_response_text(&response)
             .ok_or_else(|| anyhow!("OpenAI Responses API did not return text output"))?;
@@ -481,6 +498,55 @@ impl OpenAiEvalClient {
             passed: true,
         })
     }
+
+    fn classify_request_error(&self, error: reqwest::Error) -> Error {
+        anyhow!(classify_openai_failure(
+            &self.api_base,
+            OpenAiFailureContext {
+                status: error.status(),
+                is_timeout: error.is_timeout(),
+                is_connect: error.is_connect(),
+            },
+            &error.to_string(),
+        ))
+    }
+}
+
+fn classify_openai_failure(api_base: &str, context: OpenAiFailureContext, detail: &str) -> String {
+    if context.is_timeout {
+        return format!(
+            "OpenAI eval request timed out after {}s while calling {api_base}. Check network reachability, proxy settings, or try again later.",
+            OPENAI_REQUEST_TIMEOUT.as_secs()
+        );
+    }
+
+    if let Some(status) = context.status {
+        return match status {
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => format!(
+                "OpenAI eval request was rejected with {status} from {api_base}. Check OPENAI_API_KEY and API access for the selected GPT-5.4 model."
+            ),
+            StatusCode::TOO_MANY_REQUESTS => format!(
+                "OpenAI eval request was rate limited with {status} from {api_base}. Wait for capacity to recover or reduce eval concurrency."
+            ),
+            status if status.is_server_error() => format!(
+                "OpenAI eval request failed with upstream status {status} from {api_base}. The OpenAI API is unavailable or unstable; retry later."
+            ),
+            status if status.is_client_error() => format!(
+                "OpenAI eval request failed with API status {status} from {api_base}. Check the eval request configuration and selected model."
+            ),
+            status => format!(
+                "OpenAI eval request failed with unexpected status {status} from {api_base}."
+            ),
+        };
+    }
+
+    if context.is_connect {
+        return format!(
+            "OpenAI eval request could not connect to {api_base}. Check DNS, firewall, proxy, or outbound network access."
+        );
+    }
+
+    format!("OpenAI eval transport failure while calling {api_base}: {detail}")
 }
 
 fn resolve_fixture_path(root_dir: &Path, fixtures: &Path) -> PathBuf {
@@ -910,9 +976,11 @@ mod tests {
     use std::env;
     use std::path::Path;
 
+    use reqwest::StatusCode;
+
     use super::{
-        contains_term, eval, finalize_report, load_fixture_file, rank_answers, resolve_fixture_path,
-        resolve_model,
+        OpenAiFailureContext, classify_openai_failure, contains_term, eval, finalize_report,
+        load_fixture_file, rank_answers, resolve_fixture_path, resolve_model,
     };
     use crate::cli::EvalFormat;
     use config::Config;
@@ -1053,6 +1121,68 @@ mod tests {
         let model =
             resolve_model(&config, true, Some("gpt-5.4")).expect("expected overridden model");
         assert_eq!(model.as_deref(), Some("gpt-5.4"));
+    }
+
+    #[test]
+    fn classifies_openai_timeout_failures() {
+        let message = classify_openai_failure(
+            "https://api.openai.com/v1/responses",
+            OpenAiFailureContext { status: None, is_timeout: true, is_connect: false },
+            "deadline elapsed",
+        );
+        assert!(message.contains("timed out after 45s"));
+    }
+
+    #[test]
+    fn classifies_openai_auth_failures() {
+        let message = classify_openai_failure(
+            "https://api.openai.com/v1/responses",
+            OpenAiFailureContext {
+                status: Some(StatusCode::UNAUTHORIZED),
+                is_timeout: false,
+                is_connect: false,
+            },
+            "401 Unauthorized",
+        );
+        assert!(message.contains("Check OPENAI_API_KEY"));
+    }
+
+    #[test]
+    fn classifies_openai_rate_limits() {
+        let message = classify_openai_failure(
+            "https://api.openai.com/v1/responses",
+            OpenAiFailureContext {
+                status: Some(StatusCode::TOO_MANY_REQUESTS),
+                is_timeout: false,
+                is_connect: false,
+            },
+            "429 Too Many Requests",
+        );
+        assert!(message.contains("rate limited"));
+    }
+
+    #[test]
+    fn classifies_openai_server_failures() {
+        let message = classify_openai_failure(
+            "https://api.openai.com/v1/responses",
+            OpenAiFailureContext {
+                status: Some(StatusCode::BAD_GATEWAY),
+                is_timeout: false,
+                is_connect: false,
+            },
+            "502 Bad Gateway",
+        );
+        assert!(message.contains("upstream status 502 Bad Gateway"));
+    }
+
+    #[test]
+    fn classifies_openai_transport_failures() {
+        let message = classify_openai_failure(
+            "https://api.openai.com/v1/responses",
+            OpenAiFailureContext { status: None, is_timeout: false, is_connect: true },
+            "connection refused",
+        );
+        assert!(message.contains("could not connect"));
     }
 
     #[test]
