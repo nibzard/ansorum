@@ -850,7 +850,7 @@
       "id": "ANS-024",
       "title": "Fix mounted base path request routing in the serve gateway",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Mounted `base_url` handling in the serve path router is incorrect. It uses prefix string matching and byte slicing that can misroute valid mounted paths and overmatch unrelated prefixes. References: src/cmd/serve.rs:125-143 and 671-674.",
       "steps": [
         "Replace raw `starts_with` and substring slicing with path-aware stripping based on the parsed mount path.",
@@ -869,7 +869,8 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:41:00Z",
-      "updated_at": "2026-03-18T21:41:00Z"
+      "updated_at": "2026-03-18T21:57:40Z",
+      "blockers": []
     },
     {
       "id": "ANS-025",

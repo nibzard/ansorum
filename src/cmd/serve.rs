@@ -122,25 +122,19 @@ async fn handle_request(
     let mut root = state.static_root.clone();
     let original_root = root.clone();
 
-    if !path_str.starts_with(base_path) {
-        return not_found();
-    }
-
-    let trimmed_path = &path_str[base_path.len() - 1..];
+    let stripped_path = match strip_mounted_path(path_str, base_path) {
+        Some(path) => path,
+        None => return not_found(),
+    };
 
     let mut path = RelativePathBuf::new();
     // https://zola.discourse.group/t/percent-encoding-for-slugs/736
-    let decoded = match percent_encoding::percent_decode_str(trimmed_path).decode_utf8() {
+    let decoded = match percent_encoding::percent_decode_str(stripped_path).decode_utf8() {
         Ok(d) => d,
         Err(_) => return not_found(),
     };
 
-    let decoded_path = if *base_path != "/" && decoded.starts_with(base_path) {
-        // Remove the base_path from the request path before processing
-        decoded[base_path.len()..].to_string()
-    } else {
-        decoded.to_string()
-    };
+    let decoded_path = decoded.to_string();
 
     for c in decoded_path.split('/') {
         path.push(c);
@@ -183,7 +177,7 @@ async fn handle_request(
 
     // Remove the first slash from the request path
     // otherwise `PathBuf` will interpret it as an absolute path
-    root.push(&decoded[1..]);
+    root.push(decoded_path.trim_start_matches('/'));
 
     // Resolve the root + user supplied path into the absolute path
     // this should hopefully remove any path traversals
@@ -234,6 +228,28 @@ async fn handle_request(
         contents,
         vary_accept && root.file_name() == Some(OsStr::new("index.html")),
     )
+}
+
+fn strip_mounted_path<'a>(request_path: &'a str, base_path: &str) -> Option<&'a str> {
+    if !request_path.starts_with('/') {
+        return None;
+    }
+
+    let mount_path = match base_path {
+        "/" => return Some(request_path),
+        path => path.trim_end_matches('/'),
+    };
+
+    if request_path == mount_path {
+        return Some("/");
+    }
+
+    let suffix = request_path.strip_prefix(mount_path)?;
+    if !suffix.starts_with('/') {
+        return None;
+    }
+
+    Some(suffix)
 }
 
 /// WebSocket handler for live reload
@@ -1052,7 +1068,9 @@ pub fn serve(
 
 #[cfg(test)]
 mod tests {
-    use super::{AppState, RedirectTarget, construct_url, create_new_site, handle_request};
+    use super::{
+        AppState, RedirectTarget, construct_url, create_new_site, handle_request, strip_mounted_path,
+    };
     use axum::{
         body::{Body, to_bytes},
         extract::Request,
@@ -1232,15 +1250,30 @@ mod tests {
     }
 
     fn test_app_state(static_root: PathBuf) -> Arc<AppState> {
-        test_app_state_with_redirects(static_root, HashMap::new())
+        test_app_state_with_base_path_and_redirects(static_root, "/".to_string(), HashMap::new())
     }
 
     fn test_app_state_with_redirects(
         static_root: PathBuf,
         redirects: HashMap<String, RedirectTarget>,
     ) -> Arc<AppState> {
+        test_app_state_with_base_path_and_redirects(static_root, "/".to_string(), redirects)
+    }
+
+    fn test_app_state_with_base_path(
+        static_root: PathBuf,
+        base_path: &str,
+    ) -> Arc<AppState> {
+        test_app_state_with_base_path_and_redirects(static_root, base_path.to_string(), HashMap::new())
+    }
+
+    fn test_app_state_with_base_path_and_redirects(
+        static_root: PathBuf,
+        base_path: String,
+        redirects: HashMap<String, RedirectTarget>,
+    ) -> Arc<AppState> {
         let (reload_tx, _) = broadcast::channel(1);
-        Arc::new(AppState { static_root, base_path: "/".to_string(), redirects, reload_tx })
+        Arc::new(AppState { static_root, base_path, redirects, reload_tx })
     }
 
     fn run_request(req: Request, state: Arc<AppState>) -> (StatusCode, axum::http::HeaderMap, String) {
@@ -1262,6 +1295,14 @@ mod tests {
             builder = builder.header(header::ACCEPT, accept);
         }
         builder.body(Body::empty()).expect("request")
+    }
+
+    #[test]
+    fn strips_mounted_paths_by_segment_boundary() {
+        assert_eq!(strip_mounted_path("/refunds/", "/"), Some("/refunds/"));
+        assert_eq!(strip_mounted_path("/docs", "/docs"), Some("/"));
+        assert_eq!(strip_mounted_path("/docs/refunds/", "/docs"), Some("/refunds/"));
+        assert_eq!(strip_mounted_path("/docset/refunds/", "/docs"), None);
     }
 
     #[test]
@@ -1357,6 +1398,83 @@ mod tests {
         assert!(body.contains("canonical_url: https://answers.example.com/refunds/"));
 
         fs::remove_dir_all(output_root).expect("cleanup");
+    }
+
+    #[test]
+    fn serves_markdown_variant_from_memory_under_mounted_base_path() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state_with_base_path(std::env::temp_dir(), "/docs");
+        let (status, headers, body) =
+            run_request(request("/docs/refunds/", Some("text/markdown")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "# Refunds");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn mounted_base_path_does_not_overmatch_near_prefixes() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let state = test_app_state_with_base_path(std::env::temp_dir(), "/docs");
+        let (status, _, _) = run_request(request("/docset/refunds/", Some("text/markdown")), state);
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn serves_reference_project_machine_markdown_route_under_mounted_base_path() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+        let mut site = Site::new(&root, &config_file).expect("site");
+        site.load().expect("load site");
+
+        let output_root = std::env::temp_dir().join(format!(
+            "ansorum-serve-mounted-reference-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+        site.set_output_path(&output_root);
+        site.build().expect("build site");
+
+        let state = test_app_state_with_base_path(output_root.clone(), "/docs");
+        let (status, headers, body) = run_request(request("/docs/refunds/page.md", None), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
+        assert!(body.contains("# Refund policy"));
+        assert!(body.contains("canonical_url: https://answers.example.com/refunds/"));
+
+        fs::remove_dir_all(output_root).expect("cleanup");
+    }
+
+    #[test]
+    fn serves_redirect_route_from_configured_code_under_mounted_base_path() {
+        let redirects = HashMap::from([(
+            "sales-demo".to_string(),
+            RedirectTarget { target: "/demo".to_string(), external: false },
+        )]);
+
+        let state =
+            test_app_state_with_base_path_and_redirects(std::env::temp_dir(), "/docs".to_string(), redirects);
+        let (status, headers, body) = run_request(request("/docs/r/sales-demo", None), state);
+
+        assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(headers[header::LOCATION], "/demo");
+        assert!(body.is_empty());
     }
 
     #[test]
