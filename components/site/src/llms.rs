@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use config::Config;
-use content::{AiVisibility, AnswerAudience, AnswerIntent, LlmsPriority};
+use content::{AnswerAudience, AnswerIntent, LlmsPriority};
 use errors::{Result, anyhow, bail};
 use serde::Deserialize;
 use utils::slugs::slugify_paths;
@@ -342,7 +342,7 @@ fn corpus_description(config: &Config) -> &str {
 }
 
 fn is_ai_visible(record: &AnswerRecord) -> bool {
-    record.ai_visibility != AiVisibility::Hidden
+    record.is_machine_ai_visible()
 }
 
 fn is_llms_visible(record: &AnswerRecord) -> bool {

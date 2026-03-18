@@ -1173,6 +1173,52 @@ fn can_find_site_and_page_authors() {
     assert_eq!(0, p2.meta.authors.len());
 }
 
+#[test]
+fn filters_non_public_answers_from_machine_outputs() {
+    let (site, _tmp_dir, public) = build_site("test_sites_invalid/answers_visibility_outputs");
+
+    assert!(file_exists!(public, "public/index.html"));
+    assert!(file_exists!(public, "internal/index.html"));
+    assert!(file_exists!(public, "private/index.html"));
+
+    assert!(file_exists!(public, "public/page.md"));
+    assert!(!file_exists!(public, "internal/page.md"));
+    assert!(!file_exists!(public, "private/page.md"));
+
+    assert!(file_exists!(public, "answers.json"));
+    assert!(file_contains!(public, "answers.json", "\"billing-overview\""));
+    assert!(!file_contains!(public, "answers.json", "\"internal-only\""));
+    assert!(!file_contains!(public, "answers.json", "\"private-playbook\""));
+    assert!(!file_contains!(public, "answers.json", "\"related\": [\n        \"internal-only\""));
+    assert!(!file_contains!(public, "answers.json", "\"related\": [\n        \"private-playbook\""));
+
+    assert!(file_exists!(public, "billing/answers.json"));
+    assert!(!file_contains!(public, "billing/answers.json", "\"internal-only\""));
+    assert!(!file_contains!(public, "billing/answers.json", "\"private-playbook\""));
+
+    assert!(file_exists!(public, "llms.txt"));
+    assert!(!file_contains!(public, "llms.txt", "Internal only"));
+    assert!(!file_contains!(public, "llms.txt", "Private playbook"));
+
+    assert!(file_exists!(public, "billing/llms.txt"));
+    assert!(!file_contains!(public, "billing/llms.txt", "Internal only"));
+    assert!(!file_contains!(public, "billing/llms.txt", "Private playbook"));
+
+    assert!(!file_exists!(public, "internal/answers.json"));
+    assert!(!file_exists!(public, "internal/llms.txt"));
+
+    let library = site.library.read().unwrap();
+    let report = audit_library(
+        &library,
+        &site.answers,
+        NaiveDate::from_ymd_opt(2026, 3, 18).expect("valid date"),
+    );
+
+    assert!(report.has_errors());
+    assert!(report.findings.iter().any(|finding| finding.code == "visibility_leak"));
+    assert!(report.findings.iter().any(|finding| finding.code == "related_visibility_leak"));
+}
+
 // Follows test_site/themes/sample/templates/current_path.html
 fn current_path(path: &str) -> String {
     format!("[current_path]({})", path)

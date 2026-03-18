@@ -1,0 +1,11 @@
+base_url = "https://answers.example.com"
+title = "Visibility output fixture"
+description = "Fixture corpus for non-public machine output filtering."
+generate_feeds = false
+generate_sitemap = false
+generate_robots_txt = false
+build_search_index = false
+
+[ansorum.packs]
+auto_entity_packs = true
+auto_audience_packs = true

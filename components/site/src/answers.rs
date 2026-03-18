@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::NaiveDate;
 use content::{
     AiVisibility, AnswerAudience, AnswerIntent, AnswerVisibility, Library, LlmsPriority, Page,
-    TokenBudget,
+    TokenBudget, is_machine_ai_visible,
 };
 use errors::{Result, anyhow};
 use serde::Serialize;
@@ -219,16 +219,21 @@ impl AnswerCorpus {
         let visible = self
             .records
             .iter()
-            .filter(|record| record.ai_visibility != AiVisibility::Hidden)
+            .filter(|record| record.is_machine_ai_visible())
             .collect::<Vec<_>>();
         self.to_json_subset(&visible)
     }
 
     pub fn to_json_subset(&self, records: &[&AnswerRecord]) -> Result<String> {
+        let visible_ids = records.iter().map(|record| record.id.as_str()).collect::<HashSet<_>>();
         let document = AnswersIndex {
             version: 1,
             generated_at: None,
-            answers: records.iter().copied().map(SerializedAnswerRecord::from).collect(),
+            answers: records
+                .iter()
+                .copied()
+                .map(|record| SerializedAnswerRecord::from_record(record, &visible_ids))
+                .collect(),
         };
 
         serde_json::to_string_pretty(&document)
@@ -260,6 +265,10 @@ impl AnswerRecord {
             source_path: page.file.path.clone(),
         })
     }
+
+    pub fn is_machine_ai_visible(&self) -> bool {
+        is_machine_ai_visible(&self.visibility, &self.ai_visibility)
+    }
 }
 
 #[derive(Serialize)]
@@ -280,7 +289,7 @@ struct SerializedAnswerRecord<'a> {
     entity: &'a str,
     intent: &'a AnswerIntent,
     audience: &'a AnswerAudience,
-    related: &'a [String],
+    related: Vec<&'a str>,
     canonical_questions: &'a [String],
     aliases: &'a [String],
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -293,8 +302,8 @@ struct SerializedAnswerRecord<'a> {
     last_modified: Option<&'a str>,
 }
 
-impl<'a> From<&'a AnswerRecord> for SerializedAnswerRecord<'a> {
-    fn from(record: &'a AnswerRecord) -> Self {
+impl<'a> SerializedAnswerRecord<'a> {
+    fn from_record(record: &'a AnswerRecord, visible_ids: &HashSet<&str>) -> Self {
         Self {
             id: &record.id,
             title: &record.title,
@@ -304,7 +313,12 @@ impl<'a> From<&'a AnswerRecord> for SerializedAnswerRecord<'a> {
             entity: &record.entity,
             intent: &record.intent,
             audience: &record.audience,
-            related: &record.related,
+            related: record
+                .related
+                .iter()
+                .filter(|related_id| visible_ids.contains(related_id.as_str()))
+                .map(String::as_str)
+                .collect(),
             canonical_questions: &record.canonical_questions,
             aliases: &record.aliases,
             review_by: record.review_by.as_deref(),
@@ -399,9 +413,9 @@ pub fn audit_library(
     today: NaiveDate,
 ) -> AuditReport {
     let mut report = AuditReport::default();
-    let hidden_ids = answers
+    let excluded_machine_ids = answers
         .iter()
-        .filter(|record| record.ai_visibility == AiVisibility::Hidden)
+        .filter(|record| !record.is_machine_ai_visible())
         .map(|record| record.id.as_str())
         .collect::<HashSet<_>>();
 
@@ -413,10 +427,7 @@ pub fn audit_library(
         let answer_id = Some(answer.id.as_str());
         let source_path = Some(page.file.path.as_path());
 
-        if !matches!(
-            answer.visibility,
-            AnswerVisibility::Public
-        ) && answer.ai_visibility != AiVisibility::Hidden
+        if !answer.is_machine_ai_visible() && answer.ai_visibility != AiVisibility::Hidden
         {
             report.push(
                 AuditSeverity::Error,
@@ -560,12 +571,12 @@ pub fn audit_library(
         let answer_id = Some(record.id.as_str());
         let source_path = Some(record.source_path.as_path());
         for related_id in &record.related {
-            if hidden_ids.contains(related_id.as_str()) {
+            if excluded_machine_ids.contains(related_id.as_str()) {
                 report.push(
                     AuditSeverity::Error,
                     "related_visibility_leak",
                     format!(
-                        "`related` references hidden answer `{related_id}`, which would leak non-public graph metadata into machine outputs"
+                        "`related` references answer `{related_id}` that is excluded from machine outputs, which would leak non-public graph metadata"
                     ),
                     answer_id,
                     source_path,

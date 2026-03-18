@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project": {
     "name": "ansorum",
-    "root": "/home/agent/zola"
+    "root": "/home/agent/ansorum"
   },
   "source_files": [
     "ANSWER_COMPILER_SPEC.md",
@@ -808,8 +808,310 @@
         "ANS-015"
       ],
       "created_at": "2026-03-18T21:31:00Z",
-      "updated_at": "2026-03-18T21:04:06Z",
+      "updated_at": "2026-03-18T21:04:33Z",
       "blockers": []
+    },
+    {
+      "id": "ANS-023",
+      "title": "Enforce non-public answer visibility rules in build outputs instead of relying on audit",
+      "priority": 1,
+      "status": "done",
+      "details": "The current build can emit non-public answers into machine-facing outputs when `visibility` is `private` or `internal` but `ai_visibility` is not `hidden`. The audit command detects this leak, but build/serve/output generation still publish it. References: components/site/src/answers.rs:218-225 and 416-430, components/site/src/lib.rs:754-790, components/site/src/llms.rs:344-349, components/content/src/page.rs:350-394.",
+      "steps": [
+        "Decide the product rule: either fail build/load immediately for invalid visibility combinations or hard-filter non-public answers from every machine output path.",
+        "Apply the rule consistently to `answers.json`, `llms.txt`, scoped pack outputs, and canonical `/page.md` generation so the same answer cannot leak through a different emitter.",
+        "Keep `audit` aligned with the runtime behavior so audit findings and emitted artifacts cannot disagree.",
+        "Add regression tests covering `private` and `internal` answers with invalid `ai_visibility` combinations and assert that no machine artifact leaks content.",
+        "Acceptance: a non-public answer cannot appear in any machine-facing output unless the product contract explicitly allows it."
+      ],
+      "tags": [
+        "security",
+        "correctness",
+        "outputs"
+      ],
+      "files": [
+        "components/content/src/answer.rs",
+        "components/content/src/lib.rs",
+        "components/content/src/page.rs",
+        "components/site/src/answers.rs",
+        "components/site/src/llms.rs",
+        "components/site/tests/site.rs",
+        "test_sites_invalid/answers_visibility_outputs/config.toml",
+        "test_sites_invalid/answers_visibility_outputs/content/public.md",
+        "test_sites_invalid/answers_visibility_outputs/content/internal.md",
+        "test_sites_invalid/answers_visibility_outputs/content/private.md",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:40:00Z",
+      "updated_at": "2026-03-18T21:54:40Z",
+      "blockers": []
+    },
+    {
+      "id": "ANS-024",
+      "title": "Fix mounted base path request routing in the serve gateway",
+      "priority": 1,
+      "status": "todo",
+      "details": "Mounted `base_url` handling in the serve path router is incorrect. It uses prefix string matching and byte slicing that can misroute valid mounted paths and overmatch unrelated prefixes. References: src/cmd/serve.rs:125-143 and 671-674.",
+      "steps": [
+        "Replace raw `starts_with` and substring slicing with path-aware stripping based on the parsed mount path.",
+        "Handle root mounts and non-root mounts with the same normalization rules.",
+        "Ensure redirect handling, markdown negotiation, and static file lookup all operate on the correctly stripped path.",
+        "Add regression tests for mounted base URLs such as `/docs/`, near-prefix collisions such as `/docset/`, and direct `/page.md` fetches under a mount.",
+        "Acceptance: `ansorum serve` behaves correctly for mounted sites and does not overmatch sibling prefixes."
+      ],
+      "tags": [
+        "serve",
+        "routing",
+        "correctness"
+      ],
+      "files": [
+        "src/cmd/serve.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:41:00Z",
+      "updated_at": "2026-03-18T21:41:00Z"
+    },
+    {
+      "id": "ANS-025",
+      "title": "Preserve remove events in the file watcher so serve rebuilds on deletions",
+      "priority": 1,
+      "status": "todo",
+      "details": "The serve watcher currently drops file-system remove events because `filter_events` ignores any event whose path no longer exists. That leaves stale pages and assets in memory or on disk until restart. References: src/fs_utils.rs:94-120 and src/cmd/serve.rs:935-969.",
+      "steps": [
+        "Change event filtering so remove events are retained even when the path has already disappeared from disk.",
+        "Keep temp-file and ignored-content filtering correct for create/modify/remove cases.",
+        "Verify fast rebuild and full recreate flows both handle deletions of markdown files, assets, and directories without leaving stale output behind.",
+        "Add focused tests for remove events in `fs_utils` and serve rebuild behavior after deleting content or static files.",
+        "Acceptance: deleting a watched file or folder triggers the correct rebuild path and stale output is removed."
+      ],
+      "tags": [
+        "serve",
+        "watcher",
+        "correctness"
+      ],
+      "files": [
+        "src/cmd/serve.rs",
+        "src/fs_utils.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:42:00Z",
+      "updated_at": "2026-03-18T21:42:00Z"
+    },
+    {
+      "id": "ANS-026",
+      "title": "Honor delivery configuration for markdown routes and Accept negotiation",
+      "priority": 1,
+      "status": "todo",
+      "details": "The Ansorum delivery config exposes `markdown_routes` and `markdown_negotiation`, but build and serve ignore those switches and always emit `/page.md` plus negotiation behavior. That makes the config misleading and weakens operator control over machine endpoints. References: components/config/src/config/ansorum.rs:339-353, components/site/src/lib.rs:754-790, src/cmd/serve.rs:167-176 and 206-217.",
+      "steps": [
+        "Define the expected contract for `markdown_routes` and `markdown_negotiation` at build time and serve time.",
+        "Gate `/page.md` emission on `markdown_routes` and gate `Accept: text/markdown` negotiation on `markdown_negotiation`.",
+        "Ensure the config remains internally valid and that docs match the implemented behavior.",
+        "Add regression tests for all combinations of the two flags in build outputs and serve responses.",
+        "Acceptance: toggling delivery config actually changes emitted artifacts and serve behavior."
+      ],
+      "tags": [
+        "config",
+        "serve",
+        "delivery"
+      ],
+      "files": [
+        "components/config/src/config/ansorum.rs",
+        "components/site/src/lib.rs",
+        "docs/content/documentation/getting-started/overview.md",
+        "README.md",
+        "src/cmd/serve.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:43:00Z",
+      "updated_at": "2026-03-18T21:43:00Z"
+    },
+    {
+      "id": "ANS-027",
+      "title": "Replace serve-thread panics on unexpected I/O with graceful 5xx error handling",
+      "priority": 2,
+      "status": "todo",
+      "details": "Unexpected filesystem errors in the serve path currently panic the request handler instead of returning a server error and logging context. That can crash the serve thread on transient I/O failures. References: src/cmd/serve.rs:505-512.",
+      "steps": [
+        "Replace the panic path in `io_error` with explicit 5xx responses and structured logging.",
+        "Preserve `404` and `403` behavior for expected not-found and permission cases.",
+        "Make sure the error overlay path still works when a request fails with a server-side I/O error.",
+        "Add tests for representative non-NotFound, non-PermissionDenied error kinds if feasible.",
+        "Acceptance: unexpected I/O errors no longer panic the server and clients receive a stable error response."
+      ],
+      "tags": [
+        "serve",
+        "fault-tolerance",
+        "correctness"
+      ],
+      "files": [
+        "src/cmd/serve.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:44:00Z",
+      "updated_at": "2026-03-18T21:44:00Z"
+    },
+    {
+      "id": "ANS-028",
+      "title": "Split answer retrieval aliases from page redirect aliases",
+      "priority": 2,
+      "status": "todo",
+      "details": "The current content model uses one `aliases` field for two incompatible concepts: retrieval/query synonyms and HTML redirect paths. Answer aliases are copied from page aliases, and build renders them as redirect pages. The reference corpus currently turns natural-language retrieval aliases into published redirect URLs. References: components/content/src/front_matter/page.rs:150-170, components/site/src/lib.rs:955-980, test_site_answers/content/refunds.md:1-18.",
+      "steps": [
+        "Design separate fields for answer-query aliases versus URL redirect aliases without losing authored intent.",
+        "Update parsing, normalized answer extraction, and runtime emitters so retrieval aliases do not automatically become redirect pages.",
+        "Migrate reference fixtures and docs to the new contract.",
+        "Add tests covering answer ranking aliases and redirect generation independently.",
+        "Acceptance: retrieval synonyms improve answer selection without silently creating URL redirect surfaces."
+      ],
+      "tags": [
+        "content-model",
+        "outputs",
+        "correctness"
+      ],
+      "files": [
+        "components/content/src/answer.rs",
+        "components/content/src/front_matter/answer.rs",
+        "components/content/src/front_matter/page.rs",
+        "components/site/src/answers.rs",
+        "components/site/src/lib.rs",
+        "docs/content/documentation/content/page.md",
+        "test_site_answers/content/refunds.md",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:45:00Z",
+      "updated_at": "2026-03-18T21:45:00Z"
+    },
+    {
+      "id": "ANS-029",
+      "title": "Replace per-event thread spawning in observability delivery with bounded async dispatch",
+      "priority": 2,
+      "status": "todo",
+      "details": "Observability async mode currently spawns a new OS thread for every emitted event. Under serve traffic, each machine fetch or redirect hit can create another thread if an event hook is configured. References: src/observability.rs:68-102 and src/cmd/serve.rs:175-180.",
+      "steps": [
+        "Design a bounded delivery mechanism such as a background worker, queue, or runtime task model instead of unbounded thread creation.",
+        "Preserve sync mode semantics for commands that intentionally block on hook delivery.",
+        "Define failure behavior under queue saturation, slow hooks, and process shutdown.",
+        "Add tests or targeted verification for event delivery under bursty serve traffic.",
+        "Acceptance: async event delivery does not create an unbounded number of OS threads."
+      ],
+      "tags": [
+        "observability",
+        "performance",
+        "reliability"
+      ],
+      "files": [
+        "src/cmd/serve.rs",
+        "src/observability.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:46:00Z",
+      "updated_at": "2026-03-18T21:46:00Z"
+    },
+    {
+      "id": "ANS-030",
+      "title": "Serialize canonical machine markdown front matter safely instead of hand-writing YAML-like text",
+      "priority": 3,
+      "status": "todo",
+      "details": "Canonical `/page.md` output is currently assembled with raw string writes for scalar fields and lists. Values containing YAML-significant characters, multiline text, or other edge cases can corrupt the machine-facing contract. References: components/content/src/page.rs:356-394 and 538-550.",
+      "steps": [
+        "Replace handwritten header generation with a real serializer or an explicitly escaped format contract.",
+        "Validate behavior for titles, entities, aliases, and questions containing punctuation, colons, quotes, or newlines.",
+        "Keep output deterministic and compatible with the intended machine-markdown contract.",
+        "Add regression tests for escaping edge cases in `/page.md` output.",
+        "Acceptance: machine markdown remains parseable and stable for authored metadata with special characters."
+      ],
+      "tags": [
+        "markdown",
+        "serialization",
+        "correctness"
+      ],
+      "files": [
+        "components/content/src/page.rs",
+        "components/site/tests/site.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:47:00Z",
+      "updated_at": "2026-03-18T21:47:00Z"
+    },
+    {
+      "id": "ANS-031",
+      "title": "Implement or remove the dead default_ai_visibility configuration knob",
+      "priority": 3,
+      "status": "todo",
+      "details": "The config surface defines `ansorum.delivery.default_ai_visibility`, but answer parsing still requires explicit `ai_visibility` on answer pages and never applies the configured default. This leaves a dead knob in the product contract. References: components/config/src/config/ansorum.rs:339-364, components/content/src/front_matter/answer.rs:106-119, components/content/src/front_matter/page.rs:150-170.",
+      "steps": [
+        "Decide whether `default_ai_visibility` should apply during answer normalization or be removed from the public config surface.",
+        "If retained, apply it consistently only where it does not weaken explicit visibility guarantees.",
+        "Update docs and examples so the behavior is unambiguous.",
+        "Add regression tests for answer parsing with and without explicit `ai_visibility`.",
+        "Acceptance: the configuration is either functional and tested or removed entirely."
+      ],
+      "tags": [
+        "config",
+        "schema",
+        "cleanup"
+      ],
+      "files": [
+        "README.md",
+        "components/config/src/config/ansorum.rs",
+        "components/content/src/front_matter/answer.rs",
+        "components/content/src/front_matter/page.rs",
+        "docs/content/documentation/getting-started/overview.md",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:48:00Z",
+      "updated_at": "2026-03-18T21:48:00Z"
+    },
+    {
+      "id": "ANS-032",
+      "title": "Add explicit request timeouts and better failure classification to OpenAI eval calls",
+      "priority": 3,
+      "status": "todo",
+      "details": "The OpenAI eval client currently builds a blocking reqwest client without an explicit timeout. A slow or hung API call can block `ansorum eval` indefinitely. References: src/cmd/eval.rs:352-374.",
+      "steps": [
+        "Add explicit connect and total request timeouts to the eval client.",
+        "Classify timeout and transport failures with actionable error messages so operators can distinguish credential, API, and network issues.",
+        "Preserve the existing GPT-5.4 validation and response parsing behavior.",
+        "Add tests for timeout-related configuration or at least unit coverage for the new error paths.",
+        "Acceptance: `ansorum eval --llm` fails predictably under network stalls instead of hanging."
+      ],
+      "tags": [
+        "eval",
+        "reliability",
+        "performance"
+      ],
+      "files": [
+        "src/cmd/eval.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:49:00Z",
+      "updated_at": "2026-03-18T21:49:00Z"
+    },
+    {
+      "id": "ANS-033",
+      "title": "Remove unbounded full-body buffering from serve error overlay injection",
+      "priority": 3,
+      "status": "todo",
+      "details": "The serve error overlay middleware currently reads whole responses into memory with `to_bytes(..., usize::MAX)` before appending the HTML error box. Large pages can cause avoidable memory pressure and latency spikes. References: src/cmd/serve.rs:306-372.",
+      "steps": [
+        "Redesign error overlay injection so it does not require unbounded buffering of entire responses.",
+        "If full buffering remains necessary for some cases, add a sane size cap and fail-safe behavior.",
+        "Preserve correct handling for normal HTML pages, 404 responses, and WebSocket upgrades.",
+        "Add tests or targeted verification for large HTML responses and error overlay behavior.",
+        "Acceptance: the error overlay path no longer buffers arbitrarily large bodies without limits."
+      ],
+      "tags": [
+        "serve",
+        "performance",
+        "reliability"
+      ],
+      "files": [
+        "src/cmd/serve.rs",
+        "to-do.json"
+      ],
+      "created_at": "2026-03-18T21:50:00Z",
+      "updated_at": "2026-03-18T21:50:00Z"
     }
   ]
 }

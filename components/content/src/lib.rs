@@ -14,7 +14,7 @@ mod utils;
 
 pub use answer::{
     AiVisibility, AnswerAudience, AnswerFrontMatter, AnswerIntent, AnswerVisibility, LlmsPriority,
-    TokenBudget,
+    TokenBudget, is_machine_ai_visible,
 };
 pub use file_info::FileInfo;
 pub use front_matter::{PageFrontMatter, SectionFrontMatter};

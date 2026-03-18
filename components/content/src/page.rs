@@ -349,7 +349,7 @@ impl Page {
 
     pub fn canonical_machine_markdown(&self) -> Option<String> {
         let answer = self.answer()?;
-        if answer.ai_visibility == AiVisibility::Hidden {
+        if !answer.is_machine_ai_visible() {
             return None;
         }
 
@@ -955,6 +955,39 @@ Cancellation details for customers."#;
         assert!(markdown.contains("How to cancel."));
         assert!(markdown.contains(&format!("Canonical page: <{}>", page.permalink)));
         assert!(!markdown.contains("Cancellation details for customers."));
+    }
+
+    #[test]
+    fn non_public_answers_do_not_emit_machine_markdown() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Internal billing notes"
+id = "internal-billing-notes"
+summary = "Internal notes."
+canonical_questions = ["internal billing notes"]
+intent = "reference"
+entity = "billing"
+audience = "internal"
+visibility = "internal"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "small"
++++
+Internal details for operators only."#;
+        let res = Page::parse(Path::new("internal.md"), content, &config, &PathBuf::new());
+        assert!(res.is_ok());
+        let mut page = res.unwrap();
+        page.render_markdown(
+            &HashMap::default(),
+            &ZOLA_TERA,
+            &config,
+            InsertAnchor::None,
+            &HashMap::new(),
+        )
+        .unwrap();
+
+        assert!(page.canonical_machine_markdown().is_none());
     }
 
     #[test]

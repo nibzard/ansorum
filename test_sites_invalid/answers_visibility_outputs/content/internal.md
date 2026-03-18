@@ -1,0 +1,17 @@
++++
+title = "Internal only"
+id = "internal-only"
+summary = "Internal billing notes."
+canonical_questions = ["internal billing notes"]
+intent = "reference"
+entity = "billing"
+audience = "internal"
+related = []
+visibility = "internal"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "small"
+aliases = ["internal billing"]
++++
+
+Internal details only.

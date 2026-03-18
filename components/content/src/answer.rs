@@ -40,6 +40,10 @@ pub enum AiVisibility {
     SummaryOnly,
 }
 
+pub fn is_machine_ai_visible(visibility: &AnswerVisibility, ai_visibility: &AiVisibility) -> bool {
+    matches!(visibility, AnswerVisibility::Public) && !matches!(ai_visibility, AiVisibility::Hidden)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LlmsPriority {
@@ -78,4 +82,10 @@ pub struct AnswerFrontMatter {
     pub last_reviewed_by: Option<String>,
     pub owner: Option<String>,
     pub confidence_notes: Option<String>,
+}
+
+impl AnswerFrontMatter {
+    pub fn is_machine_ai_visible(&self) -> bool {
+        is_machine_ai_visible(&self.visibility, &self.ai_visibility)
+    }
 }
