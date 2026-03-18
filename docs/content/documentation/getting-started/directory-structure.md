@@ -3,7 +3,7 @@ title = "Directory structure"
 weight = 30
 +++
 
-After running `zola init`, you should see the following structure in your directory:
+After running `ansorum init`, you should see the following structure:
 
 
 ```bash
@@ -18,18 +18,40 @@ After running `zola init`, you should see the following structure in your direct
 5 directories, 1 file
 ```
 
-You might also see a `public` directory if you are running the default `zola build/serve` commands which contains some output for the site: the full site for `zola build` and only the static assets for `zola serve`. This folder will be deleted/created automatically by `zola serve`.
+You might also see a `public` directory after running `ansorum build` or
+`ansorum serve`. In an Ansorum project, `public` is where compiled human and
+machine outputs land.
 
-Here's a high-level overview of each of these directories and `config.toml`.
+The current scaffold is intentionally minimal. The answer-first shape appears
+when you add authored answers, sidecars, packs, and eval fixtures. The
+reference project looks more like this:
+
+```bash
+.
+├── collections/
+│   └── packs/
+├── config.toml
+├── content/
+│   ├── refunds.md
+│   ├── refunds.schema.json
+│   ├── cancel.md
+│   └── internal-playbook.md
+├── eval/
+│   └── fixtures.yaml
+└── public/
+```
+
+Here's the role of each directory and `config.toml`.
 
 ## `config.toml`
 A mandatory Zola configuration file in TOML format.
 This file is explained in detail in the [configuration documentation](@/documentation/getting-started/configuration.md).
 
 ## `content`
-Contains all your markup content (mostly `.md` files).
-Each child directory of the `content` directory represents a [section](@/documentation/content/section.md)
-that contains [pages](@/documentation/content/page.md) (your `.md` files).
+Contains authored answer Markdown and any co-located assets. For Ansorum, each
+answerable unit should usually be one `.md` file with first-class answer
+frontmatter. Sidecar structured data lives beside that file as
+`<answer>.schema.json`.
 
 To learn more, read the [content overview page](@/documentation/content/overview.md).
 
@@ -44,9 +66,9 @@ If your static files are large, you can configure Zola to [hard link](https://en
 instead of copying them by setting `hard_link_static = true` in the config file.
 
 ## `templates`
-Contains all the [Tera](https://keats.github.io/tera) templates that will be used to render your site.
-Have a look at the [templates documentation](@/documentation/templates/_index.md) to learn more about default templates
-and available variables.
+Contains the [Tera](https://keats.github.io/tera) templates used to render human
+HTML pages. Ansorum's machine outputs such as `/page.md`, `answers.json`, and
+`llms.txt` are compiler outputs, not hand-authored templates.
 
 ## `themes`
 Contains themes that can be used for your site. If you are not planning to use themes, leave this directory empty.

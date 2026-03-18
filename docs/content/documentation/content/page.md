@@ -79,16 +79,83 @@ The file `content/blog/2018-10-10-hello-world.md` will yield a page at `[base_ur
 
 ## Front matter
 
-The TOML front matter is a set of metadata embedded in a file at the beginning of the file enclosed
-by triple pluses (`+++`).
+Ansorum uses page frontmatter as the answer authoring contract. Every public or
+internal answer page should carry first-class answer metadata in frontmatter.
 
-Although none of the front matter variables are mandatory, the opening and closing `+++` are required.
+TOML frontmatter is embedded at the beginning of the file and enclosed by
+triple pluses (`+++`).
 
-Note that even though the use of TOML is encouraged, YAML front matter is also supported to ease porting
-legacy content. In this case the embedded metadata must be enclosed by triple minuses (`---`).
+While generic page variables remain optional, an answer page must provide the
+required Ansorum fields.
 
-Here is an example page with all the available variables. The values provided below are the
-default values.
+YAML frontmatter is also supported and is useful when porting legacy content. In
+that case the metadata must be enclosed by triple minuses (`---`).
+
+### Ansorum answer front matter
+
+The example below shows the core answer fields:
+
+```toml
++++
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work, who qualifies, and when payment returns land."
+canonical_questions = ["how do refunds work", "can i get a refund"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+related = ["cancel-subscription"]
+external_refs = ["https://example.com/refunds"]
+schema_type = "FAQPage"
+review_by = 2026-06-01
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+aliases = ["refund rules"]
++++
+
+Refund details for customers.
+```
+
+These fields drive:
+
+- `answers.json`
+- `llms.txt` and scoped packs
+- `/page.md`
+- `audit` findings
+- `eval` ranking and grading
+- serve-time Markdown negotiation
+
+The most important policy fields are:
+
+- `visibility`: whether the answer itself is public or internal
+- `ai_visibility`: whether agents receive the full body, a summary only, or
+  nothing
+- `llms_priority`: how prominently the answer should appear in machine outputs
+- `token_budget`: how much of the answer should be favored for machine delivery
+
+When `ai_visibility = "summary_only"`, Ansorum emits the summary and canonical
+links in machine outputs but omits the full rendered body. When
+`ai_visibility = "hidden"`, the answer stays out of machine-facing outputs.
+
+### Structured data sidecars
+
+If an answer needs JSON-LD, place a sibling sidecar file beside the Markdown
+source:
+
+```text
+content/refunds.md
+content/refunds.schema.json
+```
+
+Ansorum copies that sidecar into the built output as `schema.json` for the
+answer route.
+
+### Generic page variables
+
+The inherited page model still supports generic page variables. Here is an
+example with the available page-level keys and their defaults.
 
 ```toml
 title = ""
@@ -111,7 +178,8 @@ updated =
 # will not be rendered.
 weight = 0
 
-# A draft page is only loaded if the `--drafts` flag is passed to `zola build`, `zola serve` or `zola check`.
+# A draft page is only loaded if the `--drafts` flag is passed to `ansorum build`,
+# `ansorum serve`, `ansorum audit`, `ansorum eval`, or `ansorum check`.
 draft = false
 
 # When set to "false" Zola will not create a separate folder with index.html inside for this page.

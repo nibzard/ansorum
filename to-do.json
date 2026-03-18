@@ -499,14 +499,14 @@
         "ANS-013"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T20:15:33Z",
+      "updated_at": "2026-03-18T20:16:09Z",
       "blockers": []
     },
     {
       "id": "ANS-015",
       "title": "Rewrite the core docs and examples around Ansorum authoring, commands, and customer workflow",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. The repo's high-level messaging has started shifting to Ansorum, but the detailed documentation and examples still mostly describe upstream Zola behavior. Rewrite the critical docs so users can actually onboard into Ansorum's answer-first model and command surface. The docs should teach the JTBD, authoring contract, governance model, and operator workflow rather than inheriting the old page-first Zola framing.",
       "steps": [
         "Replace core getting-started flows with ansorum init/build/serve/audit/eval guidance.",
@@ -521,10 +521,14 @@
       ],
       "files": [
         "README.md",
-        "ANSWER_COMPILER_SPEC.md",
-        "docs/content/documentation",
-        "docs/templates",
-        "test_site"
+        "docs/content/documentation/getting-started/overview.md",
+        "docs/content/documentation/getting-started/cli-usage.md",
+        "docs/content/documentation/getting-started/reference-project.md",
+        "docs/content/documentation/getting-started/directory-structure.md",
+        "docs/content/documentation/getting-started/configuration.md",
+        "docs/content/documentation/content/overview.md",
+        "docs/content/documentation/content/page.md",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-001",
@@ -535,7 +539,7 @@
         "ANS-013"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T20:40:00Z"
     },
     {
       "id": "ANS-016",

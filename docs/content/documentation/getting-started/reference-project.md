@@ -18,6 +18,16 @@ corpus:
 - configured `/r/:code` redirects
 - deterministic `audit` and `eval` inputs
 
+## Why This Project Matters
+
+Use this project as the source of truth for:
+
+- how to author first-class answer frontmatter
+- when to use `public`, `summary_only`, and `hidden` AI visibility
+- how sidecar JSON-LD files are named and placed
+- how packs and redirects are configured
+- what `audit` and `eval` expect from a governed answer corpus
+
 ## Run The Workflow
 
 From the repository root:
@@ -34,6 +44,23 @@ ansorum eval
 `eval/fixtures.yaml`. Add `--llm` only when you have an `OPENAI_API_KEY` and
 want OpenAI Responses API grading.
 
+## Authoring Patterns To Copy
+
+The reference project deliberately shows both supported frontmatter styles:
+
+- `content/refunds.md` and `content/cancel.md` use TOML frontmatter
+- `content/billing-credits.md` uses YAML frontmatter
+
+It also demonstrates the core policy controls:
+
+- `ai_visibility = "public"` for fully machine-readable public answers
+- `ai_visibility = "summary_only"` when agents should get the summary and
+  canonical links but not the full rendered body
+- `ai_visibility = "hidden"` when an answer should stay out of machine outputs
+
+Structured data is authored as a sibling file, for example
+`content/refunds.schema.json`.
+
 ## What To Inspect
 
 After `ansorum build`, the reference project should produce:
@@ -45,7 +72,9 @@ After `ansorum build`, the reference project should produce:
 - `public/llms.txt`
 - `public/llms-full.txt`
 - `public/billing/llms.txt`
+- `public/billing/answers.json`
 - `public/customer/llms.txt`
+- `public/customer/answers.json`
 
 During `ansorum serve`, the same project demonstrates:
 

@@ -21,17 +21,52 @@ The product is not "a lighter website framework." The product is:
 - a lightweight gateway for Markdown negotiation and redirects
 - audit and eval tooling so answer quality is testable before publish
 
-## Jobs To Be Done
+## Core Workflow
 
 Ansorum is for teams that need one canonical answer layer behind docs, support,
 help centers, product knowledge, and AI systems.
 
-It should help teams:
+The operator workflow is:
+
+1. Author one Markdown file per answerable unit in `content/`.
+2. Add first-class answer frontmatter such as `id`, `summary`,
+   `canonical_questions`, `intent`, `entity`, `audience`, `visibility`,
+   `ai_visibility`, `llms_priority`, and `token_budget`.
+3. Add optional `*.schema.json` sidecars for JSON-LD.
+4. Configure packs, redirects, and eval defaults in `config.toml`.
+5. Run `ansorum build`, `ansorum serve`, `ansorum audit`, and `ansorum eval`.
+
+Ansorum is designed to help teams:
 
 - make one answer authoritative and reusable everywhere
 - control what agents can see and at what fidelity
 - detect stale, duplicate, conflicting, or weak answers before publishing
 - evaluate whether the corpus actually answers real questions well
+
+## Authoring Model
+
+The source of truth is a Git repository with one Markdown file per answer. A
+typical authored answer looks like this:
+
+```toml
++++
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work, who qualifies, and when payment returns land."
+canonical_questions = ["how do refunds work", "can i get a refund"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
++++
+```
+
+Ansorum then compiles that answer into canonical HTML, canonical machine
+Markdown at `/page.md`, answer indexes, `llms.txt` outputs, and structured data
+sidecars when present.
 
 ## Current Direction
 
@@ -74,9 +109,18 @@ ansorum audit
 ansorum eval
 ```
 
-That project demonstrates first-class answer frontmatter, `/page.md`,
-`answers.json`, `llms.txt`, scoped packs, structured-data sidecars, redirects,
-and deterministic eval fixtures in one place.
+`ansorum init` currently creates the base project skeleton and configuration.
+Use `test_site_answers/` as the reference for the answer-first content shape
+until the scaffold itself becomes answer-first.
+
+That project demonstrates:
+
+- first-class answer frontmatter in TOML and YAML
+- `summary_only` and `hidden` AI visibility controls
+- `/page.md`, `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
+- `*.schema.json` sidecars
+- `/r/:code` redirects with allowlist enforcement
+- deterministic eval fixtures
 
 ## Why Ansorum
 

@@ -3,8 +3,9 @@ title = "Configuration"
 weight = 40
 +++
 
-The default configuration is sufficient to get Zola running locally but not more than that.
-It follows the philosophy of paying for only what you need, almost everything is turned off by default.
+The default configuration is enough to get Ansorum running locally, but an
+answer-first project usually also adds Ansorum-specific settings for redirects,
+packs, and eval behavior.
 
 To change the configuration, edit the `config.toml` file.
 If you are not familiar with TOML, have a look at [the TOML spec](https://github.com/toml-lang/toml).
@@ -13,13 +14,48 @@ If you are not familiar with TOML, have a look at [the TOML spec](https://github
 
 Here are the current `config.toml` sections:
 1. main (unnamed)
-2. markdown
-3. link_checker
-4. slugify
-5. search
-6. translations
-7. languages
-8. extra
+2. ansorum
+3. markdown
+4. link_checker
+5. slugify
+6. search
+7. translations
+8. languages
+9. extra
+
+## Ansorum-specific configuration
+
+Ansorum adds product-level configuration under `[ansorum]`. The most important
+areas are:
+
+```toml
+[ansorum.redirects]
+external_host_allowlist = ["docs.example.com"]
+
+[[ansorum.redirects.routes]]
+code = "sales-demo"
+target = "https://docs.example.com/demo"
+
+[ansorum.packs]
+auto_entity_packs = true
+auto_audience_packs = true
+
+[[ansorum.packs.curated]]
+name = "billing"
+source = "collections/packs/billing.toml"
+
+[ansorum.eval]
+enabled = false
+model = "gpt-5.4-mini"
+prompt_version = "reference-v1"
+```
+
+These settings control:
+
+- redirect delivery under `/r/:code`
+- generated entity and audience packs
+- curated packs backed by files in `collections/packs/`
+- default eval behavior and GPT-5.4 model selection
 
 **Only the `base_url` variable is mandatory**. Everything else is optional. All configuration variables
 used by Zola as well as their default values are listed below:

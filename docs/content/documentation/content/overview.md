@@ -3,68 +3,72 @@ title = "Overview"
 weight = 10
 +++
 
-Zola uses the directory structure to determine the site structure.
-Each child directory in the `content` directory represents a [section](@/documentation/content/section.md)
-that contains [pages](@/documentation/content/page.md) (your `.md` files).
+Ansorum's primary content unit is an answer page: one Markdown file per
+answerable unit with first-class answer metadata. The inherited section/page
+model still exists underneath because the repository reuses much of Zola's
+compiler, but the authoring contract should now be understood through the
+answer-first lens.
+
+A typical answer corpus looks like this:
 
 ```bash
 .
 └── content
-    ├── content
-    │   └── something.md // -> https://mywebsite.com/content/something/
-    ├── blog
-    │   ├── cli-usage.md // -> https://mywebsite.com/blog/cli-usage/
-    │   ├── configuration.md // -> https://mywebsite.com/blog/configuration/
-    │   ├── directory-structure.md // -> https://mywebsite.com/blog/directory-structure/
-    │   ├── _index.md // -> https://mywebsite.com/blog/
-    │   └── installation.md // -> https://mywebsite.com/blog/installation/
-    └── landing
-        └── _index.md // -> https://mywebsite.com/landing/
+    ├── refunds.md
+    ├── refunds.schema.json
+    ├── cancel.md
+    └── internal-playbook.md
 ```
 
-Each page path (the part after `base_url`, for example `blog/cli-usage/`) can be customised by changing the `path` or
-`slug` attribute of the [page front-matter](@/documentation/content/page.md#front-matter).
+Each `.md` file becomes a page route for humans and may also emit machine
+artifacts such as `/page.md` and `schema.json`. The output path can still be
+customized through page frontmatter such as `path` or `slug`, but the critical
+contract is the answer metadata documented on the
+[page frontmatter page](@/documentation/content/page.md#ansorum-answer-front-matter).
 
-You might have noticed a file named `_index.md` in the example above.
-This file is used to store both the metadata and content of the section itself and is not considered a page.
+## What Belongs In Content
 
-To ensure that the terminology used in the rest of the documentation is understood, let's go over the example above.
+Put these things in `content/`:
 
-The `content` directory in this case has three `sections`: `content`, `blog` and `landing`. The `content` section has only
-one page (`something.md`), the `landing` section has no pages and the `blog` section has 4 pages (`cli-usage.md`,
-`configuration.md`, `directory-structure.md` and `installation.md`).
+- authored answer Markdown files
+- optional co-located assets referenced by those answers
+- optional `*.schema.json` sidecars for JSON-LD
+- optional `_index.md` files when you need section metadata or landing pages
 
-Sections can be nested indefinitely.
+Keep authored answer Markdown focused on one canonical answer, not broad mixed
+topic pages. Use frontmatter to declare intent, audience, visibility, and
+canonical questions explicitly.
 
 ## Asset colocation
 
-The `content` directory is not limited to markup files. It's natural to want to co-locate a page and some related
-assets, such as images or spreadsheets. Zola supports this pattern out of the box for both sections and pages.
+The `content` directory is not limited to Markdown files. It is natural to
+co-locate an answer and some related assets, such as images, PDFs, or schema
+files. Ansorum supports this pattern out of the box.
 
-All non-Markdown files you add in a page/section directory will be copied alongside the generated page when the site is
-built, which allows us to use a relative path to access them.
+All non-Markdown files in a page or section directory are copied alongside the
+generated page when the site is built, which allows relative links to work.
 
-Pages with co-located assets should not be placed directly in their section directory (such as `latest-experiment.md`), but
-as an `index.md` file in a dedicated directory (`latest-experiment/index.md`), like so:
+Pages with co-located assets should usually live in a dedicated directory with
+`index.md`, like this:
 
 
 ```bash
-└── research
-    ├── latest-experiment
-    │   ├── index.md
-    │   └── javascript.js
-    ├── _index.md
-    └── research.jpg
+└── content
+    └── refunds
+        ├── index.md
+        ├── refunds.schema.json
+        └── refund-window.png
 ```
 
-With this setup, you may access `research.jpg` from your 'research' section
-and `javascript.js` from your 'latest-experiment' page directly within the Markdown:
+With that setup, you can link to `refund-window.png` directly from the Markdown
+and keep the schema sidecar next to the answer source.
 
 ```Markdown
-Check out the complete program [here](javascript.js). It's **really cool free-software**!
+See the chart [here](refund-window.png).
 ```
 
-By default, this page's slug will be the directory name and thus its permalink will be `https://example.com/research/latest-experiment/`.
+By default, this page's slug will be the directory name and its permalink will
+match that path.
 
 ### Excluding files from assets
 

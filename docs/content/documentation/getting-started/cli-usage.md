@@ -3,127 +3,179 @@ title = "CLI usage"
 weight = 15
 +++
 
-Zola only has 4 commands: `init`, `build`, `serve` and `check`.
+Ansorum's core command surface is:
 
-You can view the help for the whole program by running `zola --help` and
-that for a specific command by running `zola <cmd> --help`.
+- `ansorum init`
+- `ansorum build`
+- `ansorum serve`
+- `ansorum audit`
+- `ansorum eval`
+- `ansorum check`
+
+Use `ansorum --help` for the full program help and `ansorum <command> --help`
+for command-specific flags.
 
 ## init
 
-Creates the directory structure used by Zola at the given directory after asking a few basic configuration questions.
-Any choices made during these prompts can be easily changed by modifying `config.toml`.
+Creates the base project structure at the given directory after asking a few
+configuration questions. Choices made during `init` can be changed later in
+`config.toml`.
 
 ```bash
-$ zola init my_site
-$ zola init
+ansorum init my_answers
+ansorum init
 ```
 
-If the `my_site` directory already exists, Zola will only populate it if it contains only hidden files (dotfiles are ignored). If no `my_site` argument is passed, Zola will try to populate the current directory.
+`init` currently creates the project skeleton and configuration, not a complete
+answer-first starter corpus. Use
+[the reference project](@/documentation/getting-started/reference-project.md)
+as the current source of truth for authored answer files, sidecars, packs, and
+eval fixtures.
 
-In case you want to attempt to populate a non-empty directory and are brave, you can use `zola init --force`. Note that this will _not_ overwrite existing folders or files; in those cases you will get a `File exists (os error 17)` error or similar.
+If the target directory already exists, Ansorum only populates it when it
+contains only hidden files. If no directory argument is passed, Ansorum tries
+to populate the current directory.
 
-You can initialize a git repository and a Zola site directly from within a new folder:
+To attempt population of a non-empty directory, use `--force`. Ansorum still
+will not overwrite existing files or folders.
+
+Typical flow:
 
 ```bash
-$ git init
-$ zola init
+git init
+ansorum init
 ```
 
 ## build
 
-This will build the whole site in the `public` directory (if this directory already exists, it is deleted).
+Builds the answer corpus into the output directory, `public` by default.
+Existing output is deleted first unless dotfile preservation is enabled.
 
 ```bash
-$ zola build
+ansorum build
 ```
 
-You can override the config `base_url` by passing a new URL to the `base-url` flag.
+In an Ansorum project, `build` is expected to emit:
+
+- HTML pages for humans
+- canonical machine Markdown at `/page.md`
+- `answers.json`
+- `llms.txt` and `llms-full.txt`
+- scoped pack outputs where configured
+- structured data sidecars where present
+
+You can override `base_url` with `--base-url`:
 
 ```bash
-$ zola build --base-url $DEPLOY_URL
+ansorum build --base-url "$DEPLOY_URL"
 ```
 
-This is useful for example when you want to deploy previews of a site to a dynamic URL, such as Netlify
-deploy previews.
-
-You can override the default output directory `public` by passing another value to the `output-dir` flag. If this directory already exists, the user will be prompted whether to replace the folder; you can override this prompt by passing the --force flag.
+You can override the output directory with `--output-dir`:
 
 ```bash
-$ zola build --output-dir $DOCUMENT_ROOT
+ansorum build --output-dir "$DOCUMENT_ROOT"
 ```
 
-You can point to a config file other than `config.toml` like so (note that the position of the `config` option is important):
+To use a different config file, place `--config` before the command:
 
 ```bash
-$ zola --config config.staging.toml build
+ansorum --config config.staging.toml build
 ```
 
-You can also process a project from a different directory with the `root` flag. If building a project 'out-of-tree' with the `root` flag, you may want to combine it with the `output-dir` flag. (Note that like `config`, the position is important):
+You can also operate on a project from another directory:
+
 ```bash
-$ zola --root /path/to/project build
+ansorum --root /path/to/project build
 ```
 
-By default, drafts are not loaded. If you wish to include them, pass the `--drafts` flag.
+By default drafts are not loaded. Use `--drafts` to include them.
 
 ## serve
 
-This will build and serve the site using a local server. You can also specify
-the interface/port combination to use if you want something different than the default (`127.0.0.1:1111`).
+Builds and serves the corpus locally, then rebuilds on change. The default bind
+address is `127.0.0.1:1111`.
 
-You can also specify different addresses for the interface and base_url using `--interface` and `-u`/`--base-url`, respectively, if for example you are running Zola in a Docker container.
+`serve` is the easiest way to test the full delivery behavior:
 
-> By default, devices from the local network **won't** be able to access the served pages. This may be of importance when you want to test page interaction and layout on your mobile device or tablet. If you set the interface to `0.0.0.0` however, devices from your local network will be able to access the served pages by requesting the local ip-address of the machine serving the pages and port used.
->
-> In order to have everything work correctly, you might also have to alter the `base-url` flag to your local ip or set it to `/` to use server-base relative paths.
+- canonical HTML routes
+- negotiated Markdown via `Accept: text/markdown`
+- explicit `/page.md` routes
+- configured redirect routes under `/r/:code`
+- live reload during editing
 
-Use the `--open` flag to automatically open the locally hosted instance in your
-web browser.
-
-Before starting, Zola will delete the output directory (by default `public` in project root) to start from a clean slate.
-
-If you are specifying the directory but are also using the `output-dir` flag, Zola will not use the specified directory if it already exists unless the --force flag is used.
+Common examples:
 
 ```bash
-$ zola serve
-$ zola serve --port 2000
-$ zola serve --interface 0.0.0.0
-$ zola serve --interface 0.0.0.0 --port 2000
-$ zola serve --interface 0.0.0.0 --base-url 127.0.0.1
-$ zola serve --interface 0.0.0.0 --base-url /
-$ zola serve --interface 0.0.0.0 --port 2000 --output-dir www/public
-$ zola serve --open
+ansorum serve
+ansorum serve --port 2000
+ansorum serve --interface 0.0.0.0
+ansorum serve --interface 0.0.0.0 --port 2000
+ansorum serve --interface 0.0.0.0 --base-url /
+ansorum serve --open
 ```
 
-The serve command will watch all your content and provide live reload without
-a hard refresh if possible. If you are using WSL2 on Windows, make sure to store the website on the WSL file system.
+If you need the served site reachable on your local network, bind to
+`0.0.0.0`.
 
-Some changes cannot be handled automatically and thus live reload may not always work. If you
-fail to see your change or get an error, try restarting `zola serve`.
+By default, `serve` keeps HTML in memory. Use `--store-html` to also write HTML
+to disk while serving.
 
-By default, the live reload will be debounced by one full second so as to more
-gracefully handle multiple changes to your input files in rapid succession. You
-have control over that debouncing duration with the `--debounce <duration_ms>`
-flag.  
-You may use `-d1` to (virtually) disable it altogether: for technical reasons
-(and keeping things simple), a "debounce" of 0 is not supported.
+Use `--debounce <ms>` to tune the file-watch debounce time.
 
-You can also point to a config file other than `config.toml` like so (note that the position of the `config` option is important):
+## audit
+
+Audits answer metadata, freshness, and machine-output quality.
 
 ```bash
-$ zola --config config.staging.toml serve
+ansorum audit
+ansorum audit --format json
 ```
 
-By default, drafts are not loaded. If you wish to include them, pass the `--drafts` flag.
+Use `audit` before publish to catch issues such as:
+
+- missing or invalid answer metadata
+- stale `review_by` dates
+- duplicate or conflicting answer coverage
+- visibility or machine-output policy violations
+
+`--format json` is useful for CI or downstream tooling.
+
+## eval
+
+Evaluates retrieval and answer selection against fixture cases, with optional
+LLM rubric grading through the OpenAI Responses API.
+
+```bash
+ansorum eval
+ansorum eval --fixtures eval/fixtures.yaml
+ansorum eval --llm
+ansorum eval --llm --model gpt-5.4-mini
+```
+
+`eval` uses `eval/fixtures.yaml` by default. Each fixture case defines a user
+question, expected answers, forbidden answers, and required terms. When `--llm`
+is enabled, Ansorum also asks a GPT-5.4 model to score the selected answer
+against a rubric.
+
+Use the threshold flags to make eval enforce a quality bar:
+
+- `--min-pass-rate`
+- `--min-llm-average`
+- `--min-llm-score`
+- `--require-llm`
 
 ## check
 
-The check subcommand will try to build all pages just like the build command would, but without writing any of the
-results to disk. Additionally, it will also check all external links in Markdown files by trying to fetch
-them (links in the template files are not checked).
+`check` tries to build the project without writing output, and it validates
+links in Markdown content.
 
-You can skip link checking for all the external links by `--skip-external-links` flag.
+```bash
+ansorum check
+ansorum check --skip-external-links
+```
 
-By default, drafts are not loaded. If you wish to include them, pass the `--drafts` flag.
+This remains useful for fast authoring feedback, but for answer quality and AI
+delivery governance you should rely on `audit` and `eval`.
 
 ## Colored output
 
@@ -142,9 +194,10 @@ To force the use of colors, you can set the following environment variable:
 
 ## Extra information
 
-Zola can provide detailed logging about its behavior via the `RUST_LOG` variable:
+Ansorum can provide detailed logging about its behavior via the `RUST_LOG`
+variable:
 
-- To see timing information from Zola, set `RUST_LOG=zola=info,site=debug`.
+- To see timing information, set `RUST_LOG=zola=info,site=debug`.
 - To see debug information, set `RUST_LOG=debug`. *Note*: The output will be **very noisy**, use with caution.
 - To disable all log output entirely, set `RUST_LOG=off`.
 
