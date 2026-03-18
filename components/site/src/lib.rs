@@ -1,3 +1,4 @@
+pub mod answers;
 pub mod feeds;
 pub mod link_checking;
 mod minify;
@@ -17,6 +18,7 @@ use rayon::prelude::*;
 use tera::{Context, Tera};
 use walkdir::{DirEntry, WalkDir};
 
+use crate::answers::AnswerCorpus;
 use config::{Config, IndexFormat, get_config};
 use content::{Library, Page, Paginator, Section, Taxonomy};
 use errors::{Result, anyhow, bail};
@@ -65,6 +67,8 @@ pub struct Site {
     pub permalinks: HashMap<String, String>,
     /// Contains all pages and sections of the site
     pub library: Arc<RwLock<Library>>,
+    /// Normalized answer compiler model derived from authored pages
+    pub answers: AnswerCorpus,
     /// Whether to load draft pages
     include_drafts: bool,
     build_mode: BuildMode,
@@ -112,6 +116,7 @@ impl Site {
             include_drafts: false,
             // We will allocate it properly later on
             library: Arc::new(RwLock::new(Library::default())),
+            answers: AnswerCorpus::default(),
             build_mode: BuildMode::Disk,
             shortcode_definitions,
             check_external_links: true,
@@ -325,11 +330,15 @@ impl Site {
             }
         }
 
+        self.populate_sections();
+        self.answers = {
+            let library = self.library.read().unwrap();
+            AnswerCorpus::from_library(&library)?
+        };
         // taxonomy Tera fns are loaded in `register_early_global_fns`
         // so we do need to populate it first.
         self.populate_taxonomies()?;
         tpls::register_early_global_fns(self)?;
-        self.populate_sections();
         self.render_markdown()?;
         {
             let mut lib = self.library.write().unwrap();

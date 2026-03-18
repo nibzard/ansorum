@@ -102,6 +102,44 @@ fn can_parse_site() {
 }
 
 #[test]
+fn extracts_normalized_answer_records() {
+    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    path.push("test_site_answers");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+    site.load().unwrap();
+
+    assert_eq!(site.answers.len(), 2);
+
+    let refunds = site.answers.get("refunds-policy").expect("missing refunds-policy answer");
+    assert_eq!(refunds.title, "Refund policy");
+    assert_eq!(refunds.canonical_url, "https://answers.example.com/refunds/");
+    assert_eq!(refunds.markdown_url, "https://answers.example.com/refunds.md");
+    assert_eq!(refunds.entity, "billing");
+
+    let cancel =
+        site.answers.get("cancel-subscription").expect("missing cancel-subscription answer");
+    assert_eq!(cancel.title, "how do i cancel my subscription");
+    assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel.md");
+
+    let billing_ids = site
+        .answers
+        .same_entity("billing")
+        .into_iter()
+        .map(|record| record.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(billing_ids, vec!["cancel-subscription", "refunds-policy"]);
+
+    let related_ids = site
+        .answers
+        .related_to("refunds-policy")
+        .into_iter()
+        .map(|record| record.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(related_ids, vec!["cancel-subscription"]);
+}
+
+#[test]
 fn errors_on_unknown_taxonomies() {
     let (mut site, _, _) = build_site("test_site");
     let mut page = Page::default();

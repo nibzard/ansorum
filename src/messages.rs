@@ -15,6 +15,7 @@ pub fn notify_site_size(site: &Site) {
         library.get_all_orphan_pages().len(),
         library.sections.len() - 1, // -1 since we do not count the index as a section there
     );
+    log::info!("-> Normalized {} answer record(s)", site.answers.len());
 }
 
 /// Display in the console only the number of pages/sections in the site
@@ -27,6 +28,7 @@ pub fn check_site_summary(site: &Site) {
         orphans.len(),
         library.sections.len() - 1, // -1 since we do not count the index as a section there
     );
+    log::info!("-> Normalized {} answer record(s)", site.answers.len());
 
     for orphan in orphans {
         log::warn!("Orphan page found: {}", orphan.path);

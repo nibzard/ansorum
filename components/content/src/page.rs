@@ -14,6 +14,7 @@ use utils::table_of_contents::Heading;
 use utils::templates::{ShortcodeDefinition, render_template};
 use utils::types::InsertAnchor;
 
+use crate::answer::AnswerFrontMatter;
 use crate::file_info::FileInfo;
 use crate::front_matter::{PageFrontMatter, split_page_content};
 use crate::library::Library;
@@ -184,6 +185,18 @@ impl Page {
     }
 
     pub fn find_language(&mut self) {}
+
+    pub fn answer(&self) -> Option<&AnswerFrontMatter> {
+        self.meta.answer.as_ref()
+    }
+
+    pub fn answer_title(&self) -> &str {
+        self.meta
+            .title
+            .as_deref()
+            .or_else(|| self.answer().and_then(|answer| answer.canonical_questions.first().map(String::as_str)))
+            .unwrap_or("")
+    }
 
     /// Read and parse a .md file into a Page struct
     pub fn from_file<P: AsRef<Path>>(path: P, config: &Config, base_path: &Path) -> Result<Page> {

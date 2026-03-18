@@ -97,7 +97,6 @@ impl RawAnswerFrontMatter {
             || self.ai_visibility.is_some()
             || self.llms_priority.is_some()
             || self.token_budget.is_some()
-            || !self.aliases.is_empty()
             || self.ai_extra.is_some()
             || self.last_reviewed_by.is_some()
             || self.owner.is_some()

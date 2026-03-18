@@ -148,7 +148,7 @@
       "id": "ANS-005",
       "title": "Build AnswerRecord extraction and fail-fast schema validation into the site load/build pipeline",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Create a normalized internal AnswerRecord model derived from authored pages and integrate it into the site pipeline. Missing required answer metadata, invalid enums, duplicate ids, and similar structural errors should fail the build by default. AnswerRecord is the compiler boundary that later emitters, audit, and eval code should consume instead of re-deriving answer semantics from raw pages.",
       "steps": [
         "Define the normalized AnswerRecord type and collection APIs as the shared compiler model for outputs, audit, and eval.",
@@ -164,20 +164,29 @@
         "foundation"
       ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
-        "components/site/src/lib.rs",
-        "components/site/src/answers.rs",
+        "components/content/src/front_matter/answer.rs",
         "components/content/src/page.rs",
+        "components/site/src/answers.rs",
+        "components/site/src/lib.rs",
+        "components/site/tests/invalid.rs",
+        "components/site/tests/site.rs",
         "src/messages.rs",
-        "src/cmd/build.rs",
-        "src/cmd/check.rs"
+        "test_site_answers/config.toml",
+        "test_site_answers/content/refunds.md",
+        "test_site_answers/content/cancel.md",
+        "test_sites_invalid/answers_duplicate_id/config.toml",
+        "test_sites_invalid/answers_duplicate_id/content/one.md",
+        "test_sites_invalid/answers_duplicate_id/content/two.md",
+        "test_sites_invalid/answers_missing_related/config.toml",
+        "test_sites_invalid/answers_missing_related/content/refunds.md",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-003",
         "ANS-004"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:18:22Z"
     },
     {
       "id": "ANS-006",

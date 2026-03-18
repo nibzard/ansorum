@@ -1,0 +1,7 @@
+base_url = "https://answers.example.com"
+title = "Answer fixture"
+generate_feeds = false
+generate_sitemap = false
+generate_robots_txt = false
+build_search_index = false
+
