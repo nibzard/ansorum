@@ -33,18 +33,18 @@ SSGs use dynamic templates to transform content into static HTML pages. Static s
 
 To get a taste of Zola, please see the quick overview below.
 
-## First Steps with Zola
+## First Steps with Ansorum
 
-Unlike some SSGs, Zola makes no assumptions regarding the structure of your site. In this overview, we'll be making a simple blog site.
+Unlike some SSGs, Ansorum makes no assumptions regarding the structure of your site. In this overview, we'll be making a simple blog site.
 
 ### Initialize Site
 
-> This overview is based on Zola 0.19.1.
+> This overview reflects the current Ansorum CLI.
 
-Please see the detailed [installation instructions for your platform](@/documentation/getting-started/installation.md). With Zola installed, let's initialize our site:
+Please see the detailed [installation instructions for your platform](@/documentation/getting-started/installation.md). With Ansorum installed, let's initialize our site:
 
 ```
-$ zola init myblog
+$ ansorum init myblog
 ```
 
 You will be asked a few questions.
@@ -52,7 +52,6 @@ You will be asked a few questions.
 ```
 > What is the URL of your site? (https://example.com):
 > Do you want to enable Sass compilation? [Y/n]:
-> Do you want to enable syntax highlighting? [y/N]:
 > Do you want to build a search index of the content? [y/N]:
 ```
 
@@ -123,12 +122,12 @@ Now, let's create `templates/index.html` with the following content.
 
 {% block content %}
 <h1 class="title">
-  This is my blog made with Zola.
+  This is my blog made with Ansorum.
 </h1>
 {% endblock content %}
 ```  
 
-This tells Zola that `index.html` extends our `base.html` file and replaces the block called "content" with the text between the `{% block content %}` and `{% endblock content %}` tags.
+This tells Ansorum that `index.html` extends our `base.html` file and replaces the block called "content" with the text between the `{% block content %}` and `{% endblock content %}` tags.
 
 #### Blog Template
 
@@ -151,7 +150,7 @@ To create a template for a page that lists all blog posts, create `templates/blo
 {% endblock content %}
 ```
 
-As done by `index.html`, `blog.html` extends `base.html`, but in this template we want to list the blog posts. Here we also see expressions such as `{{ section.[...] }}` and `{{ page.[...] }}` which will be replaced with values from our [content](#content) when zola combines content with this template to render a page. In the list below the header, we loop through all the pages in our section (`blog` directory; more on this when we create content) and output each page title and URL using `{{ page.title }}` and `{{ page.permalink | safe }}`, respectively. We use the `| safe` filter because the permalink doesn't need to be HTML escaped (escaping would cause `/` to render as `&#x2F;`).
+As done by `index.html`, `blog.html` extends `base.html`, but in this template we want to list the blog posts. Here we also see expressions such as `{{ section.[...] }}` and `{{ page.[...] }}` which will be replaced with values from our [content](#content) when Ansorum combines content with this template to render a page. In the list below the header, we loop through all the pages in our section (`blog` directory; more on this when we create content) and output each page title and URL using `{{ page.title }}` and `{{ page.permalink | safe }}`, respectively. We use the `| safe` filter because the permalink doesn't need to be HTML escaped (escaping would cause `/` to render as `&#x2F;`).
 
 #### Blog Post Template
 
@@ -171,12 +170,12 @@ We have templates describing our home page and a page that lists all blog posts.
 
 > Note the `| safe` filter for `{{ page.content }}`.
 
-### Zola Live Reloading
+### Ansorum Live Reloading
 
-Now that we've outlined our site's structure, let's start the Zola development server in the `myblog` directory.
+Now that we've outlined our site's structure, let's start the Ansorum development server in the `myblog` directory.
 
 ```
-$ zola serve
+$ ansorum serve
 Building site...
 Checking all internal links with anchors.
 > Successfully checked 0 internal link(s) with anchors.
@@ -189,17 +188,17 @@ Listening for changes in .../myblog/{config.toml,content,sass,static,templates}
 Press Ctrl+C to stop
 ```
 
-If you point your web browser to <http://127.0.0.1:1111>, you will see a message saying, "This is my blog made with Zola."
+If you point your web browser to <http://127.0.0.1:1111>, you will see a message saying, "This is my blog made with Ansorum."
 
 If you go to <http://127.0.0.1:1111/blog/>, you will currently get a 404 which we will fix next.
 
 ### Content
 
-We'll now create some content that Zola will use to generate site pages based on our templates.
+We'll now create some content that Ansorum will use to generate site pages based on our templates.
 
 #### Sections
 
-We'll start by creating `content/blog/_index.md`. This file tells Zola that `blog` is a [section](@/documentation/content/section.md), which is how content is categorized in Zola. In the `_index.md` file, we'll set the following variables in [TOML](https://github.com/toml-lang/toml) format:
+We'll start by creating `content/blog/_index.md`. This file tells Ansorum that `blog` is a [section](@/documentation/content/section.md), which is how content is categorized in Ansorum. In the `_index.md` file, we'll set the following variables in [TOML](https://github.com/toml-lang/toml) format:
 
 ```md
 +++
@@ -212,9 +211,9 @@ page_template = "blog-page.html"
 
 > Note that although no variables are mandatory, the opening and closing `+++` are required.
 
-* *sort_by = "date"* tells Zola to use the date to order our section pages (more on pages below). 
-* *template = "blog.html"* tells Zola to use `templates/blog.html` as the template for listing the Markdown files in this section. 
-* *page_template = "blog-page.html"* tells Zola to use `templates/blog-page.html` as the template for individual Markdown files. 
+* *sort_by = "date"* tells Ansorum to use the date to order our section pages (more on pages below). 
+* *template = "blog.html"* tells Ansorum to use `templates/blog.html` as the template for listing the Markdown files in this section. 
+* *page_template = "blog-page.html"* tells Ansorum to use `templates/blog-page.html` as the template for individual Markdown files. 
 
 For a full list of section variables, please see the [section](@/documentation/content/section.md) documentation.
 
@@ -257,10 +256,10 @@ As a final step, let's modify `templates/index.html` (our home page) to link to 
 
 {% block content %}
 <h1 class="title">
-  This is my blog made with Zola.
+  This is my blog made with Ansorum.
 </h1>
 <p><a href="{{/* get_url(path='@/blog/_index.md') */}}">Posts</a>.</p>
 {% endblock content %}
 ```  
 
-This has been a quick overview of Zola. You can now dive into the rest of the documentation.
+This has been a quick overview of Ansorum. You can now dive into the rest of the documentation.

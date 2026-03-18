@@ -6,9 +6,11 @@ use clap_complete::Shell;
 
 #[derive(Parser)]
 #[clap(
+    name = "ansorum",
+    bin_name = "ansorum",
     version,
     author,
-    about,
+    about = "An answer-first compiler for agent-readable and human-readable knowledge",
     after_help = "License: EUPL-1.2 <https://eupl.eu>, MIT for code existing before 0.22"
 )]
 pub struct Cli {

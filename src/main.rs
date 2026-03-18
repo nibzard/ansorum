@@ -35,19 +35,15 @@ fn get_config_file_path(dir: &Path, config_path: Option<&Path>) -> (PathBuf, Pat
             (root, path.to_path_buf())
         }
         None => {
-            // Try config.toml first, then fall back to legacy zola.toml.
             let config = Path::new("config.toml");
-            let legacy_config = Path::new("zola.toml");
 
             if let Some(root) = dir.ancestors().find(|a| a.join(config).exists()) {
                 (root, config.to_path_buf())
-            } else if let Some(root) = dir.ancestors().find(|a| a.join(legacy_config).exists()) {
-                (root, legacy_config.to_path_buf())
             } else {
                 messages::unravel_errors(
                     "",
                     &anyhow!(
-                        "config.toml (or legacy zola.toml) not found in current directory or ancestors, current_dir is {}",
+                        "config.toml not found in current directory or ancestors, current_dir is {}",
                         dir.display()
                     ),
                 );

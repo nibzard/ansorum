@@ -15,7 +15,7 @@ fn generate_man_pages() {
     use clap::CommandFactory;
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
-    let cmd = Cli::command();
+    let cmd = Cli::command().name("ansorum");
     clap_mangen::generate_to(cmd, out_dir).unwrap();
 }
 
