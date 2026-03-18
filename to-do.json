@@ -112,7 +112,7 @@
       "id": "ANS-004",
       "title": "Add first-class answer frontmatter to the content model",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Promote answer metadata from extra.answer into explicit first-class frontmatter fields. The parser and serialized content model should treat Ansorum answer fields as core data with typed enums and validation, not as arbitrary extras. Required fields and controlled vocabularies should follow the spec exactly so answer pages have a stable authoring contract.",
       "steps": [
         "Add dedicated answer frontmatter structs and enums for the required and optional Ansorum answer fields defined in the spec.",
@@ -128,8 +128,11 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        "components/content/src/front_matter/page.rs",
+        "components/content/Cargo.toml",
+        "components/content/src/answer.rs",
+        "components/content/src/front_matter/answer.rs",
         "components/content/src/front_matter/mod.rs",
+        "components/content/src/front_matter/page.rs",
         "components/content/src/page.rs",
         "components/content/src/ser.rs",
         "components/content/src/lib.rs"
@@ -139,7 +142,7 @@
         "ANS-002"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:10:00Z"
     },
     {
       "id": "ANS-005",

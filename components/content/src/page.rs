@@ -303,8 +303,10 @@ mod tests {
 
     use globset::{Glob, GlobSetBuilder};
     use tempfile::tempdir;
+    use tera::to_value;
     use templates::ZOLA_TERA;
 
+    use crate::ser::SerializingPage;
     use crate::Page;
     use config::{Config, LanguageOptions};
     use utils::slugs::SlugifyStrategy;
@@ -530,6 +532,42 @@ Hello world
         )
         .unwrap();
         assert_eq!(page.summary, Some("<p>Hello world</p>".to_string()));
+    }
+
+    #[test]
+    fn serializes_answer_metadata_without_extra_answer() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
++++
+Hello world"#;
+        let res = Page::parse(Path::new("post.md"), content, &config, &PathBuf::new());
+        assert!(res.is_ok());
+        let mut page = res.unwrap();
+        page.render_markdown(
+            &HashMap::default(),
+            &ZOLA_TERA,
+            &config,
+            InsertAnchor::None,
+            &HashMap::new(),
+        )
+        .unwrap();
+
+        let serialized = to_value(SerializingPage::new(&page, None, false)).unwrap();
+        assert_eq!(serialized["answer"]["id"], "refunds-policy");
+        assert_eq!(serialized["answer"]["summary"], "How refunds work.");
+        assert!(serialized["extra"].get("answer").is_none());
     }
 
     #[test]

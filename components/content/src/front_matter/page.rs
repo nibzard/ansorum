@@ -9,39 +9,33 @@ use time::{Date, OffsetDateTime, PrimitiveDateTime};
 use errors::{Result, bail};
 use utils::de::{fix_toml_dates, from_unknown_datetime};
 
+use crate::answer::AnswerFrontMatter;
+use crate::front_matter::answer::RawAnswerFrontMatter;
 use crate::front_matter::split::RawFrontMatter;
 
 /// The front matter of every page
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PageFrontMatter {
     /// <title> of the page
     pub title: Option<String>,
     /// Description in <meta> that appears when linked, e.g. on twitter
     pub description: Option<String>,
     /// Updated date
-    #[serde(default, deserialize_with = "from_unknown_datetime")]
     pub updated: Option<String>,
     /// Datetime content was last updated
-    #[serde(default, skip_deserializing)]
     pub updated_datetime: Option<OffsetDateTime>,
     /// The converted update datetime into a (year, month, day) tuple
-    #[serde(default, skip_deserializing)]
     pub updated_datetime_tuple: Option<(i32, u8, u8)>,
     /// Date if we want to order pages (ie blog post)
-    #[serde(default, deserialize_with = "from_unknown_datetime")]
     pub date: Option<String>,
     /// Datetime content was created
-    #[serde(default, skip_deserializing)]
     pub datetime: Option<OffsetDateTime>,
     /// The converted date into a (year, month, day) tuple
-    #[serde(default, skip_deserializing)]
     pub datetime_tuple: Option<(i32, u8, u8)>,
     /// Whether this page is a draft
     pub draft: bool,
     /// Prevent generation of a folder for current page
     /// Defaults to `true`
-    #[serde(skip_serializing)]
     pub render: bool,
     /// The page slug. Will be used instead of the filename if present
     /// Can't be an empty string if present
@@ -57,17 +51,126 @@ pub struct PageFrontMatter {
     pub authors: Vec<String>,
     /// All aliases for that page. Zola will create HTML templates that will
     /// redirect to this
-    #[serde(skip_serializing)]
     pub aliases: Vec<String>,
     /// Specify a template different from `page.html` to use for that page
-    #[serde(skip_serializing)]
     pub template: Option<String>,
     /// Whether the page is included in the search index
     /// Defaults to `true` but is only used if search if explicitly enabled in the config.
-    #[serde(skip_serializing)]
     pub in_search_index: bool,
     /// Any extra parameter present in the front matter
     pub extra: Map<String, Value>,
+    /// Ansorum answer front matter promoted to first-class typed metadata
+    pub answer: Option<AnswerFrontMatter>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+struct PageFrontMatterRaw {
+    title: Option<String>,
+    description: Option<String>,
+    #[serde(default, deserialize_with = "from_unknown_datetime")]
+    updated: Option<String>,
+    #[serde(default, deserialize_with = "from_unknown_datetime")]
+    date: Option<String>,
+    draft: bool,
+    render: bool,
+    slug: Option<String>,
+    path: Option<String>,
+    taxonomies: HashMap<String, Vec<String>>,
+    weight: Option<usize>,
+    authors: Vec<String>,
+    aliases: Vec<String>,
+    template: Option<String>,
+    in_search_index: bool,
+    extra: Map<String, Value>,
+    id: Option<String>,
+    summary: Option<String>,
+    canonical_questions: Vec<String>,
+    intent: Option<crate::answer::AnswerIntent>,
+    entity: Option<String>,
+    audience: Option<crate::answer::AnswerAudience>,
+    related: Vec<String>,
+    external_refs: Vec<String>,
+    schema_type: Option<String>,
+    #[serde(default, deserialize_with = "from_unknown_datetime")]
+    review_by: Option<String>,
+    priority: Option<String>,
+    visibility: Option<crate::answer::AnswerVisibility>,
+    ai_visibility: Option<crate::answer::AiVisibility>,
+    llms_priority: Option<crate::answer::LlmsPriority>,
+    token_budget: Option<crate::answer::TokenBudget>,
+    ai_extra: Option<String>,
+    last_reviewed_by: Option<String>,
+    owner: Option<String>,
+    confidence_notes: Option<String>,
+}
+
+impl Default for PageFrontMatterRaw {
+    fn default() -> Self {
+        Self {
+            title: None,
+            description: None,
+            updated: None,
+            date: None,
+            draft: false,
+            render: true,
+            slug: None,
+            path: None,
+            taxonomies: HashMap::new(),
+            weight: None,
+            authors: Vec::new(),
+            aliases: Vec::new(),
+            template: None,
+            in_search_index: true,
+            extra: Map::new(),
+            id: None,
+            summary: None,
+            canonical_questions: Vec::new(),
+            intent: None,
+            entity: None,
+            audience: None,
+            related: Vec::new(),
+            external_refs: Vec::new(),
+            schema_type: None,
+            review_by: None,
+            priority: None,
+            visibility: None,
+            ai_visibility: None,
+            llms_priority: None,
+            token_budget: None,
+            ai_extra: None,
+            last_reviewed_by: None,
+            owner: None,
+            confidence_notes: None,
+        }
+    }
+}
+
+impl PageFrontMatterRaw {
+    fn answer(&self) -> RawAnswerFrontMatter {
+        RawAnswerFrontMatter {
+            id: self.id.clone(),
+            summary: self.summary.clone(),
+            canonical_questions: self.canonical_questions.clone(),
+            intent: self.intent.clone(),
+            entity: self.entity.clone(),
+            audience: self.audience.clone(),
+            related: self.related.clone(),
+            external_refs: self.external_refs.clone(),
+            schema_type: self.schema_type.clone(),
+            review_by: self.review_by.clone(),
+            priority: self.priority.clone(),
+            visibility: self.visibility.clone(),
+            ai_visibility: self.ai_visibility.clone(),
+            llms_priority: self.llms_priority.clone(),
+            token_budget: self.token_budget.clone(),
+            aliases: self.aliases.clone(),
+            ai_extra: self.ai_extra.clone(),
+            last_reviewed_by: self.last_reviewed_by.clone(),
+            owner: self.owner.clone(),
+            confidence_notes: self.confidence_notes.clone(),
+        }
+    }
 }
 
 /// Parse a string for a datetime coming from one of the supported TOML format
@@ -89,7 +192,34 @@ fn parse_datetime(d: &str) -> Option<OffsetDateTime> {
 
 impl PageFrontMatter {
     pub fn parse(raw: &RawFrontMatter) -> Result<PageFrontMatter> {
-        let mut f: PageFrontMatter = raw.deserialize()?;
+        let raw: PageFrontMatterRaw = raw.deserialize()?;
+        let mut extra = match fix_toml_dates(raw.extra.clone()) {
+            Value::Object(o) => o,
+            _ => unreachable!("Got something other than a table in page extra"),
+        };
+        let answer = raw.answer().merge(RawAnswerFrontMatter::from_extra(&mut extra)?);
+        let mut f = PageFrontMatter {
+            title: raw.title.clone(),
+            description: raw.description.clone(),
+            updated: raw.updated.clone(),
+            updated_datetime: None,
+            updated_datetime_tuple: None,
+            date: raw.date.clone(),
+            datetime: None,
+            datetime_tuple: None,
+            draft: raw.draft,
+            render: raw.render,
+            slug: raw.slug.clone(),
+            path: raw.path.clone(),
+            taxonomies: raw.taxonomies.clone(),
+            weight: raw.weight,
+            authors: raw.authors.clone(),
+            aliases: raw.aliases.clone(),
+            template: raw.template.clone(),
+            in_search_index: raw.in_search_index,
+            extra,
+            answer: answer.into_answer(&raw.title)?,
+        };
 
         if let Some(ref slug) = f.slug
             && slug.is_empty()
@@ -102,11 +232,6 @@ impl PageFrontMatter {
         {
             bail!("`path` can't be empty if present")
         }
-
-        f.extra = match fix_toml_dates(f.extra) {
-            Value::Object(o) => o,
-            _ => unreachable!("Got something other than a table in page extra"),
-        };
 
         f.date_to_datetime();
 
@@ -131,11 +256,14 @@ impl PageFrontMatter {
     /// Also grabs the year/month/day tuple that will be used in serialization
     pub fn date_to_datetime(&mut self) {
         self.datetime = self.date.as_ref().map(|s| s.as_ref()).and_then(parse_datetime);
-        self.datetime_tuple = self.datetime.map(|dt| (dt.year(), dt.month().into(), dt.day()));
+        self.datetime_tuple = self
+            .datetime
+            .map(|dt: OffsetDateTime| (dt.year(), dt.month().into(), dt.day()));
 
         self.updated_datetime = self.updated.as_ref().map(|s| s.as_ref()).and_then(parse_datetime);
-        self.updated_datetime_tuple =
-            self.updated_datetime.map(|dt| (dt.year(), dt.month().into(), dt.day()));
+        self.updated_datetime_tuple = self
+            .updated_datetime
+            .map(|dt: OffsetDateTime| (dt.year(), dt.month().into(), dt.day()));
     }
 
     pub fn weight(&self) -> usize {
@@ -165,6 +293,7 @@ impl Default for PageFrontMatter {
             aliases: Vec::new(),
             template: None,
             extra: Map::new(),
+            answer: None,
         }
     }
 }
@@ -173,6 +302,7 @@ impl Default for PageFrontMatter {
 mod tests {
     use crate::front_matter::page::PageFrontMatter;
     use crate::front_matter::split::RawFrontMatter;
+    use crate::answer::{AiVisibility, AnswerAudience, AnswerIntent, AnswerVisibility, LlmsPriority, TokenBudget};
     use tera::to_value;
     use test_case::test_case;
     use time::macros::datetime;
@@ -563,5 +693,188 @@ authors:
             ),
             res2.authors
         );
+    }
+
+    #[test]
+    fn keeps_page_defaults_when_answer_fields_are_absent() {
+        let res = PageFrontMatter::parse(&RawFrontMatter::Toml("")).unwrap();
+        assert!(res.render);
+        assert!(res.in_search_index);
+    }
+
+    #[test_case(&RawFrontMatter::Toml(r#"
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+related = ["pricing"]
+external_refs = ["https://example.com/refunds"]
+schema_type = "WebPage"
+review_by = 2026-06-01
+priority = "high"
+visibility = "public"
+ai_visibility = "summary_only"
+llms_priority = "core"
+token_budget = "medium"
+aliases = ["refund policy"]
+ai_extra = "Keep it concise"
+last_reviewed_by = "docs@example.com"
+owner = "Billing"
+confidence_notes = "Reviewed by legal"
+"#); "toml")]
+    #[test_case(&RawFrontMatter::Yaml(r#"
+title: Refund policy
+id: refunds-policy
+summary: How refunds work.
+canonical_questions:
+  - how do refunds work
+intent: policy
+entity: billing
+audience: customer
+related:
+  - pricing
+external_refs:
+  - https://example.com/refunds
+schema_type: WebPage
+review_by: 2026-06-01
+priority: high
+visibility: public
+ai_visibility: summary_only
+llms_priority: core
+token_budget: medium
+aliases:
+  - refund policy
+ai_extra: Keep it concise
+last_reviewed_by: docs@example.com
+owner: Billing
+confidence_notes: Reviewed by legal
+"#); "yaml")]
+    fn can_parse_first_class_answer_front_matter(content: &RawFrontMatter) {
+        let res = PageFrontMatter::parse(content).unwrap();
+        let answer = res.answer.unwrap();
+        assert_eq!(answer.id, "refunds-policy");
+        assert_eq!(answer.summary, "How refunds work.");
+        assert_eq!(answer.intent, AnswerIntent::Policy);
+        assert_eq!(answer.audience, AnswerAudience::Customer);
+        assert_eq!(answer.visibility, AnswerVisibility::Public);
+        assert_eq!(answer.ai_visibility, AiVisibility::SummaryOnly);
+        assert_eq!(answer.llms_priority, LlmsPriority::Core);
+        assert_eq!(answer.token_budget, TokenBudget::Medium);
+        assert_eq!(answer.review_by, Some("2026-06-01".to_string()));
+        assert_eq!(answer.aliases, vec!["refund policy".to_string()]);
+    }
+
+    #[test_case(&RawFrontMatter::Toml(r#"
+title = "Refund policy"
+
+[extra.answer]
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+aliases = ["refund policy"]
+"#); "toml")]
+    #[test_case(&RawFrontMatter::Yaml(r#"
+title: Refund policy
+extra:
+  answer:
+    id: refunds-policy
+    summary: How refunds work.
+    canonical_questions:
+      - how do refunds work
+    intent: policy
+    entity: billing
+    audience: customer
+    visibility: public
+    ai_visibility: public
+    llms_priority: core
+    token_budget: medium
+    aliases:
+      - refund policy
+"#); "yaml")]
+    fn can_promote_legacy_extra_answer_front_matter(content: &RawFrontMatter) {
+        let res = PageFrontMatter::parse(content).unwrap();
+        assert!(res.extra.get("answer").is_none());
+        let answer = res.answer.unwrap();
+        assert_eq!(answer.id, "refunds-policy");
+        assert_eq!(answer.aliases, vec!["refund policy".to_string()]);
+    }
+
+    #[test]
+    fn first_class_answer_fields_override_extra_answer_values() {
+        let res = PageFrontMatter::parse(&RawFrontMatter::Toml(
+            r#"
+title = "Refund policy"
+id = "top-level"
+summary = "Top level summary"
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+aliases = ["top alias"]
+
+[extra.answer]
+id = "legacy"
+summary = "Legacy summary"
+canonical_questions = ["legacy question"]
+intent = "faq"
+entity = "support"
+audience = "prospect"
+visibility = "internal"
+ai_visibility = "hidden"
+llms_priority = "optional"
+token_budget = "small"
+aliases = ["legacy alias"]
+"#,
+        ))
+        .unwrap();
+        let answer = res.answer.unwrap();
+        assert_eq!(answer.id, "top-level");
+        assert_eq!(answer.summary, "Top level summary");
+        assert_eq!(answer.aliases, vec!["top alias".to_string()]);
+    }
+
+    #[test]
+    fn errors_when_answer_missing_required_fields() {
+        let res = PageFrontMatter::parse(&RawFrontMatter::Toml(
+            r#"
+title = "Refund policy"
+intent = "policy"
+"#,
+        ));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn errors_when_answer_enum_is_invalid() {
+        let res = PageFrontMatter::parse(&RawFrontMatter::Toml(
+            r#"
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "bad-value"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+"#,
+        ));
+        assert!(res.is_err());
     }
 }

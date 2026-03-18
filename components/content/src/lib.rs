@@ -1,3 +1,4 @@
+mod answer;
 mod front_matter;
 
 mod file_info;
@@ -11,6 +12,10 @@ mod taxonomies;
 mod types;
 mod utils;
 
+pub use answer::{
+    AiVisibility, AnswerAudience, AnswerFrontMatter, AnswerIntent, AnswerVisibility, LlmsPriority,
+    TokenBudget,
+};
 pub use file_info::FileInfo;
 pub use front_matter::{PageFrontMatter, SectionFrontMatter};
 pub use library::Library;
