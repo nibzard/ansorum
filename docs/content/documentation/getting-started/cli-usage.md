@@ -185,6 +185,51 @@ ansorum check --skip-external-links
 This remains useful for fast authoring feedback, but for answer quality and AI
 delivery governance you should rely on `audit` and `eval`.
 
+## Observability
+
+Ansorum v0 exposes machine-delivery and governance telemetry through structured
+logs and an optional event hook. Both sinks use the same JSON envelope:
+
+```json
+{
+  "schema_version": 1,
+  "emitted_at": "2026-03-18T21:00:00.000Z",
+  "source": {
+    "product": "ansorum",
+    "surface": "serve",
+    "command": "serve"
+  },
+  "event": "ansorum.markdown.fetch",
+  "payload": {}
+}
+```
+
+Enable the hook by exporting:
+
+```bash
+export ANSORUM_EVENT_HOOK_URL="https://hooks.example.com/ansorum"
+```
+
+You can tune delivery timeout with:
+
+```bash
+export ANSORUM_EVENT_HOOK_TIMEOUT_MS=5000
+```
+
+Stable v0 event names:
+
+- `ansorum.markdown.fetch`: canonical `/page.md` fetches and negotiated
+  `Accept: text/markdown` fetches. Payload includes `request_path`,
+  `served_path`, `content_source`, and `delivery_mode`.
+- `ansorum.llms.fetch`: root `llms.txt`, `llms-full.txt`, and scoped pack
+  `llms.txt` fetches. Payload includes `variant` and optional `pack_path`.
+- `ansorum.redirect.hit`: redirect hits under `/r/:code`. Payload includes
+  `code`, `target`, `external`, and `status`.
+- `ansorum.audit.completed`: audit runs. Payload includes `outcome`, command
+  settings, and the audit `report` or failure details.
+- `ansorum.eval.completed`: eval runs. Payload includes `outcome`, command
+  settings, and the eval `report` or failure details.
+
 ## Colored output
 
 Colored output is used if your terminal supports it.

@@ -2,10 +2,12 @@ use std::path::Path;
 
 use chrono::Utc;
 use errors::Result;
+use serde_json::json;
 use site::Site;
 use site::answers::{AuditReport, audit_library};
 
 use crate::cli::AuditFormat;
+use crate::observability::{self, DispatchMode};
 
 pub fn audit(
     root_dir: &Path,
@@ -16,6 +18,14 @@ pub fn audit(
     let mut site = match Site::new(root_dir, config_file) {
         Ok(site) => site,
         Err(error) => {
+            emit_audit_failure(
+                root_dir,
+                config_file,
+                include_drafts,
+                format,
+                "site_init_failed",
+                &error.to_string(),
+            );
             print_failure_report(format, "site_init_failed", &error.to_string())?;
             return Err(error);
         }
@@ -24,6 +34,14 @@ pub fn audit(
         site.include_drafts();
     }
     if let Err(error) = site.load() {
+        emit_audit_failure(
+            root_dir,
+            config_file,
+            include_drafts,
+            format,
+            "site_load_failed",
+            &error.to_string(),
+        );
         print_failure_report(format, "site_load_failed", &error.to_string())?;
         return Err(error);
     }
@@ -32,6 +50,8 @@ pub fn audit(
     let library = site.library.read().unwrap();
     let report = audit_library(&library, &site.answers, today);
     drop(library);
+
+    emit_audit_report(root_dir, config_file, include_drafts, format, today, &report);
 
     match format {
         AuditFormat::Human => print_human_report(&report),
@@ -66,6 +86,63 @@ fn print_human_report(report: &AuditReport) {
         }
 
         println!("{}: {}", parts.join(" "), finding.message);
+    }
+}
+
+fn emit_audit_report(
+    root_dir: &Path,
+    config_file: &Path,
+    include_drafts: bool,
+    format: AuditFormat,
+    audit_date: chrono::NaiveDate,
+    report: &AuditReport,
+) {
+    observability::emit_event(
+        "governance",
+        "audit",
+        "ansorum.audit.completed",
+        json!({
+            "outcome": if report.has_errors() { "failed" } else { "passed" },
+            "format": audit_format_name(format),
+            "include_drafts": include_drafts,
+            "audit_date": audit_date.to_string(),
+            "root_dir": root_dir.display().to_string(),
+            "config_file": config_file.display().to_string(),
+            "report": report,
+        }),
+        DispatchMode::Sync,
+    );
+}
+
+fn emit_audit_failure(
+    root_dir: &Path,
+    config_file: &Path,
+    include_drafts: bool,
+    format: AuditFormat,
+    stage: &str,
+    error: &str,
+) {
+    observability::emit_event(
+        "governance",
+        "audit",
+        "ansorum.audit.completed",
+        json!({
+            "outcome": "failed",
+            "format": audit_format_name(format),
+            "include_drafts": include_drafts,
+            "root_dir": root_dir.display().to_string(),
+            "config_file": config_file.display().to_string(),
+            "stage": stage,
+            "error": error,
+        }),
+        DispatchMode::Sync,
+    );
+}
+
+fn audit_format_name(format: AuditFormat) -> &'static str {
+    match format {
+        AuditFormat::Human => "human",
+        AuditFormat::Json => "json",
     }
 }
 

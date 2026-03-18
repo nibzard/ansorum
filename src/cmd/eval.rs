@@ -12,6 +12,7 @@ use serde_json::{Value as JsonValue, json};
 use site::Site;
 
 use crate::cli::EvalFormat;
+use crate::observability::{self, DispatchMode};
 
 const DEFAULT_FIXTURES_PATH: &str = "eval/fixtures.yaml";
 const OPENAI_RESPONSES_URL: &str = "https://api.openai.com/v1/responses";
@@ -30,6 +31,67 @@ pub fn eval(
     min_llm_score: Option<f64>,
     require_llm: bool,
 ) -> Result<()> {
+    let report = match run_eval(
+        root_dir,
+        config_file,
+        include_drafts,
+        fixtures,
+        llm_override,
+        model_override,
+        api_base_override,
+        min_pass_rate,
+        min_llm_average,
+        min_llm_score,
+        require_llm,
+    ) {
+        Ok(report) => report,
+        Err(error) => {
+            emit_eval_failure(
+                root_dir,
+                config_file,
+                include_drafts,
+                fixtures,
+                format,
+                llm_override,
+                model_override,
+                api_base_override,
+                min_pass_rate,
+                min_llm_average,
+                min_llm_score,
+                require_llm,
+                &error.to_string(),
+            );
+            return Err(error);
+        }
+    };
+
+    emit_eval_report(root_dir, config_file, include_drafts, format, llm_override, &report);
+
+    match format {
+        EvalFormat::Human => print_human_report(&report),
+        EvalFormat::Json => print_json_report(&report)?,
+    }
+
+    if report_failed(&report) {
+        bail!("Eval failed");
+    }
+
+    Ok(())
+}
+
+fn run_eval(
+    root_dir: &Path,
+    config_file: &Path,
+    include_drafts: bool,
+    fixtures: &Path,
+    llm_override: bool,
+    model_override: Option<&str>,
+    api_base_override: Option<&str>,
+    min_pass_rate: Option<f64>,
+    min_llm_average: Option<f64>,
+    min_llm_score: Option<f64>,
+    require_llm: bool,
+) -> Result<EvalReport> {
     validate_ratio("min-pass-rate", min_pass_rate)?;
     validate_ratio("min-llm-average", min_llm_average)?;
     validate_ratio("min-llm-score", min_llm_score)?;
@@ -162,17 +224,7 @@ pub fn eval(
     }
 
     finalize_report(&mut report);
-
-    match format {
-        EvalFormat::Human => print_human_report(&report),
-        EvalFormat::Json => print_json_report(&report)?,
-    }
-
-    if report_failed(&report) {
-        bail!("Eval failed");
-    }
-
-    Ok(())
+    Ok(report)
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -780,6 +832,80 @@ fn llm_grade_schema() -> JsonValue {
             "rationale": { "type": "string", "minLength": 1 }
         }
     })
+}
+
+fn emit_eval_report(
+    root_dir: &Path,
+    config_file: &Path,
+    include_drafts: bool,
+    format: EvalFormat,
+    llm_override: bool,
+    report: &EvalReport,
+) {
+    observability::emit_event(
+        "governance",
+        "eval",
+        "ansorum.eval.completed",
+        json!({
+            "outcome": if report_failed(report) { "failed" } else { "passed" },
+            "format": eval_format_name(format),
+            "include_drafts": include_drafts,
+            "llm_override": llm_override,
+            "root_dir": root_dir.display().to_string(),
+            "config_file": config_file.display().to_string(),
+            "report": report,
+        }),
+        DispatchMode::Sync,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_eval_failure(
+    root_dir: &Path,
+    config_file: &Path,
+    include_drafts: bool,
+    fixtures: &Path,
+    format: EvalFormat,
+    llm_override: bool,
+    model_override: Option<&str>,
+    api_base_override: Option<&str>,
+    min_pass_rate: Option<f64>,
+    min_llm_average: Option<f64>,
+    min_llm_score: Option<f64>,
+    require_llm: bool,
+    error: &str,
+) {
+    observability::emit_event(
+        "governance",
+        "eval",
+        "ansorum.eval.completed",
+        json!({
+            "outcome": "failed",
+            "format": eval_format_name(format),
+            "include_drafts": include_drafts,
+            "llm_override": llm_override,
+            "root_dir": root_dir.display().to_string(),
+            "config_file": config_file.display().to_string(),
+            "fixtures": fixtures.display().to_string(),
+            "model_override": model_override,
+            "api_base_override": api_base_override,
+            "thresholds": {
+                "min_pass_rate": min_pass_rate,
+                "min_llm_average": min_llm_average,
+                "min_llm_score": min_llm_score,
+                "require_llm": require_llm,
+            },
+            "error": error,
+        }),
+        DispatchMode::Sync,
+    );
+}
+
+fn eval_format_name(format: EvalFormat) -> &'static str {
+    match format {
+        EvalFormat::Human => "human",
+        EvalFormat::Json => "json",
+    }
 }
 
 #[cfg(test)]

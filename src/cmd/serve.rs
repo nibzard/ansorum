@@ -60,6 +60,7 @@ use utils::fs::{clean_site_output_folder, copy_file, create_directory};
 
 use crate::fs_utils::{ChangeKind, SimpleFileSystemEventKind, filter_events};
 use crate::messages;
+use crate::observability::{self, DispatchMode};
 
 #[derive(Debug, PartialEq)]
 enum WatchMode {
@@ -171,10 +172,12 @@ async fn handle_request(
         && let Some(markdown_path) = markdown_variant.as_ref()
         && let Some(content) = SITE_CONTENT.read().unwrap().get(markdown_path).cloned()
     {
+        log_machine_delivery(req.method(), path_str, markdown_path.as_str(), "memory", "negotiated");
         return in_memory_content(markdown_path, &content, true);
     }
 
     if let Some(content) = SITE_CONTENT.read().unwrap().get(&path).cloned() {
+        log_machine_delivery(req.method(), path_str, path.as_str(), "memory", "direct");
         return in_memory_content(&path, &content, vary_accept);
     }
 
@@ -203,6 +206,9 @@ async fn handle_request(
         if accept_markdown {
             let markdown_root = root.join("page.md");
             if let Ok(contents) = tokio::fs::read(&markdown_root).await {
+                if let Some(markdown_path) = markdown_variant.as_ref() {
+                    log_machine_delivery(req.method(), path_str, markdown_path.as_str(), "disk", "negotiated");
+                }
                 return build_content_response(
                     content_type_from_extension(markdown_root.extension().and_then(OsStr::to_str)),
                     contents,
@@ -222,6 +228,7 @@ async fn handle_request(
         Ok(contents) => contents,
     };
 
+    log_machine_delivery(req.method(), path_str, path.as_str(), "disk", "direct");
     build_content_response(
         disk_content_type(&root),
         contents,
@@ -417,17 +424,40 @@ fn redirect_response(redirect: &RedirectTarget) -> Response {
 }
 
 fn log_redirect_hit(method: &Method, path: &str, code: &str, redirect: &RedirectTarget) {
-    log::info!(
-        "{}",
+    observability::emit_event(
+        "serve",
+        "serve",
+        "ansorum.redirect.hit",
         json!({
-            "event": "ansorum.redirect.hit",
             "method": method.as_str(),
-            "path": path,
+            "request_path": path,
             "code": code,
             "target": redirect.target,
             "external": redirect.external,
-        })
+            "status": StatusCode::TEMPORARY_REDIRECT.as_u16(),
+        }),
+        DispatchMode::Async,
     );
+}
+
+fn log_machine_delivery(
+    method: &Method,
+    request_path: &str,
+    served_path: &str,
+    content_source: &'static str,
+    delivery_mode: &'static str,
+) {
+    let Some(event) = observability::machine_delivery_event(
+        method.as_str(),
+        request_path,
+        served_path,
+        content_source,
+        delivery_mode,
+    ) else {
+        return;
+    };
+
+    observability::emit_event("serve", "serve", event.name, event.payload, DispatchMode::Async);
 }
 
 fn content_type_from_extension(extension: Option<&str>) -> &'static str {

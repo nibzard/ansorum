@@ -16,6 +16,7 @@ mod cli;
 mod cmd;
 mod fs_utils;
 mod messages;
+mod observability;
 mod prompt;
 
 fn get_config_file_path(dir: &Path, config_path: Option<&Path>) -> (PathBuf, PathBuf) {

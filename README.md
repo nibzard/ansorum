@@ -43,6 +43,40 @@ Ansorum is designed to help teams:
 - detect stale, duplicate, conflicting, or weak answers before publishing
 - evaluate whether the corpus actually answers real questions well
 
+## Observability Contract
+
+Ansorum v0 emits observability data through:
+
+- structured JSON log lines
+- an optional JSON event hook via `ANSORUM_EVENT_HOOK_URL`
+
+The same envelope is used for both sinks:
+
+```json
+{
+  "schema_version": 1,
+  "emitted_at": "2026-03-18T21:00:00.000Z",
+  "source": {
+    "product": "ansorum",
+    "surface": "serve",
+    "command": "serve"
+  },
+  "event": "ansorum.markdown.fetch",
+  "payload": {}
+}
+```
+
+Current stable v0 events are:
+
+- `ansorum.markdown.fetch`
+- `ansorum.llms.fetch`
+- `ansorum.redirect.hit`
+- `ansorum.audit.completed`
+- `ansorum.eval.completed`
+
+Set `ANSORUM_EVENT_HOOK_TIMEOUT_MS` to change the hook POST timeout from the
+default `2000` milliseconds.
+
 ## Authoring Model
 
 The source of truth is a Git repository with one Markdown file per answer. A
