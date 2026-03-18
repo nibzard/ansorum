@@ -187,6 +187,46 @@ fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
 }
 
 #[test]
+fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
+    let (_, _tmp_dir, public) = build_site("test_site_answers");
+
+    assert!(file_exists!(public, "llms.txt"));
+    assert!(file_exists!(public, "llms-full.txt"));
+    assert!(file_contains!(public, "llms.txt", "# Answer fixture"));
+    assert!(file_contains!(public, "llms.txt", "## Core Answers"));
+    assert!(file_contains!(public, "llms.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
+    assert!(file_contains!(public, "llms.txt", "## Additional Context"));
+    assert!(file_contains!(public, "llms.txt", "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"));
+    assert!(file_contains!(public, "llms.txt", "## Scoped Packs"));
+    assert!(file_contains!(public, "llms.txt", "https://answers.example.com/billing/llms.txt"));
+    assert!(file_contains!(public, "llms.txt", "https://answers.example.com/customer/llms.txt"));
+
+    assert!(file_contains!(public, "llms-full.txt", "# Answer fixture full export"));
+    assert!(file_contains!(public, "llms-full.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
+    assert!(file_contains!(public, "llms-full.txt", "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"));
+    assert!(!file_contains!(public, "llms-full.txt", "internal-support-escalation"));
+
+    assert!(file_exists!(public, "billing/llms.txt"));
+    assert!(file_exists!(public, "billing/answers.json"));
+    assert!(file_contains!(public, "billing/llms.txt", "Curated billing pack for customer-visible billing answers."));
+    assert!(file_contains!(public, "billing/llms.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
+
+    assert!(file_exists!(public, "customer/llms.txt"));
+    assert!(file_exists!(public, "customer/answers.json"));
+    assert!(file_contains!(public, "customer/llms.txt", "Scoped AI-visible answers for the `customer` audience."));
+    assert!(!file_exists!(public, "support/llms.txt"));
+
+    let billing_index =
+        fs::read_to_string(public.join("billing").join("answers.json")).expect("read billing answers.json");
+    let billing_json: serde_json::Value =
+        serde_json::from_str(&billing_index).expect("parse billing answers.json");
+    let billing_answers = billing_json["answers"].as_array().expect("billing answers array");
+    assert_eq!(billing_answers.len(), 2);
+    assert_eq!(billing_answers[0]["id"], "cancel-subscription");
+    assert_eq!(billing_answers[1]["id"], "refunds-policy");
+}
+
+#[test]
 fn errors_on_unknown_taxonomies() {
     let (mut site, _, _) = build_site("test_site");
     let mut page = Page::default();

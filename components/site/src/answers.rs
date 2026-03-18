@@ -214,15 +214,19 @@ impl AnswerCorpus {
     }
 
     pub fn to_json(&self) -> Result<String> {
+        let visible = self
+            .records
+            .iter()
+            .filter(|record| record.ai_visibility != AiVisibility::Hidden)
+            .collect::<Vec<_>>();
+        self.to_json_subset(&visible)
+    }
+
+    pub fn to_json_subset(&self, records: &[&AnswerRecord]) -> Result<String> {
         let document = AnswersIndex {
             version: 1,
             generated_at: None,
-            answers: self
-                .records
-                .iter()
-                .filter(|record| record.ai_visibility != AiVisibility::Hidden)
-                .map(SerializedAnswerRecord::from)
-                .collect(),
+            answers: records.iter().copied().map(SerializedAnswerRecord::from).collect(),
         };
 
         serde_json::to_string_pretty(&document)

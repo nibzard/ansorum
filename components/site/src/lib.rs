@@ -1,6 +1,7 @@
 pub mod answers;
 pub mod feeds;
 pub mod link_checking;
+pub mod llms;
 mod minify;
 pub mod sass;
 pub mod sitemap;
@@ -752,6 +753,24 @@ impl Site {
         Ok(())
     }
 
+    fn write_llms_outputs(&self) -> Result<()> {
+        if self.answers.is_empty() {
+            return Ok(());
+        }
+
+        let outputs = llms::build_outputs(&self.config, &self.base_path, &self.answers)?;
+        self.write_content(&[], "llms.txt", outputs.llms_txt)?;
+        self.write_content(&[], "llms-full.txt", outputs.llms_full_txt)?;
+
+        for pack in outputs.packs {
+            let components = vec![pack.path.as_str()];
+            self.write_content(&components, "llms.txt", pack.llms_txt)?;
+            self.write_content(&components, "answers.json", pack.answers_json)?;
+        }
+
+        Ok(())
+    }
+
     /// Deletes the `public` directory (only for `zola build`) and builds the site
     pub fn build(&self) -> Result<()> {
         let mut start = Instant::now();
@@ -789,6 +808,8 @@ impl Site {
         start = log_time(start, "Rendered orphan pages");
         self.write_answers_index()?;
         start = log_time(start, "Wrote answers.json");
+        self.write_llms_outputs()?;
+        start = log_time(start, "Wrote llms exports");
         if self.config.generate_sitemap {
             self.render_sitemap()?;
             start = log_time(start, "Rendered sitemap");

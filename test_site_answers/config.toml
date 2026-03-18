@@ -1,7 +1,15 @@
 base_url = "https://answers.example.com"
 title = "Answer fixture"
+description = "Fixture corpus for llms.txt, llms-full.txt, and scoped answer packs."
 generate_feeds = false
 generate_sitemap = false
 generate_robots_txt = false
 build_search_index = false
 
+[ansorum.packs]
+auto_entity_packs = true
+auto_audience_packs = true
+
+[[ansorum.packs.curated]]
+name = "billing"
+source = "collections/packs/billing.toml"

@@ -250,13 +250,13 @@
         "ANS-005"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:30:14Z"
+      "updated_at": "2026-03-18T19:30:41Z"
     },
     {
       "id": "ANS-008",
       "title": "Generate llms.txt, llms-full.txt, and scoped packs from the answer corpus",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Implement curated and full machine exports rooted in the answer graph. Ansorum should emit llms.txt, llms-full.txt, automatic entity/audience packs, and curated packs from collections/packs/*.toml using one canonical answer model. llms.txt is the curated root index, llms-full.txt is the broad AI-visible corpus export, and packs are filtered subsets with the same canonical record semantics.",
       "steps": [
         "Design llms.txt and llms-full.txt generation from AnswerRecord data.",
@@ -271,18 +271,20 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        "components/site/src/llms.rs",
+        "components/site/Cargo.toml",
         "components/site/src/answers.rs",
         "components/site/src/lib.rs",
-        "collections/packs",
-        "templates"
+        "components/site/src/llms.rs",
+        "components/site/tests/site.rs",
+        "test_site_answers/config.toml",
+        "test_site_answers/collections/packs/billing.toml"
       ],
       "depends_on": [
         "ANS-005",
         "ANS-007"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T20:05:00Z"
     },
     {
       "id": "ANS-009",
