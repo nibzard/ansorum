@@ -72,6 +72,7 @@ enum WatchMode {
 
 const METHOD_NOT_ALLOWED_TEXT: &[u8] = b"Method Not Allowed";
 const NOT_FOUND_TEXT: &[u8] = b"Not Found";
+const INTERNAL_SERVER_ERROR_TEXT: &[u8] = b"Internal Server Error";
 
 // This is dist/livereload.min.js from the LiveReload.js v3.2.4 release
 const LIVE_RELOAD: &str = include_str!("livereload.js");
@@ -248,7 +249,7 @@ async fn handle_request(
     }
 
     let metadata = match tokio::fs::metadata(root.as_path()).await {
-        Err(err) => return io_error(err),
+        Err(err) => return io_error(err, path_str, !accept_markdown && !is_markdown_route(&path)),
         Ok(metadata) => metadata,
     };
     if metadata.is_dir() {
@@ -273,7 +274,7 @@ async fn handle_request(
     let result = tokio::fs::read(&root).await;
 
     let contents = match result {
-        Err(err) => return io_error(err),
+        Err(err) => return io_error(err, path_str, !accept_markdown && !is_markdown_route(&path)),
         Ok(contents) => contents,
     };
 
@@ -406,24 +407,7 @@ async fn error_injection_middleware(response: Response) -> Response {
     };
 
     if let Some((msg, error)) = SERVE_ERROR.lock().unwrap().get_mut() {
-        // Generate an error message similar to the CLI version in messages::unravel_errors.
-        let mut error_str = String::new();
-
-        if !msg.is_empty() {
-            error_str.push_str(&format!("Error: {msg}\n"));
-        }
-
-        error_str.push_str(&format!("Error: {error}\n"));
-
-        let mut cause = error.source();
-        while let Some(e) = cause {
-            error_str.push_str(&format!("Reason: {e}\n"));
-            cause = e.source();
-        }
-
-        let html_error = format!(
-            r#"<div style="all:revert;position:fixed;display:flex;align-items:center;justify-content:center;background-color:rgb(0,0,0,0.5);top:0;right:0;bottom:0;left:0;"><div style="background-color:white;padding:0.5rem;border-radius:0.375rem;filter:drop-shadow(0,25px,25px,rgb(0,0,0/0.15));overflow-x:auto;"><p style="font-weight:700;color:black;font-size:1.25rem;margin:0;margin-bottom:0.5rem;">Ansorum Build Error:</p><pre style="padding:0.5rem;margin:0;border-radius:0.375rem;background-color:#363636;color:#CE4A2F;font-weight:700;">{error_str}</pre></div></div>"#
-        );
+        let html_error = render_serve_error_html(msg, error);
 
         if is_html {
             // Inject error dialog into existing HTML response
@@ -578,13 +562,60 @@ fn method_not_allowed() -> Response {
         .expect("Could not build Method Not Allowed response")
 }
 
-fn io_error(err: std::io::Error) -> Response {
+fn render_serve_error_html(msg: &str, error: &Error) -> String {
+    let mut error_str = String::new();
+
+    if !msg.is_empty() {
+        error_str.push_str(&format!("Error: {msg}\n"));
+    }
+
+    error_str.push_str(&format!("Error: {error}\n"));
+
+    let mut cause = error.source();
+    while let Some(e) = cause {
+        error_str.push_str(&format!("Reason: {e}\n"));
+        cause = e.source();
+    }
+
+    format!(
+        r#"<div style="all:revert;position:fixed;display:flex;align-items:center;justify-content:center;background-color:rgb(0,0,0,0.5);top:0;right:0;bottom:0;left:0;"><div style="background-color:white;padding:0.5rem;border-radius:0.375rem;filter:drop-shadow(0,25px,25px,rgb(0,0,0/0.15));overflow-x:auto;"><p style="font-weight:700;color:black;font-size:1.25rem;margin:0;margin-bottom:0.5rem;">Ansorum Build Error:</p><pre style="padding:0.5rem;margin:0;border-radius:0.375rem;background-color:#363636;color:#CE4A2F;font-weight:700;">{error_str}</pre></div></div>"#
+    )
+}
+
+fn internal_server_error(error: Error, prefer_html: bool) -> Response {
+    if prefer_html {
+        let html_page = format!(
+            r#"<!DOCTYPE html><html><head><title>Ansorum Serve Error</title><script src="/livereload.js"></script></head><body>{}</body></html>"#,
+            render_serve_error_html("Failed to serve request", &error)
+        );
+
+        return Response::builder()
+            .header(header::CONTENT_TYPE, "text/html")
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Body::from(html_page))
+            .expect("Could not build Internal Server Error response");
+    }
+
+    Response::builder()
+        .header(header::CONTENT_TYPE, "text/plain")
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(Body::from(INTERNAL_SERVER_ERROR_TEXT))
+        .expect("Could not build Internal Server Error response")
+}
+
+fn io_error(err: std::io::Error, request_path: &str, prefer_html: bool) -> Response {
     match err.kind() {
         std::io::ErrorKind::NotFound => not_found(),
         std::io::ErrorKind::PermissionDenied => {
             Response::builder().status(StatusCode::FORBIDDEN).body(Body::empty()).unwrap()
         }
-        _ => panic!("{}", err),
+        _ => {
+            log::error!(
+                "Unexpected I/O error while serving `{request_path}`: kind={:?}, error={err}",
+                err.kind()
+            );
+            internal_server_error(Error::new(err), prefer_html)
+        }
     }
 }
 
@@ -1401,6 +1432,16 @@ mod tests {
         builder.body(Body::empty()).expect("request")
     }
 
+    fn unique_temp_path(prefix: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "{prefix}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ))
+    }
+
     #[test]
     fn strips_mounted_paths_by_segment_boundary() {
         assert_eq!(strip_mounted_path("/refunds/", "/"), Some("/refunds/"));
@@ -1523,6 +1564,45 @@ mod tests {
         assert_eq!(markdown_status, StatusCode::NOT_FOUND);
 
         SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn returns_html_500_instead_of_panicking_on_unexpected_io_errors() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = unique_temp_path("ansorum-serve-io-html");
+        let refunds = root.join("refunds");
+        fs::create_dir_all(refunds.join("index.html")).expect("create invalid html path");
+
+        let state = test_app_state(root.clone());
+        let (status, headers, body) = run_request(request("/refunds/", None), state);
+
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert!(body.contains("Ansorum Build Error"));
+        assert!(body.contains("Failed to serve request"));
+
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn returns_plain_500_for_unexpected_io_errors_on_markdown_requests() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = unique_temp_path("ansorum-serve-io-markdown");
+        let refunds = root.join("refunds");
+        fs::create_dir_all(refunds.join("index.html")).expect("create invalid html path");
+
+        let state = test_app_state(root.clone());
+        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown")), state);
+
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/plain");
+        assert_eq!(body, "Internal Server Error");
+
+        fs::remove_dir_all(root).expect("cleanup");
     }
 
     #[test]
