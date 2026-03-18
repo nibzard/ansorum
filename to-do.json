@@ -43,7 +43,7 @@
       "id": "ANS-002",
       "title": "Establish answer-first fixtures and golden-output tests for the compiler contract",
       "priority": 1,
-      "status": "blocked",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Create a thin but decisive answer-first test harness immediately after the CLI rename so development can proceed deterministically. The goal is not a full inherited-test rewrite. The goal is to lock down the new compiler contract: first-class answer frontmatter parsing, fail-fast validation, canonical machine outputs, and AI visibility behavior. Treat these fixtures as the protected contract for future refactors in the content, site, markdown, and serve layers.",
       "steps": [
         "Add dedicated answer-first test fixtures under test_site or a new focused fixture tree that model real answer units rather than inherited page-first examples.",
@@ -59,21 +59,22 @@
       ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        "components/content",
-        "components/markdown",
-        "components/site",
-        "test_site",
+        "components/site/tests/common.rs",
+        "components/site/tests/invalid.rs",
+        "components/site/tests/site.rs",
+        "test_site_answers/expected/public/answers.json",
+        "test_site_answers/expected/public/llms.txt",
+        "test_site_answers/expected/public/refunds/page.md",
+        "test_site_answers/expected/public/refunds/schema.json",
+        "test_sites_invalid/answers_duplicate_question",
         "to-do.json"
       ],
       "depends_on": [
         "ANS-001"
       ],
       "created_at": "2026-03-18T17:12:00Z",
-      "updated_at": "2026-03-18T18:59:31Z",
-      "blockers": [
-        "Page front matter currently ignores top-level answer fields in components/content/src/front_matter/page.rs, so first-class TOML/YAML answer parsing tests cannot be added as passing contract tests without implementing ANS-004 scope.",
-        "The build pipeline does not yet emit /page.md, answers.json, llms.txt, or structured-data sidecars, so golden-output tests for those artifacts would require implementing ANS-005 through ANS-008 behavior rather than a thin harness."
-      ]
+      "updated_at": "2026-03-18T20:46:56Z",
+      "blockers": []
     },
     {
       "id": "ANS-003",
@@ -714,13 +715,14 @@
         "release"
       ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
         ".github/workflows/build-and-test.yml",
+        "ANSWER_COMPILER_SPEC.md",
         "README.md",
         "docs/content/documentation/getting-started/overview.md",
         "src/cmd/audit.rs",
         "src/cmd/eval.rs",
-        "test_site_answers"
+        "test_site_answers",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-002",
@@ -729,7 +731,7 @@
         "ANS-014"
       ],
       "created_at": "2026-03-18T17:20:00Z",
-      "updated_at": "2026-03-18T20:42:15Z"
+      "updated_at": "2026-03-18T20:42:37Z"
     }
   ]
 }

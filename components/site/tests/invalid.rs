@@ -22,7 +22,7 @@ fn errors_on_index_md_page_in_section() {
 
 #[test]
 fn errors_on_duplicate_answer_ids() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    let mut path = common::repo_root();
     path.push("test_sites_invalid");
     path.push("answers_duplicate_id");
     let config_file = path.join("config.toml");
@@ -34,8 +34,21 @@ fn errors_on_duplicate_answer_ids() {
 }
 
 #[test]
+fn errors_on_duplicate_canonical_questions() {
+    let mut path = common::repo_root();
+    path.push("test_sites_invalid");
+    path.push("answers_duplicate_question");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+    let res = site.load();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert!(err.to_string().contains("Duplicate canonical question `how do refunds work`"));
+}
+
+#[test]
 fn errors_on_unknown_related_answer_ids() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    let mut path = common::repo_root();
     path.push("test_sites_invalid");
     path.push("answers_missing_related");
     let config_file = path.join("config.toml");
@@ -48,7 +61,7 @@ fn errors_on_unknown_related_answer_ids() {
 
 #[test]
 fn errors_on_invalid_structured_data_sidecar() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    let mut path = common::repo_root();
     path.push("test_sites_invalid");
     path.push("answers_invalid_schema_sidecar");
     let config_file = path.join("config.toml");

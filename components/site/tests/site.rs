@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use ahash::AHashMap;
 use chrono::NaiveDate;
-use common::{build_site, build_site_with_setup};
+use common::{assert_file_matches_fixture, build_site, build_site_with_setup};
 use config::TaxonomyConfig;
 use content::Page;
 use site::Site;
@@ -192,6 +192,32 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
     assert!(!file_contains!(public, "cancel/page.md", "Cancellation details for customers."));
 
     assert!(!file_exists!(public, "internal-playbook/page.md"));
+}
+
+#[test]
+fn matches_answer_first_golden_outputs() {
+    let (_, _tmp_dir, public) = build_site("test_site_answers");
+
+    assert_file_matches_fixture(
+        &public,
+        "refunds/page.md",
+        "test_site_answers/expected/public/refunds/page.md",
+    );
+    assert_file_matches_fixture(
+        &public,
+        "answers.json",
+        "test_site_answers/expected/public/answers.json",
+    );
+    assert_file_matches_fixture(
+        &public,
+        "llms.txt",
+        "test_site_answers/expected/public/llms.txt",
+    );
+    assert_file_matches_fixture(
+        &public,
+        "refunds/schema.json",
+        "test_site_answers/expected/public/refunds/schema.json",
+    );
 }
 
 #[test]

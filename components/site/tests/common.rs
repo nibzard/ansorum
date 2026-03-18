@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use path_slash::PathExt;
@@ -39,7 +40,7 @@ macro_rules! file_contains {
 /// We return the tmpdir otherwise it would get out of scope and be deleted
 /// The tests can ignore it if they dont need it by prefixing it with a `_`
 pub fn build_site(name: &str) -> (Site, TempDir, PathBuf) {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    let mut path = repo_root();
     path.push(name);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
@@ -56,7 +57,7 @@ pub fn build_site_with_setup<F>(name: &str, mut setup_cb: F) -> (Site, TempDir, 
 where
     F: FnMut(Site) -> (Site, bool),
 {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    let mut path = repo_root();
     path.push(name);
     let config_file = path.join("config.toml");
     let site = Site::new(&path, &config_file).unwrap();
@@ -151,7 +152,7 @@ pub fn find_expected_translations(
     name: &str,
     default_language: &str,
 ) -> HashMap<String, Vec<String>> {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    let mut path = repo_root();
     path.push(name);
     path.push("content");
 
@@ -160,6 +161,23 @@ pub fn find_expected_translations(
     let mut strip_prefix = path.to_str().unwrap().to_string();
     strip_prefix.push('/');
     add_translations_from(&path, &path, default_language)
+}
+
+pub fn repo_root() -> PathBuf {
+    env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf()
+}
+
+pub fn assert_file_matches_fixture(output_root: &Path, output_rel: &str, fixture_rel: &str) {
+    let actual = fs::read_to_string(output_root.join(output_rel))
+        .unwrap_or_else(|error| panic!("failed to read output `{output_rel}`: {error}"));
+    let expected = fs::read_to_string(repo_root().join(fixture_rel))
+        .unwrap_or_else(|error| panic!("failed to read fixture `{fixture_rel}`: {error}"));
+
+    assert_eq!(
+        actual.trim_end_matches('\n'),
+        expected.trim_end_matches('\n'),
+        "fixture mismatch for `{output_rel}`"
+    );
 }
 
 /// Checks whether a given permalink has a corresponding HTML page in output folder

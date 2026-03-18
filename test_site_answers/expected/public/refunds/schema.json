@@ -1,0 +1,38 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "url": "https://answers.example.com/refunds/",
+  "description": "How refunds work, who qualifies, and when payment returns land.",
+  "identifier": "refunds-policy",
+  "inLanguage": "en",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "customer"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "billing"
+  },
+  "name": "Refund policy",
+  "sameAs": [
+    "https://example.com/refunds"
+  ],
+  "alternateName": [
+    "refund policy",
+    "refund rules"
+  ],
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Who qualifies for a refund?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Most unused subscriptions are refundable within 30 days."
+      }
+    }
+  ],
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ansorum Billing"
+  }
+}
