@@ -76,10 +76,9 @@ pub fn filter_events(
         HashMap::default();
 
     for event in events.iter() {
-        let simple_kind = get_relevant_event_kind(&event.event.kind);
-        if simple_kind.is_none() {
+        let Some(simple_kind) = get_relevant_event_kind(&event.event.kind) else {
             continue;
-        }
+        };
 
         // We currently only handle notify events that report a single path per event.
         if event.event.paths.len() != 1 {
@@ -93,7 +92,7 @@ pub fn filter_events(
 
         // Since we debounce things, some files might already not exist anymore by the
         // time we get to them
-        if !path.exists() {
+        if simple_kind != SimpleFileSystemEventKind::Remove && !path.exists() {
             continue;
         }
 
@@ -106,18 +105,22 @@ pub fn filter_events(
         }
 
         // We only care about changes in non-empty folders
-        if path.is_dir() && is_folder_empty(&path) {
+        if simple_kind != SimpleFileSystemEventKind::Remove && path.is_dir() && is_folder_empty(&path)
+        {
             continue;
         }
 
         // Ignore ordinary files peer to config.toml. This assumes all other files we care
         // about are nested more deeply than config.toml or are directories peer to config.toml.
-        if path != config_path && path.is_file() && path.parent() == config_path.parent() {
+        if path != config_path
+            && path.parent() == config_path.parent()
+            && detect_change_kind(root_dir, &path, config_path).0 == ChangeKind::ExtraPath
+        {
             continue;
         }
 
         let (change_k, partial_p) = detect_change_kind(root_dir, &path, config_path);
-        meaningful_events.insert(path, (partial_p, simple_kind.unwrap(), change_k));
+        meaningful_events.insert(path, (partial_p, simple_kind, change_k));
     }
 
     // Bin changes by change kind to support later iteration over batches of changes.
@@ -171,12 +174,15 @@ fn detect_change_kind(pwd: &Path, path: &Path, config_path: &Path) -> (ChangeKin
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use notify_debouncer_full::notify::event::*;
+    use notify_debouncer_full::{DebouncedEvent, notify::Event};
     use std::path::{Path, PathBuf};
+    use std::time::Instant;
 
     use super::{
-        ChangeKind, SimpleFileSystemEventKind, detect_change_kind, get_relevant_event_kind,
-        is_temp_file,
+        ChangeKind, SimpleFileSystemEventKind, detect_change_kind, filter_events,
+        get_relevant_event_kind, is_temp_file,
     };
 
     // This test makes sure we at least have code coverage on the `notify` event kinds we care
@@ -319,5 +325,68 @@ mod tests {
         let path = Path::new("templates/hello.html");
         let config_filename = Path::new("config.toml");
         assert_eq!(expected, detect_change_kind(pwd, path, config_filename));
+    }
+
+    #[test]
+    fn filter_events_keeps_remove_events_for_deleted_paths() {
+        let root = std::env::temp_dir().join(format!(
+            "ansorum-fs-utils-remove-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+        let config_path = root.join("config.toml");
+        let content_path = root.join("content");
+        fs::create_dir_all(&content_path).expect("create content dir");
+        fs::write(&config_path, "base_url = \"https://example.com\"").expect("write config");
+
+        let deleted_page = content_path.join("deleted.md");
+        let events = vec![DebouncedEvent {
+            event: Event {
+                kind: EventKind::Remove(RemoveKind::File),
+                paths: vec![deleted_page.clone()],
+                attrs: Default::default(),
+            },
+            time: Instant::now(),
+        }];
+
+        let changes = filter_events(events, &root, &config_path, &None);
+        let content_changes = changes.get(&ChangeKind::Content).expect("content changes");
+        assert_eq!(content_changes.len(), 1);
+        assert_eq!(content_changes[0].0, PathBuf::from("/content/deleted.md"));
+        assert_eq!(content_changes[0].1, deleted_page);
+        assert_eq!(content_changes[0].2, SimpleFileSystemEventKind::Remove);
+
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn filter_events_still_ignores_deleted_root_peer_files() {
+        let root = std::env::temp_dir().join(format!(
+            "ansorum-fs-utils-root-peer-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).expect("create root");
+        let config_path = root.join("config.toml");
+        fs::write(&config_path, "base_url = \"https://example.com\"").expect("write config");
+
+        let deleted_readme = root.join("README.md");
+        let events = vec![DebouncedEvent {
+            event: Event {
+                kind: EventKind::Remove(RemoveKind::File),
+                paths: vec![deleted_readme],
+                attrs: Default::default(),
+            },
+            time: Instant::now(),
+        }];
+
+        let changes = filter_events(events, &root, &config_path, &None);
+        assert!(changes.is_empty());
+
+        fs::remove_dir_all(&root).expect("cleanup");
     }
 }

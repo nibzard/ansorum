@@ -24,6 +24,7 @@
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::fs;
 use std::net::{IpAddr, SocketAddr, TcpListener};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::sync::mpsc::channel;
@@ -111,6 +112,54 @@ fn make_reload_message(path: &str) -> String {
         "protocol": ["http://livereload.com/protocols/official-7"]
     })
     .to_string()
+}
+
+fn remove_output_path(path: &Path) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    if path.is_dir() {
+        fs::remove_dir_all(path)
+            .with_context(|| format!("Failed to remove directory {}", path.display()))?;
+    } else {
+        fs::remove_file(path).with_context(|| format!("Failed to remove file {}", path.display()))?;
+    }
+
+    Ok(())
+}
+
+fn remove_deleted_static_output(site: &Site, partial_path: &Path) -> Result<()> {
+    let relative_path = partial_path
+        .strip_prefix("/static")
+        .expect("static watcher event should stay under /static");
+    remove_output_path(&site.output_path.join(relative_path))
+}
+
+fn remove_deleted_content_output(site: &Site, full_path: &Path) -> Result<()> {
+    let library = site.library.read().expect("read site library");
+
+    if let Some(page) = library.pages.get(full_path) {
+        let output_path = page
+            .permalink
+            .trim_start_matches(&site.config.base_url)
+            .trim_start_matches('/');
+        return remove_output_path(&site.output_path.join(output_path));
+    }
+
+    if let Some(section) = library.sections.get(full_path) {
+        if section.components.is_empty() {
+            return Ok(());
+        }
+
+        let output_path = section.components.iter().fold(site.output_path.clone(), |mut acc, component| {
+            acc.push(component);
+            acc
+        });
+        return remove_output_path(&output_path);
+    }
+
+    Ok(())
 }
 
 async fn handle_request(
@@ -853,14 +902,25 @@ pub fn serve(
         );
     };
 
-    let copy_static = |site: &Site, path: &Path, partial_path: &Path| {
+    let copy_static =
+        |site: &Site, path: &Path, partial_path: &Path, event_kind: &SimpleFileSystemEventKind| {
         // Do nothing if the file/dir is on the ignore list
         if let Some(gs) = &site.config.ignored_static_globset
             && gs.is_match(partial_path)
         {
             return;
         }
-        // Do nothing if the file/dir was deleted
+
+        if *event_kind == SimpleFileSystemEventKind::Remove {
+            log::info!("-> Static path removed {}", partial_path.display());
+            rebuild_done_handling(
+                &broadcaster,
+                remove_deleted_static_output(site, partial_path),
+                &partial_path.to_string_lossy(),
+            );
+            return;
+        }
+
         if !path.exists() {
             return;
         }
@@ -951,6 +1011,14 @@ pub fn serve(
                                 let can_do_fast_reload =
                                     *event_kind != SimpleFileSystemEventKind::Remove;
 
+                                if *event_kind == SimpleFileSystemEventKind::Remove {
+                                    rebuild_done_handling(
+                                        &broadcaster,
+                                        remove_deleted_content_output(&site, full_path),
+                                        &full_path.to_string_lossy(),
+                                    );
+                                }
+
                                 if fast_rebuild {
                                     if can_do_fast_reload {
                                         let filename = full_path
@@ -1015,8 +1083,8 @@ pub fn serve(
                             }
                         }
                         ChangeKind::StaticFiles => {
-                            for (partial_path, full_path, _) in change_group.iter() {
-                                copy_static(&site, full_path, partial_path);
+                            for (partial_path, full_path, event_kind) in change_group.iter() {
+                                copy_static(&site, full_path, partial_path, event_kind);
                             }
                         }
                         ChangeKind::Sass => {
@@ -1069,7 +1137,8 @@ pub fn serve(
 #[cfg(test)]
 mod tests {
     use super::{
-        AppState, RedirectTarget, construct_url, create_new_site, handle_request, strip_mounted_path,
+        AppState, RedirectTarget, construct_url, create_new_site, handle_request,
+        remove_deleted_content_output, remove_deleted_static_output, strip_mounted_path,
     };
     use axum::{
         body::{Body, to_bytes},
@@ -1079,9 +1148,9 @@ mod tests {
     use relative_path::RelativePathBuf;
     use site::Site;
     use site::SITE_CONTENT;
+    use crate::get_config_file_path;
     use std::collections::HashMap;
     use std::fs;
-    use crate::get_config_file_path;
     use std::net::{IpAddr, SocketAddr};
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
@@ -1508,5 +1577,83 @@ mod tests {
         assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
         assert_eq!(headers[header::LOCATION], "https://docs.example.com/guide");
         assert!(body.is_empty());
+    }
+
+    #[test]
+    fn removes_deleted_page_output_before_recreate() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+        let output_root = std::env::temp_dir().join(format!(
+            "ansorum-serve-remove-page-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+
+        let (site, _, _) = create_new_site(
+            &root,
+            IpAddr::from_str("127.0.0.1").unwrap(),
+            1111,
+            Some(&output_root),
+            true,
+            None,
+            &config_file,
+            false,
+            true,
+            true,
+        )
+        .expect("site");
+
+        let refunds_output = output_root.join("refunds");
+        assert!(refunds_output.exists());
+
+        remove_deleted_content_output(&site, &root.join("content/refunds.md")).expect("remove content");
+
+        assert!(!refunds_output.exists());
+        fs::remove_dir_all(output_root).expect("cleanup");
+    }
+
+    #[test]
+    fn removes_deleted_static_directory_output() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+        let output_root = std::env::temp_dir().join(format!(
+            "ansorum-serve-remove-static-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("epoch")
+                .as_nanos()
+        ));
+
+        let (site, _, _) = create_new_site(
+            &root,
+            IpAddr::from_str("127.0.0.1").unwrap(),
+            1112,
+            Some(&output_root),
+            true,
+            None,
+            &config_file,
+            false,
+            true,
+            true,
+        )
+        .expect("site");
+
+        let static_output = output_root.join("images");
+        fs::create_dir_all(&static_output).expect("create static output dir");
+        fs::write(static_output.join("logo.svg"), "<svg />").expect("write static file");
+        assert!(static_output.exists());
+
+        remove_deleted_static_output(&site, Path::new("/static/images")).expect("remove static");
+
+        assert!(!static_output.exists());
+        fs::remove_dir_all(output_root).expect("cleanup");
     }
 }
