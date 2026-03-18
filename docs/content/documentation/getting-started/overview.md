@@ -19,6 +19,12 @@ Ansorum's goal is to compile one canonical answer corpus into:
 - structured data outputs
 - audit and evaluation artifacts
 
+The repository's canonical answer-first example project lives in
+[`test_site_answers/`](https://github.com/nibzard/ansorum/tree/main/test_site_answers).
+Use the [Reference Project](@/documentation/getting-started/reference-project.md)
+guide to walk through `build`, `serve`, `audit`, and `eval` against one coherent
+corpus.
+
 The rest of this documentation still describes the inherited Zola model and
 engine behavior. Treat it as implementation context while Ansorum-specific docs
 are being written.

@@ -812,6 +812,57 @@ mod tests {
     }
 
     #[test]
+    fn reference_project_eval_fixtures_pass_deterministic_checks() {
+        let root = env::current_dir().unwrap().join("test_site_answers");
+        let config_file = root.join("config.toml");
+        let fixture = load_fixture_file(&root.join("eval/fixtures.yaml")).expect("fixture should parse");
+        let mut site = Site::new(&root, &config_file).unwrap();
+        site.load().unwrap();
+        let markdown_by_id = super::machine_markdown_by_id(&site);
+
+        for case in fixture.cases {
+            let ranked = rank_answers(&case.question, &site);
+            assert!(!ranked.is_empty(), "expected at least one ranked answer for {}", case.question);
+
+            let ranked_ids = ranked.iter().map(|candidate| candidate.id.as_str()).collect::<Vec<_>>();
+            for expected_id in &case.expected_ids {
+                assert!(
+                    ranked_ids.iter().any(|candidate| candidate == expected_id),
+                    "missing expected id {} for {}",
+                    expected_id,
+                    case.question
+                );
+            }
+            for forbidden_id in &case.forbidden_ids {
+                assert!(
+                    ranked_ids.iter().all(|candidate| candidate != forbidden_id),
+                    "forbidden id {} was ranked for {}",
+                    forbidden_id,
+                    case.question
+                );
+            }
+
+            let selected = ranked
+                .iter()
+                .find(|candidate| !case.forbidden_ids.iter().any(|id| id == &candidate.id))
+                .expect("expected selected answer");
+            assert!(
+                case.expected_ids.is_empty() || case.expected_ids.iter().any(|id| id == &selected.id),
+                "selected unexpected answer {} for {}",
+                selected.id,
+                case.question
+            );
+
+            let markdown = markdown_by_id
+                .get(&selected.id)
+                .expect("expected machine markdown for selected answer");
+            for term in &case.required_terms {
+                assert!(contains_term(markdown, term), "missing required term {} for {}", term, case.question);
+            }
+        }
+    }
+
+    #[test]
     fn required_terms_match_machine_markdown() {
         assert!(contains_term("## Eligibility\nRefunds follow the billing policy.", "eligibility"));
         assert!(contains_term("Canonical page: <https://example.com/refunds/>", "canonical page"));

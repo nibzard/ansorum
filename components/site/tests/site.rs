@@ -143,6 +143,30 @@ fn extracts_normalized_answer_records() {
 }
 
 #[test]
+fn reference_project_configures_redirects_and_passes_audit() {
+    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    path.push("test_site_answers");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+    site.load().unwrap();
+
+    assert_eq!(site.config.title.as_deref(), Some("Acme Billing Answers"));
+    assert_eq!(site.config.ansorum.redirects.routes.len(), 2);
+    assert_eq!(site.config.ansorum.redirects.routes[0].code, "sales-demo");
+    assert_eq!(site.config.ansorum.redirects.routes[1].target, "/cancel/");
+
+    let library = site.library.read().unwrap();
+    let report = audit_library(
+        &library,
+        &site.answers,
+        NaiveDate::from_ymd_opt(2026, 3, 18).expect("valid date"),
+    );
+
+    assert!(!report.has_errors());
+    assert!(report.findings.is_empty());
+}
+
+#[test]
 fn emits_machine_markdown_without_leaking_hidden_content() {
     let (_, _tmp_dir, public) = build_site("test_site_answers");
 
@@ -210,7 +234,7 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
 
     assert!(file_exists!(public, "llms.txt"));
     assert!(file_exists!(public, "llms-full.txt"));
-    assert!(file_contains!(public, "llms.txt", "# Answer fixture"));
+    assert!(file_contains!(public, "llms.txt", "# Acme Billing Answers"));
     assert!(file_contains!(public, "llms.txt", "## Core Answers"));
     assert!(file_contains!(public, "llms.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
     assert!(file_contains!(public, "llms.txt", "## Additional Context"));
@@ -219,7 +243,7 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert!(file_contains!(public, "llms.txt", "https://answers.example.com/billing/llms.txt"));
     assert!(file_contains!(public, "llms.txt", "https://answers.example.com/customer/llms.txt"));
 
-    assert!(file_contains!(public, "llms-full.txt", "# Answer fixture full export"));
+    assert!(file_contains!(public, "llms-full.txt", "# Acme Billing Answers full export"));
     assert!(file_contains!(public, "llms-full.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
     assert!(file_contains!(public, "llms-full.txt", "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"));
     assert!(!file_contains!(public, "llms-full.txt", "internal-support-escalation"));

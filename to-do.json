@@ -641,7 +641,7 @@
       "id": "ANS-019",
       "title": "Create a reference Ansorum project that demonstrates the full answer-first workflow",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Add a small but realistic reference project that shows how Ansorum is supposed to be used. It should demonstrate first-class answer frontmatter, canonical markdown outputs, packs, structured-data sidecars, redirects, audit, and eval fixtures in one coherent example. Treat this as the canonical example corpus used across docs, screenshots, tests, and future contributor onboarding.",
       "steps": [
         "Design a small reference corpus around a real domain such as billing or support.",
@@ -655,10 +655,15 @@
         "adoption"
       ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
-        "test_site",
-        "docs/content/documentation",
-        "README.md"
+        "README.md",
+        "components/site/tests/site.rs",
+        "docs/content/documentation/getting-started/overview.md",
+        "docs/content/documentation/getting-started/reference-project.md",
+        "src/cmd/eval.rs",
+        "test_site_answers/README.md",
+        "test_site_answers/config.toml",
+        "test_site_answers/content/internal-playbook.md",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-006",
@@ -669,7 +674,7 @@
         "ANS-013"
       ],
       "created_at": "2026-03-18T17:20:00Z",
-      "updated_at": "2026-03-18T17:20:00Z"
+      "updated_at": "2026-03-18T20:08:57Z"
     },
     {
       "id": "ANS-020",

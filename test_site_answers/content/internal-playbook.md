@@ -9,6 +9,7 @@ entity = "support"
 audience = "internal"
 related = []
 external_refs = []
+schema_type = "Article"
 visibility = "internal"
 ai_visibility = "hidden"
 llms_priority = "hidden"

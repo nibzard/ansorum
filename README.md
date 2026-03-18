@@ -59,6 +59,25 @@ The near-term Ansorum build should provide:
 - JSON-LD sidecar support
 - `audit` and `eval` commands
 
+## Reference Project
+
+The repository includes a canonical answer-first example project in
+`test_site_answers/`.
+
+Use it to exercise the full workflow end to end:
+
+```bash
+cd test_site_answers
+ansorum build
+ansorum serve
+ansorum audit
+ansorum eval
+```
+
+That project demonstrates first-class answer frontmatter, `/page.md`,
+`answers.json`, `llms.txt`, scoped packs, structured-data sidecars, redirects,
+and deterministic eval fixtures in one place.
+
 ## Why Ansorum
 
 The wedge is not just `llms.txt`.

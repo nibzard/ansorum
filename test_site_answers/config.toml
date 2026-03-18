@@ -1,10 +1,21 @@
 base_url = "https://answers.example.com"
-title = "Answer fixture"
-description = "Fixture corpus for llms.txt, llms-full.txt, and scoped answer packs."
+title = "Acme Billing Answers"
+description = "Reference Ansorum project for a billing and support answer corpus."
 generate_feeds = false
 generate_sitemap = false
 generate_robots_txt = false
 build_search_index = false
+
+[ansorum.redirects]
+external_host_allowlist = ["docs.example.com"]
+
+[[ansorum.redirects.routes]]
+code = "sales-demo"
+target = "https://docs.example.com/demo"
+
+[[ansorum.redirects.routes]]
+code = "billing-portal"
+target = "/cancel/"
 
 [ansorum.packs]
 auto_entity_packs = true
@@ -13,3 +24,8 @@ auto_audience_packs = true
 [[ansorum.packs.curated]]
 name = "billing"
 source = "collections/packs/billing.toml"
+
+[ansorum.eval]
+enabled = false
+model = "gpt-5.4-mini"
+prompt_version = "reference-v1"
