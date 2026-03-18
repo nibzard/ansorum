@@ -14,75 +14,99 @@
       "id": "ANS-001",
       "title": "Rename the binary and primary CLI surface from zola to ansorum",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Replace the remaining runtime-facing zola identity with ansorum. This includes the package/bin metadata, clap help text, generated shell completion/manpage naming, init flow prompts, and any hard-coded user-facing command strings. Do not preserve a zola compatibility alias. Definition of done: the built binary, help output, completions, and generated manpages all present ansorum as the only supported command surface.",
       "steps": [
-        "Update Cargo package/bin metadata and build.rs outputs for ansorum naming.",
-        "Rename clap command/about/help text to ansorum and adjust subcommand examples.",
+        "Update Cargo package/bin metadata and build.rs outputs so the compiled binary and generated artifacts are named ansorum.",
+        "Rename clap command/about/help text to ansorum and adjust subcommand examples so runtime help matches the new product identity.",
         "Update init command output and any user-facing command suggestions from zola to ansorum.",
-        "Verify completion/manpage generation and local command help text remain coherent."
+        "Regenerate or revalidate completion and manpage outputs so their file names and contents use ansorum consistently.",
+        "Acceptance: cargo-run help output, completions, and generated manpages expose ansorum only, with no runtime-facing zola alias remaining."
       ],
-      "tags": ["branding", "cli", "foundation"],
+      "tags": [
+        "branding",
+        "cli",
+        "foundation"
+      ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
-        "Cargo.toml",
         "build.rs",
+        "docs/content/documentation/getting-started/overview.md",
         "src/cli.rs",
-        "src/main.rs",
         "src/cmd/init.rs",
-        "README.md"
+        "src/main.rs",
+        "to-do.json"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T18:57:54Z"
     },
     {
       "id": "ANS-002",
       "title": "Establish answer-first fixtures and golden-output tests for the compiler contract",
       "priority": 1,
-      "status": "todo",
+      "status": "blocked",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Create a thin but decisive answer-first test harness immediately after the CLI rename so development can proceed deterministically. The goal is not a full inherited-test rewrite. The goal is to lock down the new compiler contract: first-class answer frontmatter parsing, fail-fast validation, canonical machine outputs, and AI visibility behavior. Treat these fixtures as the protected contract for future refactors in the content, site, markdown, and serve layers.",
       "steps": [
-        "Add dedicated answer-first test fixtures under test_site or a new focused fixture tree.",
+        "Add dedicated answer-first test fixtures under test_site or a new focused fixture tree that model real answer units rather than inherited page-first examples.",
         "Add parser tests for first-class answer frontmatter in both TOML and YAML forms.",
-        "Add fail-fast validation tests for missing required fields, duplicate ids, and invalid enums.",
-        "Add golden-output tests for /page.md, answers.json, llms.txt, and structured-data sidecar behavior."
+        "Add fail-fast validation tests for missing required fields, duplicate ids, duplicate canonical questions where relevant, and invalid enums.",
+        "Add golden-output tests for /page.md, answers.json, llms.txt, and structured-data sidecar behavior.",
+        "Acceptance: later compiler changes that break answer parsing, validation, visibility handling, or canonical machine outputs fail this harness immediately."
       ],
-      "tags": ["tests", "fixtures", "foundation"],
+      "tags": [
+        "tests",
+        "fixtures",
+        "foundation"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        "test_site",
         "components/content",
+        "components/markdown",
         "components/site",
-        "components/markdown"
+        "test_site",
+        "to-do.json"
       ],
-      "depends_on": ["ANS-001"],
+      "depends_on": [
+        "ANS-001"
+      ],
       "created_at": "2026-03-18T17:12:00Z",
-      "updated_at": "2026-03-18T17:12:00Z"
+      "updated_at": "2026-03-18T18:59:31Z",
+      "blockers": [
+        "Page front matter currently ignores top-level answer fields in components/content/src/front_matter/page.rs, so first-class TOML/YAML answer parsing tests cannot be added as passing contract tests without implementing ANS-004 scope.",
+        "The build pipeline does not yet emit /page.md, answers.json, llms.txt, or structured-data sidecars, so golden-output tests for those artifacts would require implementing ANS-005 through ANS-008 behavior rather than a thin harness."
+      ]
     },
     {
       "id": "ANS-003",
       "title": "Introduce an ansorum-specific config surface for packs, redirects, eval, and AI delivery",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Add first-class configuration for Ansorum behavior instead of hiding these concerns in generic extras. The config must cover external redirect allowlists, scoped pack generation, eval backend defaults, and machine-delivery options such as markdown negotiation and AI visibility defaults where needed. This config layer should become the product-level source of truth for gateway, pack, and eval behavior rather than scattering policy across templates or extras.",
       "steps": [
-        "Design new config structs and TOML shape under the config component.",
+        "Design new config structs and TOML shape under the config component for redirect policy, pack generation, eval settings, and machine-delivery behavior.",
         "Support redirect allowlist configuration for /r/:code behavior.",
-        "Support pack generation configuration for automatic entity/audience packs plus curated collections.",
+        "Support pack generation configuration for automatic entity and audience packs plus curated collections.",
         "Support eval configuration for OpenAI Responses API and GPT-5.4 model selection.",
-        "Wire config parsing and validation into the existing config load path."
+        "Wire config parsing and validation into the existing config load path so invalid Ansorum settings fail before build or serve proceeds.",
+        "Acceptance: invalid redirect hosts, pack definitions, or eval settings produce clear config-load errors, and supported settings are available to downstream build, serve, audit, and eval code."
       ],
-      "tags": ["config", "foundation"],
+      "tags": [
+        "config",
+        "foundation"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
-        "components/config/src/lib.rs",
+        "components/config/Cargo.toml",
+        "components/config/src/config/ansorum.rs",
         "components/config/src/config/mod.rs",
         "components/config/src/config/search.rs",
+        "components/config/src/lib.rs",
         "components/site/src/lib.rs"
       ],
-      "depends_on": ["ANS-001"],
+      "depends_on": [
+        "ANS-001"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:03:13Z"
     },
     {
       "id": "ANS-004",
@@ -91,12 +115,17 @@
       "status": "todo",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Promote answer metadata from extra.answer into explicit first-class frontmatter fields. The parser and serialized content model should treat Ansorum answer fields as core data with typed enums and validation, not as arbitrary extras. Required fields and controlled vocabularies should follow the spec exactly so answer pages have a stable authoring contract.",
       "steps": [
-        "Add dedicated answer frontmatter structs and enums.",
-        "Parse answer fields from page frontmatter in both TOML and YAML modes.",
+        "Add dedicated answer frontmatter structs and enums for the required and optional Ansorum answer fields defined in the spec.",
+        "Parse answer fields from page frontmatter in both TOML and YAML modes, including controlled vocabularies for intent, audience, visibility, ai_visibility, llms_priority, and token_budget.",
         "Preserve compatibility only where it does not conflict with answer-first semantics.",
-        "Expose answer metadata through page serialization so templates and emitters can consume it cleanly."
+        "Expose answer metadata through page serialization so templates and emitters can consume it cleanly without reading extra.answer.",
+        "Acceptance: an answer page can be authored using first-class frontmatter alone, and required fields plus enum validation match the spec contract exactly."
       ],
-      "tags": ["content", "schema", "foundation"],
+      "tags": [
+        "content",
+        "schema",
+        "foundation"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/content/src/front_matter/page.rs",
@@ -105,7 +134,10 @@
         "components/content/src/ser.rs",
         "components/content/src/lib.rs"
       ],
-      "depends_on": ["ANS-001", "ANS-002"],
+      "depends_on": [
+        "ANS-001",
+        "ANS-002"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -116,12 +148,18 @@
       "status": "todo",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Create a normalized internal AnswerRecord model derived from authored pages and integrate it into the site pipeline. Missing required answer metadata, invalid enums, duplicate ids, and similar structural errors should fail the build by default. AnswerRecord is the compiler boundary that later emitters, audit, and eval code should consume instead of re-deriving answer semantics from raw pages.",
       "steps": [
-        "Define the normalized AnswerRecord type and collection APIs.",
-        "Extract answer records from parsed pages during site load.",
-        "Implement validation for required fields, duplicates, and answer graph invariants.",
-        "Plumb validation failures into build/check output with actionable messages."
+        "Define the normalized AnswerRecord type and collection APIs as the shared compiler model for outputs, audit, and eval.",
+        "Extract answer records from parsed pages during site load before downstream emitters run.",
+        "Implement validation for required fields, duplicates, answer relationships, and other answer-graph invariants required by the spec.",
+        "Plumb validation failures into build and check output with actionable messages tied to authored files and fields.",
+        "Integrate AnswerRecord creation into the extended pipeline so later features consume normalized answer data instead of re-inferring semantics from raw pages.",
+        "Acceptance: build and check stop on schema violations by default, and downstream code can read AnswerRecord as the authoritative answer corpus."
       ],
-      "tags": ["build", "validation", "foundation"],
+      "tags": [
+        "build",
+        "validation",
+        "foundation"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/site/src/lib.rs",
@@ -131,7 +169,10 @@
         "src/cmd/build.rs",
         "src/cmd/check.rs"
       ],
-      "depends_on": ["ANS-003", "ANS-004"],
+      "depends_on": [
+        "ANS-003",
+        "ANS-004"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -147,7 +188,10 @@
         "Write markdown output through the existing build pipeline.",
         "Cover edge cases such as summary-only and hidden AI visibility modes."
       ],
-      "tags": ["markdown", "outputs"],
+      "tags": [
+        "markdown",
+        "outputs"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/site/src/lib.rs",
@@ -156,7 +200,9 @@
         "templates",
         "docs"
       ],
-      "depends_on": ["ANS-005"],
+      "depends_on": [
+        "ANS-005"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -172,7 +218,11 @@
         "Respect visibility and AI visibility rules in index generation.",
         "Add tests for output shape and deterministic ordering."
       ],
-      "tags": ["outputs", "json", "machine-index"],
+      "tags": [
+        "outputs",
+        "json",
+        "machine-index"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/site/src/answers.rs",
@@ -180,7 +230,9 @@
         "templates",
         "test_site"
       ],
-      "depends_on": ["ANS-005"],
+      "depends_on": [
+        "ANS-005"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -196,7 +248,11 @@
         "Implement curated pack loading from collections/packs/*.toml.",
         "Respect llms_priority and AI visibility in all machine exports."
       ],
-      "tags": ["llms", "packs", "outputs"],
+      "tags": [
+        "llms",
+        "packs",
+        "outputs"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/site/src/llms.rs",
@@ -205,7 +261,10 @@
         "collections/packs",
         "templates"
       ],
-      "depends_on": ["ANS-005", "ANS-007"],
+      "depends_on": [
+        "ANS-005",
+        "ANS-007"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -221,7 +280,11 @@
         "Embed JSON-LD into rendered HTML outputs.",
         "Support built-in schema presets while allowing arbitrary schema payloads."
       ],
-      "tags": ["structured-data", "json-ld", "outputs"],
+      "tags": [
+        "structured-data",
+        "json-ld",
+        "outputs"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/site/src/lib.rs",
@@ -229,7 +292,9 @@
         "components/content/src/page.rs",
         "templates"
       ],
-      "depends_on": ["ANS-005"],
+      "depends_on": [
+        "ANS-005"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -245,13 +310,19 @@
         "Return Vary: Accept and correct content types for markdown responses.",
         "Ensure in-memory and disk-backed serve modes both behave consistently."
       ],
-      "tags": ["serve", "markdown", "gateway"],
+      "tags": [
+        "serve",
+        "markdown",
+        "gateway"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "src/cmd/serve.rs",
         "components/site/src/lib.rs"
       ],
-      "depends_on": ["ANS-006"],
+      "depends_on": [
+        "ANS-006"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -267,14 +338,21 @@
         "Validate external targets against the configured allowlist.",
         "Emit structured log events for redirect hits."
       ],
-      "tags": ["redirects", "gateway", "security"],
+      "tags": [
+        "redirects",
+        "gateway",
+        "security"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "src/cmd/serve.rs",
         "components/config/src/config/mod.rs",
         "components/site/src/lib.rs"
       ],
-      "depends_on": ["ANS-003", "ANS-010"],
+      "depends_on": [
+        "ANS-003",
+        "ANS-010"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -290,7 +368,11 @@
         "Produce both human-readable and JSON output modes.",
         "Align audit error severity with fail-fast product decisions."
       ],
-      "tags": ["audit", "cli", "quality"],
+      "tags": [
+        "audit",
+        "cli",
+        "quality"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "src/cli.rs",
@@ -299,7 +381,11 @@
         "src/cmd/audit.rs",
         "components/site/src/answers.rs"
       ],
-      "depends_on": ["ANS-005", "ANS-007", "ANS-009"],
+      "depends_on": [
+        "ANS-005",
+        "ANS-007",
+        "ANS-009"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -315,7 +401,11 @@
         "Integrate OpenAI Responses API support for GPT-5.4-based rubric scoring.",
         "Stamp reports with model and prompt version information and emit machine-readable results."
       ],
-      "tags": ["eval", "openai", "quality"],
+      "tags": [
+        "eval",
+        "openai",
+        "quality"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "src/cli.rs",
@@ -324,7 +414,11 @@
         "src/cmd/eval.rs",
         "components/site/src/answers.rs"
       ],
-      "depends_on": ["ANS-003", "ANS-006", "ANS-007"],
+      "depends_on": [
+        "ANS-003",
+        "ANS-006",
+        "ANS-007"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -340,7 +434,11 @@
         "Add integration tests for outputs such as /page.md, answers.json, llms files, and structured data.",
         "Add serve, redirect, audit, and eval coverage where practical."
       ],
-      "tags": ["tests", "fixtures", "quality"],
+      "tags": [
+        "tests",
+        "fixtures",
+        "quality"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "test_site",
@@ -350,7 +448,15 @@
         "src/cmd/audit.rs",
         "src/cmd/eval.rs"
       ],
-      "depends_on": ["ANS-006", "ANS-008", "ANS-009", "ANS-010", "ANS-011", "ANS-012", "ANS-013"],
+      "depends_on": [
+        "ANS-006",
+        "ANS-008",
+        "ANS-009",
+        "ANS-010",
+        "ANS-011",
+        "ANS-012",
+        "ANS-013"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -366,7 +472,11 @@
         "Document machine outputs, visibility controls, packs, redirects, and eval workflow.",
         "Update examples and test content to reflect answer-first authoring."
       ],
-      "tags": ["docs", "examples", "adoption"],
+      "tags": [
+        "docs",
+        "examples",
+        "adoption"
+      ],
       "files": [
         "README.md",
         "ANSWER_COMPILER_SPEC.md",
@@ -374,7 +484,14 @@
         "docs/templates",
         "test_site"
       ],
-      "depends_on": ["ANS-001", "ANS-004", "ANS-006", "ANS-008", "ANS-012", "ANS-013"],
+      "depends_on": [
+        "ANS-001",
+        "ANS-004",
+        "ANS-006",
+        "ANS-008",
+        "ANS-012",
+        "ANS-013"
+      ],
       "created_at": "2026-03-18T17:05:00Z",
       "updated_at": "2026-03-18T17:05:00Z"
     },
@@ -390,7 +507,11 @@
         "Generate starter answer content, packs, and schema sidecar examples.",
         "Ensure the scaffold works with build, serve, audit, and eval immediately."
       ],
-      "tags": ["init", "scaffold", "adoption"],
+      "tags": [
+        "init",
+        "scaffold",
+        "adoption"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "src/cmd/init.rs",
@@ -398,7 +519,13 @@
         "README.md",
         "docs/content/documentation/getting-started"
       ],
-      "depends_on": ["ANS-001", "ANS-003", "ANS-004", "ANS-012", "ANS-013"],
+      "depends_on": [
+        "ANS-001",
+        "ANS-003",
+        "ANS-004",
+        "ANS-012",
+        "ANS-013"
+      ],
       "created_at": "2026-03-18T17:20:00Z",
       "updated_at": "2026-03-18T17:20:00Z"
     },
@@ -414,7 +541,11 @@
         "Emit structured events for audit and eval runs.",
         "Document the event-hook contract for downstream integrations."
       ],
-      "tags": ["logging", "hooks", "observability"],
+      "tags": [
+        "logging",
+        "hooks",
+        "observability"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "src/cmd/serve.rs",
@@ -423,7 +554,12 @@
         "README.md",
         "docs"
       ],
-      "depends_on": ["ANS-010", "ANS-011", "ANS-012", "ANS-013"],
+      "depends_on": [
+        "ANS-010",
+        "ANS-011",
+        "ANS-012",
+        "ANS-013"
+      ],
       "created_at": "2026-03-18T17:20:00Z",
       "updated_at": "2026-03-18T17:20:00Z"
     },
@@ -439,7 +575,11 @@
         "Implement both decisions in config, docs, and runtime behavior.",
         "Add tests to prevent these conventions from drifting."
       ],
-      "tags": ["spec", "defaults", "productization"],
+      "tags": [
+        "spec",
+        "defaults",
+        "productization"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "components/config/src/config/mod.rs",
@@ -448,7 +588,11 @@
         "README.md",
         "docs"
       ],
-      "depends_on": ["ANS-003", "ANS-009", "ANS-013"],
+      "depends_on": [
+        "ANS-003",
+        "ANS-009",
+        "ANS-013"
+      ],
       "created_at": "2026-03-18T17:20:00Z",
       "updated_at": "2026-03-18T17:20:00Z"
     },
@@ -464,14 +608,25 @@
         "Include eval fixtures and expected build outputs.",
         "Use the project in docs and tests as a canonical reference."
       ],
-      "tags": ["reference", "examples", "adoption"],
+      "tags": [
+        "reference",
+        "examples",
+        "adoption"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         "test_site",
         "docs/content/documentation",
         "README.md"
       ],
-      "depends_on": ["ANS-006", "ANS-008", "ANS-009", "ANS-010", "ANS-012", "ANS-013"],
+      "depends_on": [
+        "ANS-006",
+        "ANS-008",
+        "ANS-009",
+        "ANS-010",
+        "ANS-012",
+        "ANS-013"
+      ],
       "created_at": "2026-03-18T17:20:00Z",
       "updated_at": "2026-03-18T17:20:00Z"
     },
@@ -487,7 +642,11 @@
         "Run ansorum eval in CI with stable configuration suitable for automated execution.",
         "Document the expected local and CI workflow for contributors."
       ],
-      "tags": ["ci", "quality", "release"],
+      "tags": [
+        "ci",
+        "quality",
+        "release"
+      ],
       "files": [
         "ANSWER_COMPILER_SPEC.md",
         ".github",
@@ -496,7 +655,12 @@
         "src/cmd/eval.rs",
         "test_site"
       ],
-      "depends_on": ["ANS-002", "ANS-012", "ANS-013", "ANS-014"],
+      "depends_on": [
+        "ANS-002",
+        "ANS-012",
+        "ANS-013",
+        "ANS-014"
+      ],
       "created_at": "2026-03-18T17:20:00Z",
       "updated_at": "2026-03-18T17:20:00Z"
     }

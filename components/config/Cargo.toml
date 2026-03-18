@@ -12,6 +12,7 @@ once_cell = { workspace = true }
 toml = { workspace = true }
 unic-langid = { workspace = true }
 giallo = { workspace = true }
+url = { workspace = true }
 
 errors = { workspace = true }
 utils = { workspace = true }

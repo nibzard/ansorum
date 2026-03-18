@@ -1,3 +1,4 @@
+pub mod ansorum;
 pub mod languages;
 pub mod link_checker;
 pub mod markup;
@@ -102,6 +103,8 @@ pub struct Config {
     pub link_checker: link_checker::LinkChecker,
     /// The setup for which slugification strategies to use for paths, taxonomies and anchors
     pub slugify: slugify::Slugify,
+    /// Ansorum-specific product behavior for delivery, redirects, packs, and eval
+    pub ansorum: ansorum::Ansorum,
     /// The search config, telling what to include in the search index
     pub search: search::Search,
     /// The config for the Markdown rendering: syntax highlighting and everything
@@ -160,6 +163,7 @@ impl Config {
         config.add_default_language()?;
         config.slugify_taxonomies();
         config.link_checker.resolve_globset()?;
+        config.ansorum.validate()?;
 
         let content_glob_set = build_ignore_glob_set(&config.ignored_content, "content")?;
         config.ignored_content_globset = Some(content_glob_set);
@@ -431,6 +435,7 @@ impl Default for Config {
             preserve_dotfiles_in_output: false,
             link_checker: link_checker::LinkChecker::default(),
             slugify: slugify::Slugify::default(),
+            ansorum: ansorum::Ansorum::default(),
             search: search::Search::default(),
             markdown: markup::Markdown::default(),
             extra: HashMap::new(),
@@ -1089,6 +1094,118 @@ base_url = "example.com"
 "#;
         let config = Config::parse(config).unwrap();
         assert!(config.generate_robots_txt);
+    }
+
+    #[test]
+    fn can_parse_ansorum_config() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.redirects]
+external_host_allowlist = ["docs.example.com", "support.example.com"]
+
+[ansorum.packs]
+auto_entity_packs = true
+auto_audience_packs = false
+
+[[ansorum.packs.curated]]
+name = "billing"
+source = "collections/packs/billing.toml"
+
+[ansorum.eval]
+enabled = true
+model = "gpt-5.4-mini"
+prompt_version = "2026-03-18"
+
+[ansorum.delivery]
+markdown_routes = true
+markdown_negotiation = true
+default_ai_visibility = "summary_only"
+"#;
+        let config = Config::parse(config).unwrap();
+
+        assert_eq!(
+            config.ansorum.redirects.external_host_allowlist,
+            vec!["docs.example.com", "support.example.com"]
+        );
+        assert!(config.ansorum.packs.auto_entity_packs);
+        assert!(!config.ansorum.packs.auto_audience_packs);
+        assert_eq!(config.ansorum.packs.curated.len(), 1);
+        assert!(config.ansorum.eval.enabled);
+        assert_eq!(config.ansorum.eval.model.as_deref(), Some("gpt-5.4-mini"));
+        assert_eq!(
+            config.ansorum.delivery.default_ai_visibility,
+            ansorum::AiVisibilityDefault::SummaryOnly
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_redirect_allowlist_hosts() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.redirects]
+external_host_allowlist = ["https://evil.example.com/path"]
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid ansorum.redirects.external_host_allowlist entry `https://evil.example.com/path`: expected a bare host name"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_curated_pack_definitions() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.packs]
+
+[[ansorum.packs.curated]]
+name = "Billing"
+source = "/tmp/billing.toml"
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid ansorum.packs.curated name `Billing`: use lowercase ASCII letters, digits, `-`, or `_`"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_eval_model() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.eval]
+model = "gpt-4.1"
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid ansorum.eval.model `gpt-4.1`: Ansorum eval currently supports GPT-5.4 family models only"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_markdown_delivery_combination() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+
+[ansorum.delivery]
+markdown_routes = false
+markdown_negotiation = true
+"#;
+        let error = Config::parse(config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid ansorum.delivery configuration: markdown_negotiation requires markdown_routes to be enabled"
+        );
     }
 
     // TODO: add a test for excluding paginated pages
