@@ -3,11 +3,14 @@ title = "Overview"
 weight = 10
 +++
 
-Themes are collections of layouts and styles used to facilitate the creation and management of Zola projects. As such, themes are Zola projects which provide their own templates, content and even static assets. 
+This section is archived Zola reference material kept from the repository's
+fork lineage.
 
-Zola has built-in support for themes which makes it easy to customise and update them. 
+Ansorum's v0 product is explicitly answer-first and does not treat a theme
+marketplace as part of its primary surface. The pages below are preserved only
+for teams that need to inspect or migrate inherited Zola theme behavior.
 
-All themes can use the full power of Zola, from shortcodes to Sass compilation.
+If you are adopting Ansorum for new work, start from the answer-first
+documentation and reference project instead of the theme flow.
 
-A list of themes is available [here](@/themes/_index.md).
-
+The inherited theme gallery remains available [here](@/themes/_index.md).

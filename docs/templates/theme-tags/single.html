@@ -3,12 +3,13 @@
 {% block extra_nav_class %}{% endblock extra_nav_class %}
 {% block extra_content_class %}content--reversed{% endblock extra_content_class %}
 
-{% block title %}Themes | {{ super() }} {% endblock title %}
+{% block title %}Archived Theme Tags | {{ super() }} {% endblock title %}
 
 {% block content %}
     <div class="themes-container">
         {% block theme_content %}
-            <h1>Zola themes in {{ term.name }}</h1>
+            <h1>Archived Zola themes in {{ term.name }}</h1>
+            <p>This tag view is part of the inherited theme gallery kept for reference only.</p>
             <div class="themes">
                 {% for theme in term.pages %}
                     <a class="theme" href="{{theme.permalink}}">

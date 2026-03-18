@@ -3,12 +3,16 @@
 {% block extra_nav_class %}{% endblock extra_nav_class %}
 {% block extra_content_class %}content--reversed{% endblock extra_content_class %}
 
-{% block title %}Themes | {{ super() }} {% endblock title %}
+{% block title %}Archived Theme Gallery | {{ super() }} {% endblock title %}
 
 {% block content %}
     <div class="themes-container">
         {% block theme_content %}
-            <h1>Zola themes</h1>
+            <h1>Archived Zola theme gallery</h1>
+            <p>
+                This gallery is inherited reference material from the Zola fork lineage. Ansorum does not treat theme
+                marketplaces as part of the primary product surface.
+            </p>
             {% set tax = get_taxonomy(kind = "theme-tags") %}
             {% if tax and tax.items | length > 0 %}
               <p><a href="{{ get_url(path = "theme-tags") }}">Search by tags</a></p>

@@ -1,11 +1,14 @@
 +++
-title = "Creating a theme"
+title = "Creating a theme (archived Zola reference)"
 weight = 30
 +++
 
 Creating a theme is exactly like creating a normal site with Zola, except you
 will want to use many [Tera blocks](https://keats.github.io/tera/docs#inheritance) to
 allow users to easily modify it.
+
+This page is retained as archived fork reference. Ansorum does not position
+theme creation or gallery submission as part of its core product direction.
 
 ## Getting started
 As mentioned, a theme is just like any site; start by running `zola init MY_THEME_NAME`.
@@ -55,7 +58,7 @@ to be able to build the theme from your repository.
 
 ## Submitting a theme to the gallery
 
-If you want your theme to be featured in the [themes](@/themes/_index.md) section
+If you want your theme to be featured in the archived [themes](@/themes/_index.md) section
 of this site, make sure that the theme meets the following three requirements:
 
 - have a `screenshot.png` of the theme in action with a max size of around 2000x1000
@@ -65,4 +68,3 @@ of importance
 
 When your theme is ready, you can submit it to the [themes repository](https://github.com/getzola/themes)
 by following the process in the README.
-

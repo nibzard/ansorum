@@ -1,12 +1,16 @@
 {% extends "themes.html" %}
 
-{% block title %}{{ page.title }} | Zola {% endblock title %}
+{% block title %}{{ page.title }} | Archived Theme Gallery | Ansorum {% endblock title %}
 {% block theme_content %}
     <div class="theme-info">
         <img src="{{page.permalink}}screenshot.png" class="thumb">
         <div class="metadata">
             <h1>{{ page.title }}</h1>
             <p>{{ page.description }}</p>
+            <p>
+                Archived Zola theme entry preserved from the inherited gallery. The instructions below describe the
+                upstream theme ecosystem, not Ansorum's recommended product workflow.
+            </p>
             <p><b>Author:</b>
             {% if page.extra.author.homepage %}
               <a href="{{ page.extra.author.homepage }}">{{ page.extra.author.name }}</a>
@@ -15,7 +19,7 @@
               {% endif %}
             </p>
             {% if page.extra.minimum_version %}
-              <p>This theme requires Zola version {{ page.extra.minimum_version }} and above</p>
+              <p>This archived theme requires Zola version {{ page.extra.minimum_version }} and above</p>
             {% endif %}
             <p><b>License:</b> {{page.extra.license}}</p>
             <p><b>Homepage:</b> <a href="{{page.extra.homepage}}">{{page.extra.homepage}}</a></p>

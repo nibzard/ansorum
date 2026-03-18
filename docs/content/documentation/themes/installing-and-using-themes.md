@@ -1,8 +1,10 @@
 +++
-title = "Installing & using themes"
+title = "Installing & using themes (archived Zola reference)"
 weight = 20
 +++
 
+This page is preserved for inherited Zola theme setups. It is not part of the
+recommended Ansorum product workflow.
 
 ## Installing a theme
 
@@ -18,7 +20,7 @@ Cloning the repository using Git or another VCS will allow you to easily
 update. Alternatively, you can download the files manually and place
 them in a folder.
 
-You can find a list of themes [here](@/themes/_index.md).
+You can find the archived gallery of inherited themes [here](@/themes/_index.md).
 
 ## Using a theme
 

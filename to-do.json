@@ -67,13 +67,16 @@
         "test_site_answers/expected/public/refunds/page.md",
         "test_site_answers/expected/public/refunds/schema.json",
         "test_sites_invalid/answers_duplicate_question",
+        "test_sites_invalid/answers_duplicate_question/config.toml",
+        "test_sites_invalid/answers_duplicate_question/content/one.md",
+        "test_sites_invalid/answers_duplicate_question/content/two.md",
         "to-do.json"
       ],
       "depends_on": [
         "ANS-001"
       ],
       "created_at": "2026-03-18T17:12:00Z",
-      "updated_at": "2026-03-18T20:46:56Z",
+      "updated_at": "2026-03-18T20:47:22Z",
       "blockers": []
     },
     {
@@ -752,6 +755,9 @@
       ],
       "files": [
         "components/markdown/tests/snapshots",
+        "components/markdown/tests/snapshots/markdown__can_insert_anchors-2.snap",
+        "components/markdown/tests/snapshots/markdown__can_insert_anchors-3.snap",
+        "components/markdown/tests/snapshots/markdown__can_insert_anchors.snap",
         "components/site/tests/site.rs",
         "components/templates/src/builtins/anchor-link.html",
         "docs/sass/_docs.scss",
@@ -761,7 +767,48 @@
         "ANS-001"
       ],
       "created_at": "2026-03-18T21:30:00Z",
-      "updated_at": "2026-03-18T21:42:00Z",
+      "updated_at": "2026-03-18T20:59:59Z",
+      "blockers": []
+    },
+    {
+      "id": "ANS-022",
+      "title": "Retire or quarantine inherited Zola themes and deployment docs from the Ansorum primary product surface",
+      "priority": 4,
+      "status": "done",
+      "details": "The repository still publishes a large inherited documentation and theme-gallery surface that presents Ansorum like Zola: the docs homepage links to Themes, the themes index and template headings still say Zola themes, the deployment overview starts with Zola outputs plain files, and many tracked docs under docs/content/documentation and docs/content/themes still instruct users to run zola build and zola serve. That conflicts with the product spec answer-first positioning and its explicit non-goal of a theme marketplace.",
+      "steps": [
+        "Decide which inherited Zola docs should remain as archival or reference material versus what should be removed from the default Ansorum docs navigation.",
+        "Update the docs homepage and templates so the primary product surface no longer promotes Zola themes or upstream-first navigation.",
+        "Rewrite, archive, or clearly quarantine the inherited deployment and themes docs that still instruct users to use Zola commands.",
+        "Add a review pass or test or script to prevent new product-facing docs regressions back to upstream Zola wording."
+      ],
+      "tags": [
+        "docs",
+        "branding",
+        "product-surface"
+      ],
+      "files": [
+        ".github/workflows/docs.yml",
+        "docs/content/documentation/deployment/_index.md",
+        "docs/content/documentation/deployment/overview.md",
+        "docs/content/documentation/themes/_index.md",
+        "docs/content/documentation/themes/creating-a-theme.md",
+        "docs/content/documentation/themes/installing-and-using-themes.md",
+        "docs/content/documentation/themes/overview.md",
+        "docs/content/themes/_index.md",
+        "docs/templates/index.html",
+        "docs/templates/theme-tags/list.html",
+        "docs/templates/theme-tags/single.html",
+        "docs/templates/theme.html",
+        "docs/templates/themes.html",
+        "scripts/check_docs_product_surface.sh",
+        "to-do.json"
+      ],
+      "depends_on": [
+        "ANS-015"
+      ],
+      "created_at": "2026-03-18T21:31:00Z",
+      "updated_at": "2026-03-18T21:04:06Z",
       "blockers": []
     }
   ]
