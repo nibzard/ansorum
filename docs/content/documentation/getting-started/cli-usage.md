@@ -163,7 +163,8 @@ ansorum eval --llm --model gpt-5.4-mini
 `eval` uses `eval/fixtures.yaml` by default. Each fixture case defines a user
 question, expected answers, forbidden answers, and required terms. When `--llm`
 is enabled, Ansorum also asks a GPT-5.4 model to score the selected answer
-against a rubric.
+against a rubric. If no model is configured or passed on the command line,
+Ansorum defaults to `gpt-5.4-mini`.
 
 Use the threshold flags to make eval enforce a quality bar:
 

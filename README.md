@@ -32,7 +32,7 @@ The operator workflow is:
 2. Add first-class answer frontmatter such as `id`, `summary`,
    `canonical_questions`, `intent`, `entity`, `audience`, `visibility`,
    `ai_visibility`, `llms_priority`, and `token_budget`.
-3. Add optional `*.schema.json` sidecars for JSON-LD.
+3. Add optional `<answer-stem>.schema.json` sidecars for JSON-LD.
 4. Configure packs, redirects, and eval defaults in `config.toml`.
 5. Run `ansorum build`, `ansorum serve`, `ansorum audit`, and `ansorum eval`.
 
@@ -100,7 +100,9 @@ token_budget = "medium"
 
 Ansorum then compiles that answer into canonical HTML, canonical machine
 Markdown at `/page.md`, answer indexes, `llms.txt` outputs, and structured data
-sidecars when present.
+sidecars when present. Sidecars follow a single v0 convention: a sibling file
+named from the Markdown stem, such as `content/refunds.md` alongside
+`content/refunds.schema.json`.
 
 ## Current Direction
 
@@ -127,6 +129,10 @@ The near-term Ansorum build should provide:
 - `llms.txt` and scoped packs
 - JSON-LD sidecar support
 - `audit` and `eval` commands
+
+When LLM scoring is enabled for `ansorum eval`, Ansorum defaults to
+`gpt-5.4-mini` unless `ansorum.eval.model` or `--model` selects another
+GPT-5.4 tier.
 
 ## Reference Project
 
@@ -156,7 +162,7 @@ That project demonstrates:
 - first-class answer frontmatter in TOML and YAML
 - `summary_only` and `hidden` AI visibility controls
 - `/page.md`, `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
-- `*.schema.json` sidecars
+- `<answer-stem>.schema.json` sidecars
 - `/r/:code` redirects with allowlist enforcement
 - deterministic eval fixtures
 

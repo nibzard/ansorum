@@ -149,6 +149,9 @@ content/refunds.md
 content/refunds.schema.json
 ```
 
+The v0 naming contract is exact: the sidecar basename must match the Markdown
+file stem, so `refunds.en.md` uses `refunds.en.schema.json`.
+
 Ansorum copies that sidecar into the built output as `schema.json` for the
 answer route.
 

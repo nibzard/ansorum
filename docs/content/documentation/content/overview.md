@@ -25,6 +25,8 @@ artifacts such as `/page.md` and `schema.json`. The output path can still be
 customized through page frontmatter such as `path` or `slug`, but the critical
 contract is the answer metadata documented on the
 [page frontmatter page](@/documentation/content/page.md#ansorum-answer-front-matter).
+Structured-data sidecars use the matching file stem, for example
+`refunds.md` with `refunds.schema.json`.
 
 ## What Belongs In Content
 
@@ -32,7 +34,7 @@ Put these things in `content/`:
 
 - authored answer Markdown files
 - optional co-located assets referenced by those answers
-- optional `*.schema.json` sidecars for JSON-LD
+- optional `<answer-stem>.schema.json` sidecars for JSON-LD
 - optional `_index.md` files when you need section metadata or landing pages
 
 Keep authored answer Markdown focused on one canonical answer, not broad mixed

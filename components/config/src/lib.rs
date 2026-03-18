@@ -5,8 +5,8 @@ use std::path::Path;
 
 pub use crate::config::{
     ansorum::{
-        AiVisibilityDefault, Ansorum, CuratedPack, Delivery, Eval, EvalBackend, Packs,
-        RedirectRoute, Redirects,
+        AiVisibilityDefault, Ansorum, CuratedPack, DEFAULT_EVAL_MODEL, Delivery, Eval,
+        EvalBackend, Packs, RedirectRoute, Redirects,
     },
     Config,
     languages::LanguageOptions,

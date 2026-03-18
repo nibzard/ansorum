@@ -57,6 +57,10 @@ These settings control:
 - curated packs backed by files in `collections/packs/`
 - default eval behavior and GPT-5.4 model selection
 
+If `ansorum.eval.model` is omitted, Ansorum defaults LLM grading to
+`gpt-5.4-mini`. Override it in config or with `ansorum eval --model ...` when
+you need another GPT-5.4 tier.
+
 **Only the `base_url` variable is mandatory**. Everything else is optional. All configuration variables
 used by Zola as well as their default values are listed below:
 

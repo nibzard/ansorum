@@ -6,7 +6,7 @@ It demonstrates one coherent workflow in a small billing and support corpus:
 
 - first-class answer frontmatter in `content/*.md`
 - canonical machine markdown at `/page.md`
-- structured-data sidecars via `content/*.schema.json`
+- structured-data sidecars via `content/<answer-stem>.schema.json`
 - root and scoped machine indexes via `llms.txt`, `llms-full.txt`, and `answers.json`
 - redirect routes configured under `[ansorum.redirects]`
 - audit-ready answer metadata

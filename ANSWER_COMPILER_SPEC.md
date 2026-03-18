@@ -660,6 +660,16 @@ Recommended authoring pattern:
 - `content/billing/refunds.md`
 - `content/billing/refunds.schema.json`
 
+Canonical sidecar naming convention for v0:
+
+- exactly one structured-data sidecar may exist per answer source file
+- the sidecar must be a sibling file whose basename matches the Markdown file
+  stem exactly
+- the filename pattern is `<answer-file-stem>.schema.json`
+- examples:
+  - `refunds.md` -> `refunds.schema.json`
+  - `refunds.en.md` -> `refunds.en.schema.json`
+
 Built-in presets should cover at least:
 
 - `WebPage`
@@ -1096,12 +1106,12 @@ Canonical name:
 
 ## Open Questions
 
-These should be resolved before broad implementation:
+Resolved for v0:
 
-1. What should the exact sidecar naming convention be for structured data beyond
-   the initial `.schema.json` pattern?
-2. Which GPT-5.4 tier should be the default eval model for cost and latency:
-   full, mini, or configurable without a default?
+1. Structured-data sidecars use the canonical sibling naming pattern
+   `<answer-file-stem>.schema.json`.
+2. LLM eval defaults to `gpt-5.4-mini` when no explicit model override is
+   provided.
 
 ## Success Criteria for v0
 

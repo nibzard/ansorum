@@ -16,6 +16,8 @@ use utils::table_of_contents::Heading;
 use utils::templates::{ShortcodeDefinition, render_template};
 use utils::types::InsertAnchor;
 
+const STRUCTURED_DATA_SIDECAR_SUFFIX: &str = ".schema.json";
+
 use crate::answer::{
     AiVisibility, AnswerAudience, AnswerFrontMatter, AnswerIntent, AnswerVisibility, LlmsPriority,
     TokenBudget,
@@ -219,7 +221,8 @@ impl Page {
     }
 
     pub fn structured_data_sidecar_path(&self) -> PathBuf {
-        self.file.path.with_extension("schema.json")
+        let file_stem = self.file.path.file_stem().expect("pages should have a file name").to_string_lossy();
+        self.file.path.with_file_name(format!("{file_stem}{STRUCTURED_DATA_SIDECAR_SUFFIX}"))
     }
 
     pub fn structured_data_sidecar_source_path(&self) -> Option<PathBuf> {
@@ -952,6 +955,38 @@ Cancellation details for customers."#;
         assert!(markdown.contains("How to cancel."));
         assert!(markdown.contains(&format!("Canonical page: <{}>", page.permalink)));
         assert!(!markdown.contains("Cancellation details for customers."));
+    }
+
+    #[test]
+    fn structured_data_sidecar_uses_markdown_stem() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
++++
+Refund details."#;
+        let page = Page::parse(
+            Path::new("content/billing/refunds.en.md"),
+            content,
+            &config,
+            &PathBuf::new(),
+        )
+        .expect("expected page");
+
+        assert_eq!(
+            page.structured_data_sidecar_path(),
+            PathBuf::from("content/billing/refunds.en.schema.json")
+        );
     }
 
     #[test]

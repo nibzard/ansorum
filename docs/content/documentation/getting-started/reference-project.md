@@ -14,7 +14,7 @@ corpus:
 - internal-only support content with hidden AI visibility
 - canonical markdown output at `/page.md`
 - machine indexes via `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
-- JSON-LD sidecars from `*.schema.json`
+- JSON-LD sidecars from `<answer-stem>.schema.json`
 - configured `/r/:code` redirects
 - deterministic `audit` and `eval` inputs
 
@@ -59,7 +59,8 @@ It also demonstrates the core policy controls:
 - `ai_visibility = "hidden"` when an answer should stay out of machine outputs
 
 Structured data is authored as a sibling file, for example
-`content/refunds.schema.json`.
+`content/refunds.schema.json`. Ansorum's v0 convention is one sidecar per
+answer, named as `<answer-stem>.schema.json`.
 
 ## What To Inspect
 

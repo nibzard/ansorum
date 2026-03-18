@@ -5,6 +5,8 @@ use errors::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use url::{Host, Url};
 
+pub const DEFAULT_EVAL_MODEL: &str = "gpt-5.4-mini";
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Ansorum {
@@ -317,7 +319,7 @@ impl Default for Eval {
         Self {
             enabled: false,
             backend: EvalBackend::OpenAiResponses,
-            model: None,
+            model: Some(DEFAULT_EVAL_MODEL.to_string()),
             api_base: None,
             prompt_version: "v1".to_string(),
         }

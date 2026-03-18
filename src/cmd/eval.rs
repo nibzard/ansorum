@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use config::Config;
+use config::{Config, DEFAULT_EVAL_MODEL};
 use content::AiVisibility;
 use errors::{Result, anyhow, bail};
 use reqwest::blocking::Client;
@@ -636,11 +636,8 @@ fn resolve_model(
 ) -> Result<Option<String>> {
     let model = model_override
         .map(ToOwned::to_owned)
-        .or_else(|| config.ansorum.eval.model.clone());
-
-    if llm_enabled && model.is_none() {
-        bail!("LLM eval is enabled but no GPT-5.4 model was configured");
-    }
+        .or_else(|| config.ansorum.eval.model.clone())
+        .or_else(|| llm_enabled.then(|| DEFAULT_EVAL_MODEL.to_string()));
     if let Some(model) = &model && !model.starts_with("gpt-5.4") {
         bail!("Eval model `{model}` must be in the GPT-5.4 family");
     }
@@ -913,8 +910,12 @@ mod tests {
     use std::env;
     use std::path::Path;
 
-    use super::{contains_term, eval, finalize_report, load_fixture_file, rank_answers, resolve_fixture_path};
+    use super::{
+        contains_term, eval, finalize_report, load_fixture_file, rank_answers, resolve_fixture_path,
+        resolve_model,
+    };
     use crate::cli::EvalFormat;
+    use config::Config;
     use site::Site;
 
     #[test]
@@ -1037,6 +1038,21 @@ mod tests {
         let resolved = resolve_fixture_path(root, Path::new(super::DEFAULT_FIXTURES_PATH));
         assert_eq!(resolved, Path::new("/tmp/site/eval/fixtures.yaml"));
         let _ = EvalFormat::Human;
+    }
+
+    #[test]
+    fn llm_eval_defaults_to_mini_model() {
+        let config = Config::default_for_test();
+        let model = resolve_model(&config, true, None).expect("expected default model");
+        assert_eq!(model.as_deref(), Some("gpt-5.4-mini"));
+    }
+
+    #[test]
+    fn model_override_beats_default_model() {
+        let config = Config::default_for_test();
+        let model =
+            resolve_model(&config, true, Some("gpt-5.4")).expect("expected overridden model");
+        assert_eq!(model.as_deref(), Some("gpt-5.4"));
     }
 
     #[test]

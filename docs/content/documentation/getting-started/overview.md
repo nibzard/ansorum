@@ -21,7 +21,7 @@ Ansorum compiles that answer corpus into:
 - canonical Markdown at `/page.md`
 - root and scoped machine indexes such as `answers.json`
 - `llms.txt` and `llms-full.txt`
-- structured data outputs from `*.schema.json`
+- structured data outputs from `<answer-stem>.schema.json`
 - audit and evaluation reports
 
 ## Recommended Onboarding Path
@@ -102,7 +102,9 @@ Refund details for customers.
 ```
 
 Optional JSON-LD for that answer lives beside it as
-`content/refunds.schema.json`.
+`content/refunds.schema.json`. The v0 naming rule is exact: use one sibling
+sidecar per answer, named from the Markdown file stem as
+`<answer-stem>.schema.json`.
 
 ## Run The Operator Loop
 
@@ -131,7 +133,8 @@ ansorum eval
 ```
 
 Use `ansorum eval --llm` only when `OPENAI_API_KEY` is configured and you want
-OpenAI Responses API grading.
+OpenAI Responses API grading. If you do not set `ansorum.eval.model` or
+`--model`, Ansorum uses `gpt-5.4-mini` by default.
 
 ## What "Done" Looks Like
 

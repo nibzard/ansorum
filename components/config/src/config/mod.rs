@@ -1171,6 +1171,16 @@ default_ai_visibility = "summary_only"
     }
 
     #[test]
+    fn ansorum_eval_defaults_to_mini_model() {
+        let config = r#"
+title = "My Site"
+base_url = "https://example.com"
+"#;
+        let config = Config::parse(config).unwrap();
+        assert_eq!(config.ansorum.eval.model.as_deref(), Some("gpt-5.4-mini"));
+    }
+
+    #[test]
     fn rejects_invalid_redirect_allowlist_hosts() {
         let config = r#"
 title = "My Site"
