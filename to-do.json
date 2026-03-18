@@ -951,13 +951,13 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:44:00Z",
-      "updated_at": "2026-03-18T22:09:58Z"
+      "updated_at": "2026-03-18T22:10:15Z"
     },
     {
       "id": "ANS-028",
       "title": "Split answer retrieval aliases from page redirect aliases",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "The current content model uses one `aliases` field for two incompatible concepts: retrieval/query synonyms and HTML redirect paths. Answer aliases are copied from page aliases, and build renders them as redirect pages. The reference corpus currently turns natural-language retrieval aliases into published redirect URLs. References: components/content/src/front_matter/page.rs:150-170, components/site/src/lib.rs:955-980, test_site_answers/content/refunds.md:1-18.",
       "steps": [
         "Design separate fields for answer-query aliases versus URL redirect aliases without losing authored intent.",
@@ -977,12 +977,17 @@
         "components/content/src/front_matter/page.rs",
         "components/site/src/answers.rs",
         "components/site/src/lib.rs",
+        "components/site/tests/site.rs",
         "docs/content/documentation/content/page.md",
+        "src/cmd/eval.rs",
+        "src/cmd/init.rs",
         "test_site_answers/content/refunds.md",
+        "test_site_answers/expected/public/answers.json",
+        "test_site_answers/expected/public/refunds/page.md",
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:45:00Z",
-      "updated_at": "2026-03-18T21:45:00Z"
+      "updated_at": "2026-03-18T22:55:00Z"
     },
     {
       "id": "ANS-029",

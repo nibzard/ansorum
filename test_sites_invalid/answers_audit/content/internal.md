@@ -12,7 +12,7 @@ visibility = "internal"
 ai_visibility = "hidden"
 llms_priority = "hidden"
 token_budget = "small"
-aliases = ["internal billing"]
+retrieval_aliases = ["internal billing"]
 +++
 
 Internal details only.

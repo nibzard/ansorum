@@ -11,7 +11,7 @@ token_budget: medium
 canonical_questions:
   - how do refunds work
   - can i get a refund
-aliases:
+retrieval_aliases:
   - refund policy
   - refund rules
 related:

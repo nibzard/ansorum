@@ -12,7 +12,7 @@ visibility: private
 ai_visibility: summary_only
 llms_priority: optional
 token_budget: small
-aliases:
+retrieval_aliases:
   - support playbook
 ---
 

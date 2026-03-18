@@ -13,7 +13,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "optional"
 token_budget = "small"
-aliases = ["returns policy"]
+retrieval_aliases = ["returns policy"]
 +++
 
 Returns content.

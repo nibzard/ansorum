@@ -77,7 +77,7 @@ pub struct AnswerFrontMatter {
     pub ai_visibility: AiVisibility,
     pub llms_priority: LlmsPriority,
     pub token_budget: TokenBudget,
-    pub aliases: Vec<String>,
+    pub retrieval_aliases: Vec<String>,
     pub ai_extra: Option<String>,
     pub last_reviewed_by: Option<String>,
     pub owner: Option<String>,

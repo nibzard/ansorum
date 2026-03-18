@@ -15,7 +15,8 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
 token_budget = "medium"
-aliases = ["refund policy", "refund rules"]
+retrieval_aliases = ["refund policy", "refund rules"]
+aliases = ["legacy/refund-policy"]
 +++
 
 Refund details for customers.

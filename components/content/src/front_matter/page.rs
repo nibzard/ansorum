@@ -99,6 +99,7 @@ struct PageFrontMatterRaw {
     ai_visibility: Option<crate::answer::AiVisibility>,
     llms_priority: Option<crate::answer::LlmsPriority>,
     token_budget: Option<crate::answer::TokenBudget>,
+    retrieval_aliases: Vec<String>,
     ai_extra: Option<String>,
     last_reviewed_by: Option<String>,
     owner: Option<String>,
@@ -138,6 +139,7 @@ impl Default for PageFrontMatterRaw {
             ai_visibility: None,
             llms_priority: None,
             token_budget: None,
+            retrieval_aliases: Vec::new(),
             ai_extra: None,
             last_reviewed_by: None,
             owner: None,
@@ -164,7 +166,7 @@ impl PageFrontMatterRaw {
             ai_visibility: self.ai_visibility.clone(),
             llms_priority: self.llms_priority.clone(),
             token_budget: self.token_budget.clone(),
-            aliases: self.aliases.clone(),
+            retrieval_aliases: self.retrieval_aliases.clone(),
             ai_extra: self.ai_extra.clone(),
             last_reviewed_by: self.last_reviewed_by.clone(),
             owner: self.owner.clone(),
@@ -719,7 +721,7 @@ visibility = "public"
 ai_visibility = "summary_only"
 llms_priority = "core"
 token_budget = "medium"
-aliases = ["refund policy"]
+retrieval_aliases = ["refund policy"]
 ai_extra = "Keep it concise"
 last_reviewed_by = "docs@example.com"
 owner = "Billing"
@@ -745,7 +747,7 @@ visibility: public
 ai_visibility: summary_only
 llms_priority: core
 token_budget: medium
-aliases:
+retrieval_aliases:
   - refund policy
 ai_extra: Keep it concise
 last_reviewed_by: docs@example.com
@@ -754,6 +756,7 @@ confidence_notes: Reviewed by legal
 "#); "yaml")]
     fn can_parse_first_class_answer_front_matter(content: &RawFrontMatter) {
         let res = PageFrontMatter::parse(content).unwrap();
+        assert!(res.aliases.is_empty());
         let answer = res.answer.unwrap();
         assert_eq!(answer.id, "refunds-policy");
         assert_eq!(answer.summary, "How refunds work.");
@@ -764,7 +767,7 @@ confidence_notes: Reviewed by legal
         assert_eq!(answer.llms_priority, LlmsPriority::Core);
         assert_eq!(answer.token_budget, TokenBudget::Medium);
         assert_eq!(answer.review_by, Some("2026-06-01".to_string()));
-        assert_eq!(answer.aliases, vec!["refund policy".to_string()]);
+        assert_eq!(answer.retrieval_aliases, vec!["refund policy".to_string()]);
     }
 
     #[test_case(&RawFrontMatter::Toml(r#"
@@ -806,7 +809,7 @@ extra:
         assert!(res.extra.get("answer").is_none());
         let answer = res.answer.unwrap();
         assert_eq!(answer.id, "refunds-policy");
-        assert_eq!(answer.aliases, vec!["refund policy".to_string()]);
+        assert_eq!(answer.retrieval_aliases, vec!["refund policy".to_string()]);
     }
 
     #[test]
@@ -824,7 +827,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
 token_budget = "medium"
-aliases = ["top alias"]
+retrieval_aliases = ["top alias"]
 
 [extra.answer]
 id = "legacy"
@@ -844,7 +847,33 @@ aliases = ["legacy alias"]
         let answer = res.answer.unwrap();
         assert_eq!(answer.id, "top-level");
         assert_eq!(answer.summary, "Top level summary");
-        assert_eq!(answer.aliases, vec!["top alias".to_string()]);
+        assert_eq!(answer.retrieval_aliases, vec!["top alias".to_string()]);
+    }
+
+    #[test]
+    fn keeps_page_redirect_aliases_separate_from_answer_retrieval_aliases() {
+        let res = PageFrontMatter::parse(&RawFrontMatter::Toml(
+            r#"
+title = "Refund policy"
+id = "refunds-policy"
+summary = "How refunds work."
+canonical_questions = ["how do refunds work"]
+intent = "policy"
+entity = "billing"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+retrieval_aliases = ["refund policy"]
+aliases = ["legacy/refunds"]
+"#,
+        ))
+        .unwrap();
+
+        assert_eq!(res.aliases, vec!["legacy/refunds".to_string()]);
+        let answer = res.answer.unwrap();
+        assert_eq!(answer.retrieval_aliases, vec!["refund policy".to_string()]);
     }
 
     #[test]

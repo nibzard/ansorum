@@ -119,6 +119,10 @@ fn extracts_normalized_answer_records() {
     assert_eq!(refunds.canonical_url, "https://answers.example.com/refunds/");
     assert_eq!(refunds.markdown_url, "https://answers.example.com/refunds/page.md");
     assert_eq!(refunds.entity, "billing");
+    assert_eq!(
+        refunds.retrieval_aliases,
+        vec!["refund policy".to_string(), "refund rules".to_string()]
+    );
 
     let cancel =
         site.answers.get("cancel-subscription").expect("missing cancel-subscription answer");
@@ -181,6 +185,7 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
     assert!(file_exists!(public, "refunds/page.md"));
     assert!(file_contains!(public, "refunds/page.md", "# Refund policy"));
     assert!(file_contains!(public, "refunds/page.md", "canonical_url: https://answers.example.com/refunds/"));
+    assert!(file_contains!(public, "refunds/page.md", "retrieval_aliases:"));
 
     assert!(file_exists!(public, "cancel/page.md"));
     assert!(file_contains!(
@@ -192,6 +197,21 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
     assert!(!file_contains!(public, "cancel/page.md", "Cancellation details for customers."));
 
     assert!(!file_exists!(public, "internal-playbook/page.md"));
+}
+
+#[test]
+fn keeps_retrieval_aliases_out_of_redirect_outputs() {
+    let (_, _tmp_dir, public) = build_site("test_site_answers");
+
+    assert!(file_exists!(public, "legacy/refund-policy/index.html"));
+    assert!(file_contains!(
+        public,
+        "legacy/refund-policy/index.html",
+        "https://answers.example.com/refunds/"
+    ));
+
+    assert!(!file_exists!(public, "refund policy/index.html"));
+    assert!(!file_exists!(public, "refund rules/index.html"));
 }
 
 #[test]
@@ -283,6 +303,7 @@ fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
     assert_eq!(answers[1]["review_by"], "2026-06-01");
     assert!(answers[1].get("last_modified").is_none());
     assert_eq!(answers[1]["related"][0], "cancel-subscription");
+    assert_eq!(answers[1]["retrieval_aliases"][0], "refund policy");
     assert!(!index.contains("internal-support-escalation"));
 }
 

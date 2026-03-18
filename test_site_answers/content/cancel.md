@@ -12,7 +12,7 @@ visibility = "public"
 ai_visibility = "summary_only"
 llms_priority = "optional"
 token_budget = "small"
-aliases = ["cancel subscription"]
+retrieval_aliases = ["cancel subscription"]
 +++
 
 Cancellation details for customers.

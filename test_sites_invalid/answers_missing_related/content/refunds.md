@@ -13,8 +13,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
 token_budget = "medium"
-aliases = ["refund policy"]
+retrieval_aliases = ["refund policy"]
 +++
 
 Refund content.
-

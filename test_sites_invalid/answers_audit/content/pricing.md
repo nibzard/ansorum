@@ -14,7 +14,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
 token_budget = "small"
-aliases = ["pricing rules"]
+retrieval_aliases = ["pricing rules"]
 +++
 
 Pricing details for customer subscriptions.

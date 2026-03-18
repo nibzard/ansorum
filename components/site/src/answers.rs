@@ -21,7 +21,7 @@ pub struct AnswerRecord {
     pub entity: String,
     pub audience: AnswerAudience,
     pub canonical_questions: Vec<String>,
-    pub aliases: Vec<String>,
+    pub retrieval_aliases: Vec<String>,
     pub related: Vec<String>,
     pub visibility: AnswerVisibility,
     pub ai_visibility: AiVisibility,
@@ -66,9 +66,9 @@ impl AnswerCorpus {
                     record.source_path.display()
                 ));
             }
-            for duplicate in duplicate_entries(&record.aliases) {
+            for duplicate in duplicate_entries(&record.retrieval_aliases) {
                 errors.push(format!(
-                    "{}: `aliases` contains duplicate entry `{duplicate}`",
+                    "{}: `retrieval_aliases` contains duplicate entry `{duplicate}`",
                     record.source_path.display()
                 ));
             }
@@ -85,7 +85,7 @@ impl AnswerCorpus {
                     .or_default()
                     .push((question.clone(), record.source_path.clone()));
             }
-            for alias in &record.aliases {
+            for alias in &record.retrieval_aliases {
                 alias_sources
                     .entry(normalize_key(alias))
                     .or_default()
@@ -116,7 +116,7 @@ impl AnswerCorpus {
                 let alias = sources[0].0.clone();
                 let paths = sources.into_iter().map(|(_, path)| path).collect::<Vec<_>>();
                 errors.push(format!(
-                    "Duplicate alias `{alias}` found in {}",
+                    "Duplicate retrieval alias `{alias}` found in {}",
                     format_paths(&paths)
                 ));
             }
@@ -254,7 +254,7 @@ impl AnswerRecord {
             entity: answer.entity.clone(),
             audience: answer.audience.clone(),
             canonical_questions: answer.canonical_questions.clone(),
-            aliases: answer.aliases.clone(),
+            retrieval_aliases: answer.retrieval_aliases.clone(),
             related: answer.related.clone(),
             visibility: answer.visibility.clone(),
             ai_visibility: answer.ai_visibility.clone(),
@@ -291,7 +291,7 @@ struct SerializedAnswerRecord<'a> {
     audience: &'a AnswerAudience,
     related: Vec<&'a str>,
     canonical_questions: &'a [String],
-    aliases: &'a [String],
+    retrieval_aliases: &'a [String],
     #[serde(skip_serializing_if = "Option::is_none")]
     review_by: Option<&'a str>,
     llms_priority: &'a LlmsPriority,
@@ -320,7 +320,7 @@ impl<'a> SerializedAnswerRecord<'a> {
                 .map(String::as_str)
                 .collect(),
             canonical_questions: &record.canonical_questions,
-            aliases: &record.aliases,
+            retrieval_aliases: &record.retrieval_aliases,
             review_by: record.review_by.as_deref(),
             llms_priority: &record.llms_priority,
             token_budget: &record.token_budget,
@@ -691,11 +691,11 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
             ),
         );
     }
-    if !answer.aliases.is_empty() {
+    if !answer.retrieval_aliases.is_empty() {
         object.insert(
             "alternateName".to_string(),
             JsonValue::Array(
-                answer.aliases.iter().cloned().map(JsonValue::String).collect(),
+                answer.retrieval_aliases.iter().cloned().map(JsonValue::String).collect(),
             ),
         );
     }

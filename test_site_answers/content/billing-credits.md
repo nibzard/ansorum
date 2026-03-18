@@ -16,7 +16,7 @@ visibility: internal
 ai_visibility: hidden
 llms_priority: hidden
 token_budget: small
-aliases:
+retrieval_aliases:
   - account credit
 owner: Revenue Operations
 confidence_notes: Internal-only workflow

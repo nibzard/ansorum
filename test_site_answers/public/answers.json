@@ -16,7 +16,7 @@
       "canonical_questions": [
         "how do i cancel my subscription"
       ],
-      "aliases": [
+      "retrieval_aliases": [
         "cancel subscription"
       ],
       "llms_priority": "optional",
@@ -40,7 +40,7 @@
         "how do refunds work",
         "can i get a refund"
       ],
-      "aliases": [
+      "retrieval_aliases": [
         "refund policy",
         "refund rules"
       ],

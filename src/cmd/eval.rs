@@ -573,7 +573,7 @@ fn rank_answers(question: &str, site: &Site) -> Vec<RankedAnswer> {
                 score += overlap_score(&query_tokens, &tokenize(&normalized), 12);
             }
 
-            for alias in &answer.aliases {
+            for alias in &answer.retrieval_aliases {
                 let normalized = normalize_text(alias);
                 if normalized == query {
                     score += 80;

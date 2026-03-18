@@ -365,7 +365,7 @@ impl Page {
         write_machine_field(&mut markdown, "llms_priority", llms_priority(answer));
         write_machine_field(&mut markdown, "token_budget", token_budget(answer));
         write_machine_list(&mut markdown, "canonical_questions", &answer.canonical_questions);
-        write_machine_list(&mut markdown, "aliases", &answer.aliases);
+        write_machine_list(&mut markdown, "retrieval_aliases", &answer.retrieval_aliases);
         write_machine_list(&mut markdown, "related", &answer.related);
         markdown.push_str("---\n\n");
 

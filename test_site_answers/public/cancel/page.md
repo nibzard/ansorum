@@ -10,7 +10,7 @@ llms_priority: optional
 token_budget: small
 canonical_questions:
   - how do i cancel my subscription
-aliases:
+retrieval_aliases:
   - cancel subscription
 related:
   - refunds-policy

@@ -84,7 +84,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
 token_budget = "medium"
-aliases = ["refund policy", "refund rules"]
+retrieval_aliases = ["refund policy", "refund rules"]
 +++
 
 Refund details for customers.
@@ -110,7 +110,7 @@ visibility = "public"
 ai_visibility = "summary_only"
 llms_priority = "optional"
 token_budget = "small"
-aliases = ["cancel subscription"]
+retrieval_aliases = ["cancel subscription"]
 +++
 
 Cancellation details for customers.
@@ -136,7 +136,7 @@ visibility = "internal"
 ai_visibility = "hidden"
 llms_priority = "hidden"
 token_budget = "small"
-aliases = ["billing escalation playbook"]
+retrieval_aliases = ["billing escalation playbook"]
 +++
 
 Escalation details for internal teams only.

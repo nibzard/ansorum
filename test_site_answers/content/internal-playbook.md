@@ -14,7 +14,7 @@ visibility = "internal"
 ai_visibility = "hidden"
 llms_priority = "hidden"
 token_budget = "small"
-aliases = ["billing escalation playbook"]
+retrieval_aliases = ["billing escalation playbook"]
 +++
 
 Escalation details for internal teams only.

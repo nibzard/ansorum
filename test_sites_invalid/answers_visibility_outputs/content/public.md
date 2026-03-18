@@ -11,7 +11,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "optional"
 token_budget = "medium"
-aliases = ["billing help"]
+retrieval_aliases = ["billing help"]
 +++
 
 Billing overview content.

@@ -28,7 +28,8 @@ pub struct RawAnswerFrontMatter {
     pub ai_visibility: Option<AiVisibility>,
     pub llms_priority: Option<LlmsPriority>,
     pub token_budget: Option<TokenBudget>,
-    pub aliases: Vec<String>,
+    #[serde(alias = "aliases")]
+    pub retrieval_aliases: Vec<String>,
     pub ai_extra: Option<String>,
     pub last_reviewed_by: Option<String>,
     pub owner: Option<String>,
@@ -73,7 +74,11 @@ impl RawAnswerFrontMatter {
             ai_visibility: self.ai_visibility.or(fallback.ai_visibility),
             llms_priority: self.llms_priority.or(fallback.llms_priority),
             token_budget: self.token_budget.or(fallback.token_budget),
-            aliases: if self.aliases.is_empty() { fallback.aliases } else { self.aliases },
+            retrieval_aliases: if self.retrieval_aliases.is_empty() {
+                fallback.retrieval_aliases
+            } else {
+                self.retrieval_aliases
+            },
             ai_extra: self.ai_extra.or(fallback.ai_extra),
             last_reviewed_by: self.last_reviewed_by.or(fallback.last_reviewed_by),
             owner: self.owner.or(fallback.owner),
@@ -97,6 +102,7 @@ impl RawAnswerFrontMatter {
             || self.ai_visibility.is_some()
             || self.llms_priority.is_some()
             || self.token_budget.is_some()
+            || !self.retrieval_aliases.is_empty()
             || self.ai_extra.is_some()
             || self.last_reviewed_by.is_some()
             || self.owner.is_some()
@@ -128,7 +134,8 @@ impl RawAnswerFrontMatter {
             non_empty_vec(self.canonical_questions, "canonical_questions")?;
         let related = non_empty_vec(self.related, "related")?;
         let external_refs = non_empty_vec(self.external_refs, "external_refs")?;
-        let aliases = non_empty_vec(self.aliases, "aliases")?;
+        let retrieval_aliases =
+            non_empty_vec(self.retrieval_aliases, "retrieval_aliases")?;
 
         Ok(Some(AnswerFrontMatter {
             id,
@@ -146,7 +153,7 @@ impl RawAnswerFrontMatter {
             ai_visibility,
             llms_priority,
             token_budget,
-            aliases,
+            retrieval_aliases,
             ai_extra: optional_string(self.ai_extra, "ai_extra")?,
             last_reviewed_by: optional_string(self.last_reviewed_by, "last_reviewed_by")?,
             owner: optional_string(self.owner, "owner")?,

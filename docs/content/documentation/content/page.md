@@ -112,7 +112,7 @@ visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
 token_budget = "medium"
-aliases = ["refund rules"]
+retrieval_aliases = ["refund rules"]
 +++
 
 Refund details for customers.
@@ -126,6 +126,10 @@ These fields drive:
 - `audit` findings
 - `eval` ranking and grading
 - serve-time Markdown negotiation
+
+Use `retrieval_aliases` for natural-language query synonyms that should help
+retrieval or ranking without publishing extra URLs. Keep page-level `aliases`
+for legacy path redirects only.
 
 The most important policy fields are:
 
