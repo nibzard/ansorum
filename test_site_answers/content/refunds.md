@@ -1,5 +1,6 @@
 +++
 title = "Refund policy"
+weight = 10
 
 id = "refunds-policy"
 summary = "How refunds work, who qualifies, and when payment returns land."

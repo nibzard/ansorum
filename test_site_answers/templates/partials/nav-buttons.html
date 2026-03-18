@@ -1,0 +1,48 @@
+{# Previous/Next Navigation Buttons #}
+{% if page %}
+{% set refunds = get_page(path="refunds.md", required=false) %}
+{% set cancel = get_page(path="cancel.md", required=false) %}
+{% if page.slug == "refunds" and cancel %}
+    {% set next_page = cancel %}
+{% elif page.slug == "cancel" and refunds %}
+    {% set prev_page = refunds %}
+{% endif %}
+
+<nav class="nav-buttons" aria-label="Page navigation">
+    {% if prev_page %}
+    <a href="{{ prev_page.permalink | safe }}" class="nav-button nav-button--prev" aria-label="Previous: {{ prev_page.title }}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+        </svg>
+        <span class="nav-button__label">
+            {{ prev_page.title | truncate(length=30) }}
+            <span class="nav-button__shortcut">←</span>
+        </span>
+    </a>
+    {% else %}
+    <div class="nav-button nav-button--prev disabled" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+        </svg>
+    </div>
+    {% endif %}
+
+    {% if next_page %}
+    <a href="{{ next_page.permalink | safe }}" class="nav-button nav-button--next" aria-label="Next: {{ next_page.title }}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9 18 6-6-6-6"/>
+        </svg>
+        <span class="nav-button__label">
+            {{ next_page.title | truncate(length=30) }}
+            <span class="nav-button__shortcut">→</span>
+        </span>
+    </a>
+    {% else %}
+    <div class="nav-button nav-button--next disabled" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9 18 6-6-6-6"/>
+        </svg>
+    </div>
+    {% endif %}
+</nav>
+{% endif %}

@@ -542,10 +542,12 @@ fn content_type_from_extension(extension: Option<&str>) -> &'static str {
 }
 
 fn disk_content_type(path: &Path) -> String {
-    path.extension()
-        .and_then(OsStr::to_str)
-        .map(|extension| content_type_from_extension(Some(extension)).to_string())
-        .unwrap_or_else(|| mimetype_from_path(path).first_or_octet_stream().essence_str().to_string())
+    match path.extension().and_then(OsStr::to_str) {
+        Some("xml" | "json" | "txt" | "md") => {
+            content_type_from_extension(path.extension().and_then(OsStr::to_str)).to_string()
+        }
+        _ => mimetype_from_path(path).first_or_octet_stream().essence_str().to_string(),
+    }
 }
 
 fn build_content_response(
@@ -1198,7 +1200,7 @@ pub fn serve(
 mod tests {
     use super::{
         AppState, RedirectTarget, clear_serve_error, construct_url, create_new_site,
-        error_injection_middleware, handle_request, remove_deleted_content_output,
+        disk_content_type, error_injection_middleware, handle_request, remove_deleted_content_output,
         remove_deleted_static_output, set_serve_error, strip_mounted_path, MAX_ERROR_OVERLAY_BYTES,
     };
     use axum::{
@@ -1256,6 +1258,16 @@ mod tests {
     fn test_construct_url_trailing_slash() {
         let result = construct_url("http://example.com/", false, 8080);
         assert_eq!(result, "http://example.com:8080/");
+    }
+
+    #[test]
+    fn disk_content_type_uses_mime_guess_for_css_assets() {
+        assert_eq!(disk_content_type(Path::new("style.css")), "text/css");
+    }
+
+    #[test]
+    fn disk_content_type_preserves_machine_markdown_content_type() {
+        assert_eq!(disk_content_type(Path::new("refunds/page.md")), "text/markdown");
     }
 
     fn create_and_verify_new_site(

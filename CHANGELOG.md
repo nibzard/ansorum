@@ -1,10 +1,10 @@
 # Changelog
 
-Ansorum-specific release history starts at `0.1.0-alpha.0`.
+Ansorum-specific release history starts at `0.1.0-alpha`.
 Earlier entries below are inherited from the upstream Zola history carried into
 this fork.
 
-## 0.1.0-alpha.0 (2026-03-18)
+## 0.1.0-alpha (2026-03-18)
 
 - Rename the repository and primary binary to `ansorum`
 - Reset the release line from inherited `0.22.x` numbering to an Ansorum alpha

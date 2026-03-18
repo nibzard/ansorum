@@ -1,10 +1,26 @@
 base_url = "https://answers.example.com"
 title = "Acme Billing Answers"
 description = "Reference Ansorum project for a billing and support answer corpus."
+theme = "tanuki"
 generate_feeds = false
 generate_sitemap = false
 generate_robots_txt = false
-build_search_index = false
+build_search_index = true
+
+[markdown.highlighting]
+theme = "catppuccin-mocha"
+
+[extra]
+mode = "docs"
+github = "https://github.com/nibzard/ansorum"
+
+[[extra.nav]]
+name = "Answers JSON"
+url = "/answers.json"
+
+[[extra.nav]]
+name = "llms.txt"
+url = "/llms.txt"
 
 [ansorum.redirects]
 external_host_allowlist = ["docs.example.com"]

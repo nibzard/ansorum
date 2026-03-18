@@ -9,11 +9,11 @@ audience: customer
 llms_priority: optional
 token_budget: small
 canonical_questions:
-  - how do i cancel my subscription
+- how do i cancel my subscription
 retrieval_aliases:
-  - cancel subscription
+- cancel subscription
 related:
-  - refunds-policy
+- refunds-policy
 ---
 
 # how do i cancel my subscription

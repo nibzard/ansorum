@@ -1,4 +1,7 @@
 +++
+title = "how do i cancel my subscription"
+weight = 20
+
 id = "cancel-subscription"
 summary = "How to cancel a subscription and what happens after."
 canonical_questions = ["how do i cancel my subscription"]

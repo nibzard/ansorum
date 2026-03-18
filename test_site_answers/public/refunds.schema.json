@@ -1,0 +1,16 @@
+{
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ansorum Billing"
+  },
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Who qualifies for a refund?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Most unused subscriptions are refundable within 30 days."
+      }
+    }
+  ]
+}

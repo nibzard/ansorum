@@ -1,5 +1,7 @@
 ---
 title: Billing credits
+weight: 100
+in_search_index: false
 id: billing-credits
 summary: How billing credits are issued and when they are applied.
 canonical_questions:
@@ -20,6 +22,8 @@ retrieval_aliases:
   - account credit
 owner: Revenue Operations
 confidence_notes: Internal-only workflow
+extra:
+  hide_from_toc: true
 ---
 
 Billing credits are tracked internally and should not appear in public machine

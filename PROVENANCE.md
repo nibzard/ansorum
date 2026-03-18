@@ -44,7 +44,7 @@ signal.
 
 The Ansorum-specific release line resets at:
 
-- `0.1.0-alpha.0` on 2026-03-18
+- `0.1.0-alpha` on 2026-03-18
 
 This reset is a product identity decision, not a claim that the inherited Zola
 history disappeared.

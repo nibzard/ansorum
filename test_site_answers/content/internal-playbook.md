@@ -1,5 +1,7 @@
 +++
 title = "Internal support escalation"
+weight = 90
+in_search_index = false
 
 id = "internal-support-escalation"
 summary = "Internal escalation process for complex billing cases."
@@ -15,6 +17,8 @@ ai_visibility = "hidden"
 llms_priority = "hidden"
 token_budget = "small"
 retrieval_aliases = ["billing escalation playbook"]
+[extra]
+hide_from_toc = true
 +++
 
 Escalation details for internal teams only.
