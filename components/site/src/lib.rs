@@ -742,6 +742,16 @@ impl Site {
         Ok(())
     }
 
+    fn write_answers_index(&self) -> Result<()> {
+        if self.answers.is_empty() {
+            return Ok(());
+        }
+
+        let json = self.answers.to_json()?;
+        self.write_content(&Vec::<&str>::new(), "answers.json", json)?;
+        Ok(())
+    }
+
     /// Deletes the `public` directory (only for `zola build`) and builds the site
     pub fn build(&self) -> Result<()> {
         let mut start = Instant::now();
@@ -777,6 +787,8 @@ impl Site {
         start = log_time(start, "Rendered sections");
         self.render_orphan_pages()?;
         start = log_time(start, "Rendered orphan pages");
+        self.write_answers_index()?;
+        start = log_time(start, "Wrote answers.json");
         if self.config.generate_sitemap {
             self.render_sitemap()?;
             start = log_time(start, "Rendered sitemap");

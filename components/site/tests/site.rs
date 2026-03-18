@@ -2,6 +2,7 @@ mod common;
 
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use ahash::AHashMap;
@@ -157,6 +158,32 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
     assert!(!file_contains!(public, "cancel/page.md", "Cancellation details for customers."));
 
     assert!(!file_exists!(public, "internal-playbook/page.md"));
+}
+
+#[test]
+fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
+    let (_, _tmp_dir, public) = build_site("test_site_answers");
+
+    assert!(file_exists!(public, "answers.json"));
+
+    let index = fs::read_to_string(public.join("answers.json")).expect("read answers.json");
+    let json: serde_json::Value = serde_json::from_str(&index).expect("parse answers.json");
+
+    assert_eq!(json["version"], 1);
+
+    let answers = json["answers"].as_array().expect("answers should be an array");
+    assert_eq!(answers.len(), 2);
+    assert_eq!(answers[0]["id"], "cancel-subscription");
+    assert_eq!(answers[1]["id"], "refunds-policy");
+
+    assert_eq!(answers[0]["markdown_url"], "https://answers.example.com/cancel/page.md");
+    assert_eq!(answers[0]["ai_visibility"], "summary_only");
+    assert_eq!(answers[0]["summary"], "How to cancel a subscription and what happens after.");
+
+    assert_eq!(answers[1]["review_by"], "2026-06-01");
+    assert!(answers[1].get("last_modified").is_none());
+    assert_eq!(answers[1]["related"][0], "cancel-subscription");
+    assert!(!index.contains("internal-support-escalation"));
 }
 
 #[test]

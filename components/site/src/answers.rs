@@ -6,6 +6,7 @@ use content::{
     TokenBudget,
 };
 use errors::{Result, anyhow};
+use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AnswerRecord {
@@ -25,6 +26,7 @@ pub struct AnswerRecord {
     pub llms_priority: LlmsPriority,
     pub token_budget: TokenBudget,
     pub review_by: Option<String>,
+    pub last_modified: Option<String>,
     pub source_path: PathBuf,
 }
 
@@ -210,6 +212,22 @@ impl AnswerCorpus {
             .filter_map(|related_id| self.get(related_id))
             .collect()
     }
+
+    pub fn to_json(&self) -> Result<String> {
+        let document = AnswersIndex {
+            version: 1,
+            generated_at: None,
+            answers: self
+                .records
+                .iter()
+                .filter(|record| record.ai_visibility != AiVisibility::Hidden)
+                .map(SerializedAnswerRecord::from)
+                .collect(),
+        };
+
+        serde_json::to_string_pretty(&document)
+            .map_err(|error| anyhow!("Failed to serialize answers.json: {error}"))
+    }
 }
 
 impl AnswerRecord {
@@ -232,8 +250,64 @@ impl AnswerRecord {
             llms_priority: answer.llms_priority.clone(),
             token_budget: answer.token_budget.clone(),
             review_by: answer.review_by.clone(),
+            last_modified: page.meta.updated.clone().or_else(|| page.meta.date.clone()),
             source_path: page.file.path.clone(),
         })
+    }
+}
+
+#[derive(Serialize)]
+struct AnswersIndex<'a> {
+    version: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    generated_at: Option<&'a str>,
+    answers: Vec<SerializedAnswerRecord<'a>>,
+}
+
+#[derive(Serialize)]
+struct SerializedAnswerRecord<'a> {
+    id: &'a str,
+    title: &'a str,
+    summary: &'a str,
+    canonical_url: &'a str,
+    markdown_url: &'a str,
+    entity: &'a str,
+    intent: &'a AnswerIntent,
+    audience: &'a AnswerAudience,
+    related: &'a [String],
+    canonical_questions: &'a [String],
+    aliases: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    review_by: Option<&'a str>,
+    llms_priority: &'a LlmsPriority,
+    token_budget: &'a TokenBudget,
+    visibility: &'a AnswerVisibility,
+    ai_visibility: &'a AiVisibility,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_modified: Option<&'a str>,
+}
+
+impl<'a> From<&'a AnswerRecord> for SerializedAnswerRecord<'a> {
+    fn from(record: &'a AnswerRecord) -> Self {
+        Self {
+            id: &record.id,
+            title: &record.title,
+            summary: &record.summary,
+            canonical_url: &record.canonical_url,
+            markdown_url: &record.markdown_url,
+            entity: &record.entity,
+            intent: &record.intent,
+            audience: &record.audience,
+            related: &record.related,
+            canonical_questions: &record.canonical_questions,
+            aliases: &record.aliases,
+            review_by: record.review_by.as_deref(),
+            llms_priority: &record.llms_priority,
+            token_budget: &record.token_budget,
+            visibility: &record.visibility,
+            ai_visibility: &record.ai_visibility,
+            last_modified: record.last_modified.as_deref(),
+        }
     }
 }
 

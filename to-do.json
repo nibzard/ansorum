@@ -220,13 +220,13 @@
         "ANS-005"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T19:26:18Z"
+      "updated_at": "2026-03-18T19:26:56Z"
     },
     {
       "id": "ANS-007",
       "title": "Generate the canonical answers.json machine index",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Emit a stable answers.json index from the normalized AnswerRecord collection. This file is the canonical machine-readable answer catalog and should include canonical URLs, markdown URLs, metadata, and relationship fields required by downstream retrieval and eval flows. Keep the output deterministic in ordering and shape so CI snapshots, retrieval logic, and downstream tooling can rely on it.",
       "steps": [
         "Define the JSON shape and serialization path for answers.json.",
@@ -240,17 +240,17 @@
         "machine-index"
       ],
       "files": [
-        "ANSWER_COMPILER_SPEC.md",
+        "components/site/Cargo.toml",
         "components/site/src/answers.rs",
         "components/site/src/lib.rs",
-        "templates",
-        "test_site"
+        "components/site/tests/site.rs",
+        "to-do.json"
       ],
       "depends_on": [
         "ANS-005"
       ],
       "created_at": "2026-03-18T17:05:00Z",
-      "updated_at": "2026-03-18T17:05:00Z"
+      "updated_at": "2026-03-18T19:30:14Z"
     },
     {
       "id": "ANS-008",
