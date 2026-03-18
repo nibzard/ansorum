@@ -34,7 +34,7 @@ use std::time::{Duration, Instant};
 
 use axum::{
     Router,
-    body::Body,
+    body::{Body, HttpBody},
     extract::{
         State, WebSocketUpgrade,
         ws::{Message, WebSocket},
@@ -73,6 +73,7 @@ enum WatchMode {
 const METHOD_NOT_ALLOWED_TEXT: &[u8] = b"Method Not Allowed";
 const NOT_FOUND_TEXT: &[u8] = b"Not Found";
 const INTERNAL_SERVER_ERROR_TEXT: &[u8] = b"Internal Server Error";
+const MAX_ERROR_OVERLAY_BYTES: usize = 1024 * 1024;
 
 // This is dist/livereload.min.js from the LiveReload.js v3.2.4 release
 const LIVE_RELOAD: &str = include_str!("livereload.js");
@@ -400,8 +401,17 @@ async fn error_injection_middleware(response: Response) -> Response {
         return response;
     }
 
-    let (parts, body) = response.into_parts();
-    let bytes = match to_bytes(body, usize::MAX).await {
+    if response
+        .body()
+        .size_hint()
+        .upper()
+        .is_none_or(|upper| upper > MAX_ERROR_OVERLAY_BYTES as u64)
+    {
+        return response;
+    }
+
+    let (mut parts, body) = response.into_parts();
+    let bytes = match to_bytes(body, MAX_ERROR_OVERLAY_BYTES).await {
         Ok(b) => b.to_vec(),
         Err(_) => return Response::from_parts(parts, Body::empty()),
     };
@@ -413,6 +423,7 @@ async fn error_injection_middleware(response: Response) -> Response {
             // Inject error dialog into existing HTML response
             let mut new_bytes = bytes;
             new_bytes.extend(html_error.as_bytes());
+            parts.headers.remove(header::CONTENT_LENGTH);
             return Response::from_parts(parts, Body::from(new_bytes));
         } else if is_not_found {
             // Return a full HTML page with the error dialog for 404s
@@ -1186,13 +1197,15 @@ pub fn serve(
 #[cfg(test)]
 mod tests {
     use super::{
-        AppState, RedirectTarget, construct_url, create_new_site, handle_request,
-        remove_deleted_content_output, remove_deleted_static_output, strip_mounted_path,
+        AppState, RedirectTarget, clear_serve_error, construct_url, create_new_site,
+        error_injection_middleware, handle_request, remove_deleted_content_output,
+        remove_deleted_static_output, set_serve_error, strip_mounted_path, MAX_ERROR_OVERLAY_BYTES,
     };
     use axum::{
         body::{Body, to_bytes},
         extract::Request,
         http::{Method, StatusCode, header},
+        response::Response,
     };
     use relative_path::RelativePathBuf;
     use site::Site;
@@ -1432,6 +1445,16 @@ mod tests {
         builder.body(Body::empty()).expect("request")
     }
 
+    fn body_text(response: axum::response::Response) -> String {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let body = rt
+            .block_on(async { to_bytes(response.into_body(), usize::MAX).await.expect("body") });
+        String::from_utf8(body.to_vec()).expect("utf8 body")
+    }
+
     fn unique_temp_path(prefix: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
             "{prefix}-{}",
@@ -1466,6 +1489,85 @@ mod tests {
         assert_eq!(body, "# Refunds");
 
         SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn injects_error_overlay_into_small_html_responses() {
+        clear_serve_error();
+        set_serve_error("Failed to build the site", errors::anyhow!("broken template"));
+
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(Body::from("<html><body>Hello</body></html>"))
+            .expect("response");
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let response = rt.block_on(error_injection_middleware(response));
+        let body = body_text(response);
+
+        assert!(body.contains("<html><body>Hello</body></html>"));
+        assert!(body.contains("Ansorum Build Error"));
+        assert!(body.contains("broken template"));
+
+        clear_serve_error();
+    }
+
+    #[test]
+    fn skips_error_overlay_for_html_responses_larger_than_cap() {
+        clear_serve_error();
+        set_serve_error("Failed to build the site", errors::anyhow!("broken template"));
+
+        let oversized = "a".repeat(MAX_ERROR_OVERLAY_BYTES + 1);
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(Body::from(oversized.clone()))
+            .expect("response");
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let response = rt.block_on(error_injection_middleware(response));
+        let body = body_text(response);
+
+        assert_eq!(body, oversized);
+        assert!(!body.contains("Ansorum Build Error"));
+
+        clear_serve_error();
+    }
+
+    #[test]
+    fn replaces_not_found_response_with_error_page_when_build_fails() {
+        clear_serve_error();
+        set_serve_error("Failed to build the site", errors::anyhow!("broken template"));
+
+        let response = Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(header::CONTENT_TYPE, "text/plain")
+            .body(Body::from("Not Found"))
+            .expect("response");
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let response = rt.block_on(error_injection_middleware(response));
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body = body_text(response);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert!(body.contains("Ansorum Build Error"));
+        assert!(body.contains("broken template"));
+        assert!(body.contains("/livereload.js"));
+
+        clear_serve_error();
     }
 
     #[test]

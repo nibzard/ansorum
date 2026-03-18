@@ -1102,7 +1102,7 @@
       "id": "ANS-033",
       "title": "Remove unbounded full-body buffering from serve error overlay injection",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "The serve error overlay middleware currently reads whole responses into memory with `to_bytes(..., usize::MAX)` before appending the HTML error box. Large pages can cause avoidable memory pressure and latency spikes. References: src/cmd/serve.rs:306-372.",
       "steps": [
         "Redesign error overlay injection so it does not require unbounded buffering of entire responses.",
@@ -1121,7 +1121,7 @@
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:50:00Z",
-      "updated_at": "2026-03-18T21:50:00Z"
+      "updated_at": "2026-03-18T22:33:22Z"
     }
   ]
 }
