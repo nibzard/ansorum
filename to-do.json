@@ -732,6 +732,37 @@
       ],
       "created_at": "2026-03-18T17:20:00Z",
       "updated_at": "2026-03-18T20:42:37Z"
+    },
+    {
+      "id": "ANS-021",
+      "title": "Remove remaining runtime-facing zola identifiers from generated markup and snapshots",
+      "priority": 3,
+      "status": "done",
+      "details": "Final review found inherited Zola branding still leaking through runtime-facing output even after the CLI rename work was marked done. The built-in anchor template still emits the CSS class zola-anchor, docs styles target that class, and related markdown snapshots preserve the old identifier. That leaves generated HTML and downstream styling contracts carrying the previous product name.",
+      "steps": [
+        "Rename runtime-facing template and CSS identifiers such as zola-anchor to ansorum-neutral naming.",
+        "Update docs-site styles and built-in templates that depend on the inherited class names.",
+        "Refresh affected markdown snapshots and tests so they assert the new runtime contract.",
+        "Recheck for remaining runtime-facing zola strings outside comments, historical changelog entries, and explicit provenance references."
+      ],
+      "tags": [
+        "branding",
+        "runtime",
+        "templates"
+      ],
+      "files": [
+        "components/markdown/tests/snapshots",
+        "components/site/tests/site.rs",
+        "components/templates/src/builtins/anchor-link.html",
+        "docs/sass/_docs.scss",
+        "to-do.json"
+      ],
+      "depends_on": [
+        "ANS-001"
+      ],
+      "created_at": "2026-03-18T21:30:00Z",
+      "updated_at": "2026-03-18T21:42:00Z",
+      "blockers": []
     }
   ]
 }

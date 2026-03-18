@@ -608,7 +608,7 @@ fn can_build_site_and_insert_anchor_links() {
     assert!(file_contains!(
         public,
         "posts/something-else/index.html",
-        "<h1 id=\"title\"><a class=\"zola-anchor\" href=\"#title\""
+        "<h1 id=\"title\"><a class=\"anchor-link\" href=\"#title\""
     ));
 }
 
@@ -633,7 +633,7 @@ fn can_build_site_and_insert_anchor_links_global_config() {
     assert!(file_contains!(
         public,
         "index.html",
-        r##"<h1 id="heading-1">Heading 1<a class="zola-anchor" href="#heading-1" aria-label="Anchor link for: heading-1">🔗</a></h1>"##
+        r##"<h1 id="heading-1">Heading 1<a class="anchor-link" href="#heading-1" aria-label="Anchor link for: heading-1">🔗</a>"##
     ));
 }
 
