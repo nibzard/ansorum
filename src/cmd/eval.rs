@@ -3,12 +3,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use config::{Config, DEFAULT_EVAL_MODEL};
+use config::{Config, DEFAULT_EVAL_MODEL, EvalBackend};
 use content::is_machine_ai_visible;
 use errors::{Error, Result, anyhow, bail};
+use reqwest::StatusCode;
 use reqwest::blocking::Client;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 use site::Site;
@@ -112,31 +112,25 @@ fn run_eval(
     let machine_markdown = machine_markdown_by_id(&site);
 
     let llm_enabled = llm_override || site.config.ansorum.eval.enabled;
+    let backend = llm_enabled.then_some(site.config.ansorum.eval.backend);
     let model = resolve_model(&site.config, llm_enabled, model_override)?;
     let api_base = resolve_api_base(&site.config, api_base_override);
 
-    let llm_client = if llm_enabled {
-        Some(OpenAiEvalClient::new(&api_base, model.as_deref())?)
+    let llm_client = if let Some(backend) = backend {
+        Some(match backend {
+            EvalBackend::OpenAiResponses => OpenAiEvalClient::new(&api_base, model.as_deref())?,
+        })
     } else {
         None
     };
 
     let mut report = EvalReport {
         fixture_path: fixture_path.display().to_string(),
-        backend: if llm_enabled {
-            Some("openai_responses".to_string())
-        } else {
-            None
-        },
+        backend: backend.map(|backend| eval_backend_name(backend).to_string()),
         model,
         prompt_version: site.config.ansorum.eval.prompt_version.clone(),
         summary: EvalSummary::default(),
-        thresholds: EvalThresholds {
-            min_pass_rate,
-            min_llm_average,
-            min_llm_score,
-            require_llm,
-        },
+        thresholds: EvalThresholds { min_pass_rate, min_llm_average, min_llm_score, require_llm },
         cases: Vec::with_capacity(fixture_file.cases.len()),
     };
 
@@ -155,8 +149,9 @@ fn run_eval(
             .filter(|id| ranked_ids.iter().any(|candidate| candidate == *id))
             .cloned()
             .collect::<Vec<_>>();
-        let retrieval_passed =
-            missing_expected_ids.is_empty() && present_forbidden_ids.is_empty() && !ranked_ids.is_empty();
+        let retrieval_passed = missing_expected_ids.is_empty()
+            && present_forbidden_ids.is_empty()
+            && !ranked_ids.is_empty();
 
         let selected = ranked
             .iter()
@@ -184,10 +179,8 @@ fn run_eval(
             .unwrap_or(false);
 
         let llm = if let Some(client) = llm_client.as_ref() {
-            let selected_answer = selected
-                .as_ref()
-                .and_then(|candidate| site.answers.get(&candidate.id))
-                .cloned();
+            let selected_answer =
+                selected.as_ref().and_then(|candidate| site.answers.get(&candidate.id)).cloned();
             let expected_answers = case
                 .expected_ids
                 .iter()
@@ -446,32 +439,30 @@ impl OpenAiEvalClient {
             }
         });
 
-        let request = self
-            .client
-            .post(&self.api_base)
-            .json(&json!({
-                "model": self.model,
-                "input": [
-                    {
-                        "role": "system",
-                        "content": [{ "type": "input_text", "text": system_prompt }]
-                    },
-                    {
-                        "role": "user",
-                        "content": [{ "type": "input_text", "text": user_prompt.to_string() }]
-                    }
-                ],
-                "text": {
-                    "format": {
-                        "type": "json_schema",
-                        "name": "ansorum_eval_grade",
-                        "strict": true,
-                        "schema": llm_grade_schema(),
-                    }
+        let request = self.client.post(&self.api_base).json(&json!({
+            "model": self.model,
+            "input": [
+                {
+                    "role": "system",
+                    "content": [{ "type": "input_text", "text": system_prompt }]
+                },
+                {
+                    "role": "user",
+                    "content": [{ "type": "input_text", "text": user_prompt.to_string() }]
                 }
-            }));
+            ],
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "ansorum_eval_grade",
+                    "strict": true,
+                    "schema": llm_grade_schema(),
+                }
+            }
+        }));
         let response = request.send().map_err(|error| self.classify_request_error(error))?;
-        let response = response.error_for_status().map_err(|error| self.classify_request_error(error))?;
+        let response =
+            response.error_for_status().map_err(|error| self.classify_request_error(error))?;
         let response = response
             .json::<JsonValue>()
             .map_err(|error| anyhow!("OpenAI Responses API returned invalid JSON: {error}"))?;
@@ -560,10 +551,12 @@ fn resolve_fixture_path(root_dir: &Path, fixtures: &Path) -> PathBuf {
 }
 
 fn load_fixture_file(path: &Path) -> Result<EvalFixtureFile> {
-    let content = fs::read_to_string(path)
-        .map_err(|error| anyhow!("Failed to read eval fixtures from {}: {error}", path.display()))?;
-    let raw: RawFixtureFile = serde_yaml::from_str(&content)
-        .map_err(|error| anyhow!("Failed to parse eval fixtures from {}: {error}", path.display()))?;
+    let content = fs::read_to_string(path).map_err(|error| {
+        anyhow!("Failed to read eval fixtures from {}: {error}", path.display())
+    })?;
+    let raw: RawFixtureFile = serde_yaml::from_str(&content).map_err(|error| {
+        anyhow!("Failed to parse eval fixtures from {}: {error}", path.display())
+    })?;
 
     let mut cases = match raw {
         RawFixtureFile::Cases(cases) => cases,
@@ -662,7 +655,11 @@ fn rank_answers(question: &str, site: &Site) -> Vec<RankedAnswer> {
     ranked
 }
 
-fn overlap_score(query_tokens: &BTreeSet<String>, candidate_tokens: &BTreeSet<String>, weight: i32) -> i32 {
+fn overlap_score(
+    query_tokens: &BTreeSet<String>,
+    candidate_tokens: &BTreeSet<String>,
+    weight: i32,
+) -> i32 {
     query_tokens.iter().filter(|token| candidate_tokens.contains(*token)).count() as i32 * weight
 }
 
@@ -684,11 +681,7 @@ fn normalize_text(input: &str) -> String {
 }
 
 fn tokenize(input: &str) -> BTreeSet<String> {
-    input
-        .split_whitespace()
-        .filter(|token| token.len() > 1)
-        .map(ToOwned::to_owned)
-        .collect()
+    input.split_whitespace().filter(|token| token.len() > 1).map(ToOwned::to_owned).collect()
 }
 
 fn contains_term(markdown: &str, term: &str) -> bool {
@@ -700,11 +693,17 @@ fn resolve_model(
     llm_enabled: bool,
     model_override: Option<&str>,
 ) -> Result<Option<String>> {
+    if !llm_enabled {
+        return Ok(None);
+    }
+
     let model = model_override
         .map(ToOwned::to_owned)
         .or_else(|| config.ansorum.eval.model.clone())
-        .or_else(|| llm_enabled.then(|| DEFAULT_EVAL_MODEL.to_string()));
-    if let Some(model) = &model && !model.starts_with("gpt-5.4") {
+        .or_else(|| Some(DEFAULT_EVAL_MODEL.to_string()));
+    if let Some(model) = &model
+        && !model.starts_with("gpt-5.4")
+    {
         bail!("Eval model `{model}` must be in the GPT-5.4 family");
     }
 
@@ -758,15 +757,13 @@ fn finalize_report(report: &mut EvalReport) {
 }
 
 fn report_failed(report: &EvalReport) -> bool {
-    if report.summary.passed_cases < report.summary.total_cases {
-        return true;
-    }
-
     if let Some(min_pass_rate) = report.thresholds.min_pass_rate {
         let pass_rate = report.summary.passed_cases as f64 / report.summary.total_cases as f64;
         if pass_rate < min_pass_rate {
             return true;
         }
+    } else if report.summary.passed_cases < report.summary.total_cases {
+        return true;
     }
 
     if let Some(min_llm_average) = report.thresholds.min_llm_average {
@@ -776,7 +773,9 @@ fn report_failed(report: &EvalReport) -> bool {
         }
     }
 
-    if report.thresholds.require_llm && report.summary.llm_scored_cases != report.summary.total_cases {
+    if report.thresholds.require_llm
+        && report.summary.llm_scored_cases != report.summary.total_cases
+    {
         return true;
     }
 
@@ -804,21 +803,14 @@ fn print_human_report(report: &EvalReport) {
     }
 
     for case in &report.cases {
-        println!(
-            "- [{}] {}",
-            if case.passed { "pass" } else { "fail" },
-            case.question
-        );
+        println!("- [{}] {}", if case.passed { "pass" } else { "fail" }, case.question);
         println!(
             "  retrieval={} ranked={}",
             case.retrieval.passed,
             case.retrieval.ranked_ids.join(", ")
         );
         if !case.retrieval.missing_expected_ids.is_empty() {
-            println!(
-                "  missing expected ids: {}",
-                case.retrieval.missing_expected_ids.join(", ")
-            );
+            println!("  missing expected ids: {}", case.retrieval.missing_expected_ids.join(", "));
         }
         if !case.retrieval.present_forbidden_ids.is_empty() {
             println!(
@@ -852,26 +844,28 @@ fn print_json_report(report: &EvalReport) -> Result<()> {
 }
 
 fn validate_ratio(name: &str, value: Option<f64>) -> Result<()> {
-    if let Some(value) = value && !(0.0..=1.0).contains(&value) {
+    if let Some(value) = value
+        && !(0.0..=1.0).contains(&value)
+    {
         bail!("`{name}` must be between 0.0 and 1.0");
     }
     Ok(())
 }
 
 fn extract_response_text(response: &JsonValue) -> Option<String> {
-    response
-        .get("output_text")
-        .and_then(JsonValue::as_str)
-        .map(ToOwned::to_owned)
-        .or_else(|| {
-            response
-                .get("output")
-                .and_then(JsonValue::as_array)
-                .into_iter()
-                .flatten()
-                .flat_map(|item| item.get("content").and_then(JsonValue::as_array).into_iter().flatten())
-                .find_map(|content| content.get("text").and_then(JsonValue::as_str).map(ToOwned::to_owned))
-        })
+    response.get("output_text").and_then(JsonValue::as_str).map(ToOwned::to_owned).or_else(|| {
+        response
+            .get("output")
+            .and_then(JsonValue::as_array)
+            .into_iter()
+            .flatten()
+            .flat_map(|item| {
+                item.get("content").and_then(JsonValue::as_array).into_iter().flatten()
+            })
+            .find_map(|content| {
+                content.get("text").and_then(JsonValue::as_str).map(ToOwned::to_owned)
+            })
+    })
 }
 
 fn llm_grade_schema() -> JsonValue {
@@ -971,6 +965,12 @@ fn eval_format_name(format: EvalFormat) -> &'static str {
     }
 }
 
+fn eval_backend_name(backend: EvalBackend) -> &'static str {
+    match backend {
+        EvalBackend::OpenAiResponses => "openai_responses",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::env;
@@ -980,7 +980,7 @@ mod tests {
 
     use super::{
         OpenAiFailureContext, classify_openai_failure, contains_term, eval, finalize_report,
-        load_fixture_file, rank_answers, resolve_fixture_path, resolve_model,
+        load_fixture_file, rank_answers, report_failed, resolve_fixture_path, resolve_model,
     };
     use crate::cli::EvalFormat;
     use config::Config;
@@ -1008,7 +1008,8 @@ mod tests {
 
     #[test]
     fn eval_ranking_excludes_non_public_machine_invisible_answers() {
-        let path = env::current_dir().unwrap().join("test_sites_invalid/answers_visibility_outputs");
+        let path =
+            env::current_dir().unwrap().join("test_sites_invalid/answers_visibility_outputs");
         let config_file = path.join("config.toml");
         let mut site = Site::new(&path, &config_file).unwrap();
         site.load().unwrap();
@@ -1037,16 +1038,22 @@ mod tests {
     fn reference_project_eval_fixtures_pass_deterministic_checks() {
         let root = env::current_dir().unwrap().join("test_site_answers");
         let config_file = root.join("config.toml");
-        let fixture = load_fixture_file(&root.join("eval/fixtures.yaml")).expect("fixture should parse");
+        let fixture =
+            load_fixture_file(&root.join("eval/fixtures.yaml")).expect("fixture should parse");
         let mut site = Site::new(&root, &config_file).unwrap();
         site.load().unwrap();
         let markdown_by_id = super::machine_markdown_by_id(&site);
 
         for case in fixture.cases {
             let ranked = rank_answers(&case.question, &site);
-            assert!(!ranked.is_empty(), "expected at least one ranked answer for {}", case.question);
+            assert!(
+                !ranked.is_empty(),
+                "expected at least one ranked answer for {}",
+                case.question
+            );
 
-            let ranked_ids = ranked.iter().map(|candidate| candidate.id.as_str()).collect::<Vec<_>>();
+            let ranked_ids =
+                ranked.iter().map(|candidate| candidate.id.as_str()).collect::<Vec<_>>();
             for expected_id in &case.expected_ids {
                 assert!(
                     ranked_ids.iter().any(|candidate| candidate == expected_id),
@@ -1069,7 +1076,8 @@ mod tests {
                 .find(|candidate| !case.forbidden_ids.iter().any(|id| id == &candidate.id))
                 .expect("expected selected answer");
             assert!(
-                case.expected_ids.is_empty() || case.expected_ids.iter().any(|id| id == &selected.id),
+                case.expected_ids.is_empty()
+                    || case.expected_ids.iter().any(|id| id == &selected.id),
                 "selected unexpected answer {} for {}",
                 selected.id,
                 case.question
@@ -1079,7 +1087,12 @@ mod tests {
                 .get(&selected.id)
                 .expect("expected machine markdown for selected answer");
             for term in &case.required_terms {
-                assert!(contains_term(markdown, term), "missing required term {} for {}", term, case.question);
+                assert!(
+                    contains_term(markdown, term),
+                    "missing required term {} for {}",
+                    term,
+                    case.question
+                );
             }
         }
     }
@@ -1148,6 +1161,70 @@ mod tests {
         let model =
             resolve_model(&config, true, Some("gpt-5.4")).expect("expected overridden model");
         assert_eq!(model.as_deref(), Some("gpt-5.4"));
+    }
+
+    #[test]
+    fn model_is_absent_when_llm_eval_is_disabled() {
+        let config = Config::default_for_test();
+        let model =
+            resolve_model(&config, false, None).expect("expected model resolution to succeed");
+        assert_eq!(model, None);
+    }
+
+    #[test]
+    fn min_pass_rate_threshold_allows_partial_success_when_met() {
+        let report = super::EvalReport {
+            fixture_path: "eval/fixtures.yaml".to_string(),
+            backend: None,
+            model: None,
+            prompt_version: "v1".to_string(),
+            summary: super::EvalSummary {
+                total_cases: 2,
+                passed_cases: 1,
+                retrieval_passed: 1,
+                selection_passed: 1,
+                llm_scored_cases: 0,
+                llm_passed_cases: 0,
+                llm_average: None,
+            },
+            thresholds: super::EvalThresholds {
+                min_pass_rate: Some(0.5),
+                min_llm_average: None,
+                min_llm_score: None,
+                require_llm: false,
+            },
+            cases: Vec::new(),
+        };
+
+        assert!(!report_failed(&report));
+    }
+
+    #[test]
+    fn min_pass_rate_threshold_still_fails_when_unmet() {
+        let report = super::EvalReport {
+            fixture_path: "eval/fixtures.yaml".to_string(),
+            backend: None,
+            model: None,
+            prompt_version: "v1".to_string(),
+            summary: super::EvalSummary {
+                total_cases: 2,
+                passed_cases: 1,
+                retrieval_passed: 1,
+                selection_passed: 1,
+                llm_scored_cases: 0,
+                llm_passed_cases: 0,
+                llm_average: None,
+            },
+            thresholds: super::EvalThresholds {
+                min_pass_rate: Some(0.75),
+                min_llm_average: None,
+                min_llm_score: None,
+                require_llm: false,
+            },
+            cases: Vec::new(),
+        };
+
+        assert!(report_failed(&report));
     }
 
     #[test]

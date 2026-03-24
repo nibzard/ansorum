@@ -105,7 +105,9 @@ pub fn filter_events(
         }
 
         // We only care about changes in non-empty folders
-        if simple_kind != SimpleFileSystemEventKind::Remove && path.is_dir() && is_folder_empty(&path)
+        if simple_kind != SimpleFileSystemEventKind::Remove
+            && path.is_dir()
+            && is_folder_empty(&path)
         {
             continue;
         }
@@ -174,9 +176,9 @@ fn detect_change_kind(pwd: &Path, path: &Path, config_path: &Path) -> (ChangeKin
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use notify_debouncer_full::notify::event::*;
     use notify_debouncer_full::{DebouncedEvent, notify::Event};
+    use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::Instant;
 

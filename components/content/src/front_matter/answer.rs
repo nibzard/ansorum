@@ -5,8 +5,8 @@ use errors::{Result, bail};
 use utils::de::{fix_toml_dates, from_unknown_datetime};
 
 use crate::answer::{
-    AiVisibility, AnswerAudience, AnswerFrontMatter, AnswerIntent, AnswerVisibility,
-    LlmsPriority, TokenBudget,
+    AiVisibility, AnswerAudience, AnswerFrontMatter, AnswerIntent, AnswerVisibility, LlmsPriority,
+    TokenBudget,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
@@ -130,12 +130,10 @@ impl RawAnswerFrontMatter {
             bail!("An answer page requires at least one of `title` or `canonical_questions`");
         }
 
-        let canonical_questions =
-            non_empty_vec(self.canonical_questions, "canonical_questions")?;
+        let canonical_questions = non_empty_vec(self.canonical_questions, "canonical_questions")?;
         let related = non_empty_vec(self.related, "related")?;
         let external_refs = non_empty_vec(self.external_refs, "external_refs")?;
-        let retrieval_aliases =
-            non_empty_vec(self.retrieval_aliases, "retrieval_aliases")?;
+        let retrieval_aliases = non_empty_vec(self.retrieval_aliases, "retrieval_aliases")?;
 
         Ok(Some(AnswerFrontMatter {
             id,

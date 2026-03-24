@@ -127,7 +127,8 @@ fn remove_output_path(path: &Path) -> Result<()> {
         fs::remove_dir_all(path)
             .with_context(|| format!("Failed to remove directory {}", path.display()))?;
     } else {
-        fs::remove_file(path).with_context(|| format!("Failed to remove file {}", path.display()))?;
+        fs::remove_file(path)
+            .with_context(|| format!("Failed to remove file {}", path.display()))?;
     }
 
     Ok(())
@@ -144,10 +145,8 @@ fn remove_deleted_content_output(site: &Site, full_path: &Path) -> Result<()> {
     let library = site.library.read().expect("read site library");
 
     if let Some(page) = library.pages.get(full_path) {
-        let output_path = page
-            .permalink
-            .trim_start_matches(&site.config.base_url)
-            .trim_start_matches('/');
+        let output_path =
+            page.permalink.trim_start_matches(&site.config.base_url).trim_start_matches('/');
         return remove_output_path(&site.output_path.join(output_path));
     }
 
@@ -156,10 +155,11 @@ fn remove_deleted_content_output(site: &Site, full_path: &Path) -> Result<()> {
             return Ok(());
         }
 
-        let output_path = section.components.iter().fold(site.output_path.clone(), |mut acc, component| {
-            acc.push(component);
-            acc
-        });
+        let output_path =
+            section.components.iter().fold(site.output_path.clone(), |mut acc, component| {
+                acc.push(component);
+                acc
+            });
         return remove_output_path(&output_path);
     }
 
@@ -223,7 +223,13 @@ async fn handle_request(
         && let Some(markdown_path) = markdown_variant.as_ref()
         && let Some(content) = SITE_CONTENT.read().unwrap().get(markdown_path).cloned()
     {
-        log_machine_delivery(req.method(), path_str, markdown_path.as_str(), "memory", "negotiated");
+        log_machine_delivery(
+            req.method(),
+            path_str,
+            markdown_path.as_str(),
+            "memory",
+            "negotiated",
+        );
         return in_memory_content(markdown_path, &content, true);
     }
 
@@ -258,7 +264,13 @@ async fn handle_request(
             let markdown_root = root.join("page.md");
             if let Ok(contents) = tokio::fs::read(&markdown_root).await {
                 if let Some(markdown_path) = markdown_variant.as_ref() {
-                    log_machine_delivery(req.method(), path_str, markdown_path.as_str(), "disk", "negotiated");
+                    log_machine_delivery(
+                        req.method(),
+                        path_str,
+                        markdown_path.as_str(),
+                        "disk",
+                        "negotiated",
+                    );
                 }
                 return build_content_response(
                     content_type_from_extension(markdown_root.extension().and_then(OsStr::to_str)),
@@ -469,12 +481,29 @@ fn accepts_markdown(headers: &HeaderMap) -> bool {
     headers
         .get(header::ACCEPT)
         .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| {
-            value
-                .split(',')
-                .filter_map(|part| part.split(';').next())
-                .any(|mime| mime.trim().eq_ignore_ascii_case("text/markdown"))
+        .is_some_and(|value| value.split(',').any(|part| accept_allows_markdown(part)))
+}
+
+fn accept_allows_markdown(part: &str) -> bool {
+    let mut segments = part.split(';');
+    let Some(mime) = segments.next().map(str::trim) else {
+        return false;
+    };
+    if !mime.eq_ignore_ascii_case("text/markdown") {
+        return false;
+    }
+
+    let quality = segments
+        .filter_map(|segment| {
+            let mut parts = segment.splitn(2, '=');
+            let name = parts.next()?.trim();
+            let value = parts.next()?.trim();
+            name.eq_ignore_ascii_case("q").then_some(value)
         })
+        .find_map(|value| value.parse::<f32>().ok())
+        .unwrap_or(1.0);
+
+    quality > 0.0
 }
 
 fn redirect_code(path: &str) -> Option<&str> {
@@ -865,10 +894,7 @@ pub fn serve(
         .iter()
         .map(|route| {
             let external = !route.target.starts_with('/');
-            (
-                route.code.clone(),
-                RedirectTarget { target: route.target.clone(), external },
-            )
+            (route.code.clone(), RedirectTarget { target: route.target.clone(), external })
         })
         .collect::<HashMap<_, _>>();
 
@@ -964,8 +990,10 @@ pub fn serve(
         );
     };
 
-    let copy_static =
-        |site: &Site, path: &Path, partial_path: &Path, event_kind: &SimpleFileSystemEventKind| {
+    let copy_static = |site: &Site,
+                       path: &Path,
+                       partial_path: &Path,
+                       event_kind: &SimpleFileSystemEventKind| {
         // Do nothing if the file/dir is on the ignore list
         if let Some(gs) = &site.config.ignored_static_globset
             && gs.is_match(partial_path)
@@ -1199,10 +1227,12 @@ pub fn serve(
 #[cfg(test)]
 mod tests {
     use super::{
-        AppState, RedirectTarget, clear_serve_error, construct_url, create_new_site,
-        disk_content_type, error_injection_middleware, handle_request, remove_deleted_content_output,
-        remove_deleted_static_output, set_serve_error, strip_mounted_path, MAX_ERROR_OVERLAY_BYTES,
+        AppState, MAX_ERROR_OVERLAY_BYTES, RedirectTarget, clear_serve_error, construct_url,
+        create_new_site, disk_content_type, error_injection_middleware, handle_request,
+        remove_deleted_content_output, remove_deleted_static_output, set_serve_error,
+        strip_mounted_path,
     };
+    use crate::get_config_file_path;
     use axum::{
         body::{Body, to_bytes},
         extract::Request,
@@ -1210,9 +1240,8 @@ mod tests {
         response::Response,
     };
     use relative_path::RelativePathBuf;
-    use site::Site;
     use site::SITE_CONTENT;
-    use crate::get_config_file_path;
+    use site::Site;
     use std::collections::HashMap;
     use std::fs;
     use std::net::{IpAddr, SocketAddr};
@@ -1403,11 +1432,12 @@ mod tests {
         test_app_state_with_base_path_and_redirects(static_root, "/".to_string(), redirects)
     }
 
-    fn test_app_state_with_base_path(
-        static_root: PathBuf,
-        base_path: &str,
-    ) -> Arc<AppState> {
-        test_app_state_with_base_path_and_redirects(static_root, base_path.to_string(), HashMap::new())
+    fn test_app_state_with_base_path(static_root: PathBuf, base_path: &str) -> Arc<AppState> {
+        test_app_state_with_base_path_and_redirects(
+            static_root,
+            base_path.to_string(),
+            HashMap::new(),
+        )
     }
 
     fn test_app_state_with_base_path_and_redirects(
@@ -1436,16 +1466,17 @@ mod tests {
         })
     }
 
-    fn run_request(req: Request, state: Arc<AppState>) -> (StatusCode, axum::http::HeaderMap, String) {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("runtime");
+    fn run_request(
+        req: Request,
+        state: Arc<AppState>,
+    ) -> (StatusCode, axum::http::HeaderMap, String) {
+        let rt =
+            tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
         let response = rt.block_on(handle_request(axum::extract::State(state), req));
         let status = response.status();
         let headers = response.headers().clone();
-        let body = rt
-            .block_on(async { to_bytes(response.into_body(), usize::MAX).await.expect("body") });
+        let body =
+            rt.block_on(async { to_bytes(response.into_body(), usize::MAX).await.expect("body") });
         (status, headers, String::from_utf8(body.to_vec()).expect("utf8 body"))
     }
 
@@ -1458,12 +1489,10 @@ mod tests {
     }
 
     fn body_text(response: axum::response::Response) -> String {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("runtime");
-        let body = rt
-            .block_on(async { to_bytes(response.into_body(), usize::MAX).await.expect("body") });
+        let rt =
+            tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+        let body =
+            rt.block_on(async { to_bytes(response.into_body(), usize::MAX).await.expect("body") });
         String::from_utf8(body.to_vec()).expect("utf8 body")
     }
 
@@ -1489,11 +1518,18 @@ mod tests {
     fn serves_markdown_variant_from_memory_when_accept_header_requests_it() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
-        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown")), state);
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/markdown")), state);
 
         assert_eq!(status, StatusCode::OK);
         assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
@@ -1514,10 +1550,8 @@ mod tests {
             .body(Body::from("<html><body>Hello</body></html>"))
             .expect("response");
 
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("runtime");
+        let rt =
+            tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
         let response = rt.block_on(error_injection_middleware(response));
         let body = body_text(response);
 
@@ -1540,10 +1574,8 @@ mod tests {
             .body(Body::from(oversized.clone()))
             .expect("response");
 
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("runtime");
+        let rt =
+            tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
         let response = rt.block_on(error_injection_middleware(response));
         let body = body_text(response);
 
@@ -1564,10 +1596,8 @@ mod tests {
             .body(Body::from("Not Found"))
             .expect("response");
 
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("runtime");
+        let rt =
+            tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
         let response = rt.block_on(error_injection_middleware(response));
         let status = response.status();
         let headers = response.headers().clone();
@@ -1586,8 +1616,14 @@ mod tests {
     fn serves_html_with_vary_header_on_canonical_route_without_markdown_accept() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) = run_request(request("/refunds/", Some("text/html")), state);
@@ -1618,7 +1654,8 @@ mod tests {
         fs::write(refunds.join("page.md"), "# Refunds").expect("write markdown");
 
         let state = test_app_state(root.clone());
-        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown, text/html;q=0.8")), state);
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/markdown, text/html;q=0.8")), state);
 
         assert_eq!(status, StatusCode::OK);
         assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
@@ -1629,11 +1666,42 @@ mod tests {
     }
 
     #[test]
+    fn does_not_negotiate_markdown_when_accept_quality_is_zero() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state(std::env::temp_dir());
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/markdown;q=0, text/html")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "<html>Refunds</html>");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
     fn does_not_negotiate_markdown_when_markdown_negotiation_is_disabled() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
 
         let state = test_app_state_with_delivery(
             std::env::temp_dir(),
@@ -1642,7 +1710,8 @@ mod tests {
             false,
             HashMap::new(),
         );
-        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown")), state);
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/markdown")), state);
 
         assert_eq!(status, StatusCode::OK);
         assert_eq!(headers[header::CONTENT_TYPE], "text/html");
@@ -1656,8 +1725,14 @@ mod tests {
     fn does_not_serve_markdown_routes_when_markdown_routes_are_disabled() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
 
         let state = test_app_state_with_delivery(
             std::env::temp_dir(),
@@ -1710,7 +1785,8 @@ mod tests {
         fs::create_dir_all(refunds.join("index.html")).expect("create invalid html path");
 
         let state = test_app_state(root.clone());
-        let (status, headers, body) = run_request(request("/refunds/", Some("text/markdown")), state);
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/markdown")), state);
 
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(headers[header::CONTENT_TYPE], "text/plain");
@@ -1754,8 +1830,14 @@ mod tests {
     fn serves_markdown_variant_from_memory_under_mounted_base_path() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
-        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
 
         let state = test_app_state_with_base_path(std::env::temp_dir(), "/docs");
         let (status, headers, body) =
@@ -1818,8 +1900,11 @@ mod tests {
             RedirectTarget { target: "/demo".to_string(), external: false },
         )]);
 
-        let state =
-            test_app_state_with_base_path_and_redirects(std::env::temp_dir(), "/docs".to_string(), redirects);
+        let state = test_app_state_with_base_path_and_redirects(
+            std::env::temp_dir(),
+            "/docs".to_string(),
+            redirects,
+        );
         let (status, headers, body) = run_request(request("/docs/r/sales-demo", None), state);
 
         assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
@@ -1846,10 +1931,7 @@ mod tests {
     fn serves_external_redirect_route_from_configured_code() {
         let redirects = HashMap::from([(
             "partner".to_string(),
-            RedirectTarget {
-                target: "https://docs.example.com/guide".to_string(),
-                external: true,
-            },
+            RedirectTarget { target: "https://docs.example.com/guide".to_string(), external: true },
         )]);
 
         let state = test_app_state_with_redirects(std::env::temp_dir(), redirects);
@@ -1892,7 +1974,8 @@ mod tests {
         let refunds_output = output_root.join("refunds");
         assert!(refunds_output.exists());
 
-        remove_deleted_content_output(&site, &root.join("content/refunds.md")).expect("remove content");
+        remove_deleted_content_output(&site, &root.join("content/refunds.md"))
+            .expect("remove content");
 
         assert!(!refunds_output.exists());
         fs::remove_dir_all(output_root).expect("cleanup");

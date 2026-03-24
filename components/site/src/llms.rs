@@ -22,7 +22,11 @@ pub struct PackOutput {
     pub answers_json: String,
 }
 
-pub fn build_outputs(config: &Config, base_path: &Path, answers: &AnswerCorpus) -> Result<LlmsOutputs> {
+pub fn build_outputs(
+    config: &Config,
+    base_path: &Path,
+    answers: &AnswerCorpus,
+) -> Result<LlmsOutputs> {
     let generated_packs = build_packs(config, base_path, answers)?;
     let pack_refs = generated_packs
         .iter()
@@ -54,16 +58,13 @@ struct PackDefinition<'a> {
     path: String,
     title: String,
     description: String,
+    origin: String,
     records: Vec<&'a AnswerRecord>,
 }
 
 impl<'a> PackDefinition<'a> {
     fn ai_visible_records(&self) -> Vec<&'a AnswerRecord> {
-        self.records
-            .iter()
-            .copied()
-            .filter(|record| is_ai_visible(record))
-            .collect()
+        self.records.iter().copied().filter(|record| is_ai_visible(record)).collect()
     }
 }
 
@@ -84,7 +85,11 @@ struct CuratedPackFile {
     intents: Vec<AnswerIntent>,
 }
 
-fn build_packs<'a>(config: &Config, base_path: &Path, answers: &'a AnswerCorpus) -> Result<Vec<PackDefinition<'a>>> {
+fn build_packs<'a>(
+    config: &Config,
+    base_path: &Path,
+    answers: &'a AnswerCorpus,
+) -> Result<Vec<PackDefinition<'a>>> {
     let mut packs = BTreeMap::<String, PackDefinition<'a>>::new();
 
     if config.ansorum.packs.auto_entity_packs {
@@ -106,16 +111,18 @@ fn build_packs<'a>(config: &Config, base_path: &Path, answers: &'a AnswerCorpus)
             }
 
             let name = slugify_paths(&entity, config.slugify.paths);
-            packs.insert(
+            insert_pack(
+                &mut packs,
                 name.clone(),
                 PackDefinition {
                     name: name.clone(),
                     path: name,
                     title: format!("{} answers", entity),
                     description: format!("Scoped AI-visible answers for the `{entity}` entity."),
+                    origin: format!("auto entity pack for `{entity}`"),
                     records,
                 },
-            );
+            )?;
         }
     }
 
@@ -140,7 +147,8 @@ fn build_packs<'a>(config: &Config, base_path: &Path, answers: &'a AnswerCorpus)
 
             let audience_name = audience_name(&audience);
             let name = slugify_paths(audience_name, config.slugify.paths);
-            packs.insert(
+            insert_pack(
+                &mut packs,
                 name.clone(),
                 PackDefinition {
                     name: name.clone(),
@@ -150,9 +158,10 @@ fn build_packs<'a>(config: &Config, base_path: &Path, answers: &'a AnswerCorpus)
                         "Scoped AI-visible answers for the `{}` audience.",
                         audience_name
                     ),
+                    origin: format!("auto audience pack for `{audience_name}`"),
                     records,
                 },
-            );
+            )?;
         }
     }
 
@@ -227,7 +236,8 @@ fn build_packs<'a>(config: &Config, base_path: &Path, answers: &'a AnswerCorpus)
 
         records.sort_by(|left, right| left.id.cmp(&right.id));
         let name = curated.name.clone();
-        packs.insert(
+        insert_pack(
+            &mut packs,
             name.clone(),
             PackDefinition {
                 name: name.clone(),
@@ -238,15 +248,37 @@ fn build_packs<'a>(config: &Config, base_path: &Path, answers: &'a AnswerCorpus)
                 description: definition.description.unwrap_or_else(|| {
                     format!("Curated AI-visible answer pack `{}`.", curated.name)
                 }),
+                origin: format!("curated pack `{}` from {}", curated.name, path.display()),
                 records,
             },
-        );
+        )?;
     }
 
     Ok(packs.into_values().filter(|pack| !pack.ai_visible_records().is_empty()).collect())
 }
 
-fn render_root_llms(config: &Config, answers: &AnswerCorpus, pack_refs: &[PackReference]) -> String {
+fn insert_pack<'a>(
+    packs: &mut BTreeMap<String, PackDefinition<'a>>,
+    name: String,
+    pack: PackDefinition<'a>,
+) -> Result<()> {
+    if let Some(existing) = packs.get(&name) {
+        bail!(
+            "Duplicate ansorum pack output path `{name}` from {} conflicts with {}",
+            pack.origin,
+            existing.origin
+        );
+    }
+
+    packs.insert(name, pack);
+    Ok(())
+}
+
+fn render_root_llms(
+    config: &Config,
+    answers: &AnswerCorpus,
+    pack_refs: &[PackReference],
+) -> String {
     let mut output = String::new();
     push_heading(&mut output, config.title.as_deref().unwrap_or("Ansorum"));
     push_paragraph(&mut output, corpus_description(config));
@@ -264,10 +296,7 @@ fn render_root_llms(config: &Config, answers: &AnswerCorpus, pack_refs: &[PackRe
     if !pack_refs.is_empty() {
         output.push_str("## Scoped Packs\n\n");
         for pack in pack_refs {
-            output.push_str(&format!(
-                "- {} (`{}`): {}\n",
-                pack.title, pack.name, pack.llms_url
-            ));
+            output.push_str(&format!("- {} (`{}`): {}\n", pack.title, pack.name, pack.llms_url));
         }
         output.push('\n');
     }
@@ -277,7 +306,10 @@ fn render_root_llms(config: &Config, answers: &AnswerCorpus, pack_refs: &[PackRe
 
 fn render_full_llms(config: &Config, answers: &AnswerCorpus) -> String {
     let mut output = String::new();
-    push_heading(&mut output, &format!("{} full export", config.title.as_deref().unwrap_or("Ansorum")));
+    push_heading(
+        &mut output,
+        &format!("{} full export", config.title.as_deref().unwrap_or("Ansorum")),
+    );
     push_paragraph(&mut output, corpus_description(config));
     push_section(
         &mut output,
@@ -287,7 +319,11 @@ fn render_full_llms(config: &Config, answers: &AnswerCorpus) -> String {
     output
 }
 
-fn render_pack_llms(config: &Config, pack: &PackDefinition<'_>, records: &[&AnswerRecord]) -> String {
+fn render_pack_llms(
+    config: &Config,
+    pack: &PackDefinition<'_>,
+    records: &[&AnswerRecord],
+) -> String {
     let mut output = String::new();
     push_heading(
         &mut output,
@@ -296,11 +332,7 @@ fn render_pack_llms(config: &Config, pack: &PackDefinition<'_>, records: &[&Answ
     push_paragraph(&mut output, &pack.description);
 
     let core = records.iter().copied().filter(|record| is_core(record)).collect::<Vec<_>>();
-    let optional = records
-        .iter()
-        .copied()
-        .filter(|record| is_optional(record))
-        .collect::<Vec<_>>();
+    let optional = records.iter().copied().filter(|record| is_optional(record)).collect::<Vec<_>>();
 
     push_section(&mut output, "Core Answers", &core);
     if !optional.is_empty() {
@@ -368,7 +400,8 @@ fn audience_name(audience: &AnswerAudience) -> &'static str {
 }
 
 fn title_case(value: &str) -> String {
-    value.split(['-', '_', ' '])
+    value
+        .split(['-', '_', ' '])
         .filter(|part| !part.is_empty())
         .map(|part| {
             let mut chars = part.chars();

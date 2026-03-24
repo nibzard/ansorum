@@ -185,7 +185,11 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
 
     assert!(file_exists!(public, "refunds/page.md"));
     assert!(file_contains!(public, "refunds/page.md", "# Refund policy"));
-    assert!(file_contains!(public, "refunds/page.md", "canonical_url: https://answers.example.com/refunds/"));
+    assert!(file_contains!(
+        public,
+        "refunds/page.md",
+        "canonical_url: https://answers.example.com/refunds/"
+    ));
     assert!(file_contains!(public, "refunds/page.md", "retrieval_aliases:"));
 
     assert!(file_exists!(public, "cancel/page.md"));
@@ -194,7 +198,11 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
         "cancel/page.md",
         "How to cancel a subscription and what happens after."
     ));
-    assert!(file_contains!(public, "cancel/page.md", "Canonical page: <https://answers.example.com/cancel/>"));
+    assert!(file_contains!(
+        public,
+        "cancel/page.md",
+        "Canonical page: <https://answers.example.com/cancel/>"
+    ));
     assert!(!file_contains!(public, "cancel/page.md", "Cancellation details for customers."));
 
     assert!(!file_exists!(public, "internal-playbook/page.md"));
@@ -241,10 +249,12 @@ Refund details for customers."#,
     site.set_output_path(&public);
     site.build().expect("Couldn't build the site");
 
-    let markdown = fs::read_to_string(public.join("refunds").join("page.md")).expect("read machine markdown");
+    let markdown =
+        fs::read_to_string(public.join("refunds").join("page.md")).expect("read machine markdown");
     let front_matter = machine_front_matter(&markdown);
 
-    let yaml: serde_yaml::Value = serde_yaml::from_str(front_matter).expect("parse yaml front matter");
+    let yaml: serde_yaml::Value =
+        serde_yaml::from_str(front_matter).expect("parse yaml front matter");
     assert_eq!(yaml["entity"].as_str(), Some("billing:core"));
     assert_eq!(yaml["canonical_questions"][0].as_str(), Some("how do refunds: work?"));
     assert_eq!(yaml["canonical_questions"][1].as_str(), Some("can i get a \"refund\"?"));
@@ -331,11 +341,7 @@ fn matches_answer_first_golden_outputs() {
         "answers.json",
         "test_site_answers/expected/public/answers.json",
     );
-    assert_file_matches_fixture(
-        &public,
-        "llms.txt",
-        "test_site_answers/expected/public/llms.txt",
-    );
+    assert_file_matches_fixture(&public, "llms.txt", "test_site_answers/expected/public/llms.txt");
     assert_file_matches_fixture(
         &public,
         "refunds/schema.json",
@@ -356,7 +362,11 @@ fn embeds_json_ld_and_writes_schema_sidecars() {
 
     assert!(file_exists!(public, "cancel/schema.json"));
     assert!(file_contains!(public, "cancel/schema.json", "\"@type\": \"HowTo\""));
-    assert!(file_contains!(public, "cancel/schema.json", "\"name\": \"how do i cancel my subscription\""));
+    assert!(file_contains!(
+        public,
+        "cancel/schema.json",
+        "\"name\": \"how do i cancel my subscription\""
+    ));
 }
 
 #[test]
@@ -394,36 +404,84 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert!(file_exists!(public, "llms-full.txt"));
     assert!(file_contains!(public, "llms.txt", "# Acme Billing Answers"));
     assert!(file_contains!(public, "llms.txt", "## Core Answers"));
-    assert!(file_contains!(public, "llms.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
+    assert!(file_contains!(
+        public,
+        "llms.txt",
+        "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"
+    ));
     assert!(file_contains!(public, "llms.txt", "## Additional Context"));
-    assert!(file_contains!(public, "llms.txt", "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"));
+    assert!(file_contains!(
+        public,
+        "llms.txt",
+        "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
+    ));
     assert!(file_contains!(public, "llms.txt", "## Scoped Packs"));
     assert!(file_contains!(public, "llms.txt", "https://answers.example.com/billing/llms.txt"));
     assert!(file_contains!(public, "llms.txt", "https://answers.example.com/customer/llms.txt"));
 
     assert!(file_contains!(public, "llms-full.txt", "# Acme Billing Answers full export"));
-    assert!(file_contains!(public, "llms-full.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
-    assert!(file_contains!(public, "llms-full.txt", "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"));
+    assert!(file_contains!(
+        public,
+        "llms-full.txt",
+        "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"
+    ));
+    assert!(file_contains!(
+        public,
+        "llms-full.txt",
+        "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
+    ));
     assert!(!file_contains!(public, "llms-full.txt", "internal-support-escalation"));
 
     assert!(file_exists!(public, "billing/llms.txt"));
     assert!(file_exists!(public, "billing/answers.json"));
-    assert!(file_contains!(public, "billing/llms.txt", "Curated billing pack for customer-visible billing answers."));
-    assert!(file_contains!(public, "billing/llms.txt", "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"));
+    assert!(file_contains!(
+        public,
+        "billing/llms.txt",
+        "Curated billing pack for customer-visible billing answers."
+    ));
+    assert!(file_contains!(
+        public,
+        "billing/llms.txt",
+        "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"
+    ));
 
     assert!(file_exists!(public, "customer/llms.txt"));
     assert!(file_exists!(public, "customer/answers.json"));
-    assert!(file_contains!(public, "customer/llms.txt", "Scoped AI-visible answers for the `customer` audience."));
+    assert!(file_contains!(
+        public,
+        "customer/llms.txt",
+        "Scoped AI-visible answers for the `customer` audience."
+    ));
     assert!(!file_exists!(public, "support/llms.txt"));
 
-    let billing_index =
-        fs::read_to_string(public.join("billing").join("answers.json")).expect("read billing answers.json");
+    let billing_index = fs::read_to_string(public.join("billing").join("answers.json"))
+        .expect("read billing answers.json");
     let billing_json: serde_json::Value =
         serde_json::from_str(&billing_index).expect("parse billing answers.json");
     let billing_answers = billing_json["answers"].as_array().expect("billing answers array");
     assert_eq!(billing_answers.len(), 2);
     assert_eq!(billing_answers[0]["id"], "cancel-subscription");
     assert_eq!(billing_answers[1]["id"], "refunds-policy");
+}
+
+#[test]
+fn errors_on_conflicting_pack_output_names() {
+    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    path.push("test_site_answers");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+    site.config.ansorum.packs.curated[0].name = "customer".to_string();
+    site.load().unwrap();
+
+    let tmp_dir = tempdir().expect("create temp dir");
+    let public = tmp_dir.path().join("public");
+    site.set_output_path(&public);
+
+    let err = site.build().expect_err("pack collision should fail");
+    assert_eq!(
+        err.to_string(),
+        "Duplicate ansorum pack output path `customer` from curated pack `customer` from /home/agent/ansorum/test_site_answers/collections/packs/billing.toml conflicts with auto audience pack for `customer`"
+    );
 }
 
 #[test]
@@ -442,11 +500,7 @@ fn audits_freshness_visibility_and_machine_output_quality() {
         NaiveDate::from_ymd_opt(2026, 3, 18).expect("valid date"),
     );
 
-    let codes = report
-        .findings
-        .iter()
-        .map(|finding| finding.code.as_str())
-        .collect::<Vec<_>>();
+    let codes = report.findings.iter().map(|finding| finding.code.as_str()).collect::<Vec<_>>();
 
     assert!(codes.contains(&"missing_related_links"));
     assert!(codes.contains(&"stale_review_by"));
@@ -1314,7 +1368,11 @@ fn filters_non_public_answers_from_machine_outputs() {
     assert!(!file_contains!(public, "answers.json", "\"internal-only\""));
     assert!(!file_contains!(public, "answers.json", "\"private-playbook\""));
     assert!(!file_contains!(public, "answers.json", "\"related\": [\n        \"internal-only\""));
-    assert!(!file_contains!(public, "answers.json", "\"related\": [\n        \"private-playbook\""));
+    assert!(!file_contains!(
+        public,
+        "answers.json",
+        "\"related\": [\n        \"private-playbook\""
+    ));
 
     assert!(file_exists!(public, "billing/answers.json"));
     assert!(!file_contains!(public, "billing/answers.json", "\"internal-only\""));

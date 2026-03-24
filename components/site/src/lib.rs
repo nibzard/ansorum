@@ -765,7 +765,9 @@ impl Site {
         let assets = page
             .assets
             .iter()
-            .filter(|asset| structured_data_sidecar.as_ref().is_none_or(|sidecar| *asset != sidecar))
+            .filter(|asset| {
+                structured_data_sidecar.as_ref().is_none_or(|sidecar| *asset != sidecar)
+            })
             .collect::<Vec<_>>();
         self.copy_assets(page.file.path.parent().unwrap(), &assets, &current_path)?;
 

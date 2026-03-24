@@ -258,9 +258,8 @@ impl PageFrontMatter {
     /// Also grabs the year/month/day tuple that will be used in serialization
     pub fn date_to_datetime(&mut self) {
         self.datetime = self.date.as_ref().map(|s| s.as_ref()).and_then(parse_datetime);
-        self.datetime_tuple = self
-            .datetime
-            .map(|dt: OffsetDateTime| (dt.year(), dt.month().into(), dt.day()));
+        self.datetime_tuple =
+            self.datetime.map(|dt: OffsetDateTime| (dt.year(), dt.month().into(), dt.day()));
 
         self.updated_datetime = self.updated.as_ref().map(|s| s.as_ref()).and_then(parse_datetime);
         self.updated_datetime_tuple = self
@@ -302,9 +301,11 @@ impl Default for PageFrontMatter {
 
 #[cfg(test)]
 mod tests {
+    use crate::answer::{
+        AiVisibility, AnswerAudience, AnswerIntent, AnswerVisibility, LlmsPriority, TokenBudget,
+    };
     use crate::front_matter::page::PageFrontMatter;
     use crate::front_matter::split::RawFrontMatter;
-    use crate::answer::{AiVisibility, AnswerAudience, AnswerIntent, AnswerVisibility, LlmsPriority, TokenBudget};
     use tera::to_value;
     use test_case::test_case;
     use time::macros::datetime;
@@ -904,10 +905,7 @@ token_budget = "medium"
 "#,
         ));
 
-        assert_eq!(
-            res.unwrap_err().to_string(),
-            "An answer page requires `ai_visibility`"
-        );
+        assert_eq!(res.unwrap_err().to_string(), "An answer page requires `ai_visibility`");
     }
 
     #[test]

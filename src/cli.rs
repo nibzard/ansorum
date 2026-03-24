@@ -1,8 +1,8 @@
 use std::net::IpAddr;
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
 use clap::ValueEnum;
+use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 
 #[derive(Parser)]

@@ -233,14 +233,9 @@ mod tests {
 
     #[test]
     fn classifies_negotiated_markdown_fetches() {
-        let event = machine_delivery_event(
-            "GET",
-            "/refunds/",
-            "/refunds/page.md",
-            "memory",
-            "negotiated",
-        )
-        .expect("expected markdown event");
+        let event =
+            machine_delivery_event("GET", "/refunds/", "/refunds/page.md", "memory", "negotiated")
+                .expect("expected markdown event");
 
         assert_eq!(event.name, "ansorum.markdown.fetch");
         assert_eq!(

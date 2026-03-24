@@ -61,7 +61,10 @@ impl Redirects {
                 bail!("ansorum.redirects.external_host_allowlist cannot contain empty hosts");
             }
 
-            if host.contains("://") || host.contains('/') || host.contains('?') || host.contains('#')
+            if host.contains("://")
+                || host.contains('/')
+                || host.contains('?')
+                || host.contains('#')
             {
                 bail!(
                     "Invalid ansorum.redirects.external_host_allowlist entry `{host}`: expected a bare host name"

@@ -30,7 +30,7 @@ code = "billing-portal"
 target = "/cancel/"
 
 [ansorum.packs]
-auto_entity_packs = true
+auto_entity_packs = false
 auto_audience_packs = true
 
 [[ansorum.packs.curated]]
@@ -240,7 +240,9 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
     }
 
     console::info("Welcome to Ansorum!");
-    console::info("This scaffold creates an answer-first project with starter content, packs, redirects, and eval fixtures.");
+    console::info(
+        "This scaffold creates an answer-first project with starter content, packs, redirects, and eval fixtures.",
+    );
     console::info("Any choices made can be changed by modifying the generated files later.");
 
     let base_url = ask_url("> What is the URL of your site?", "https://example.com")?;
@@ -259,7 +261,9 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
         strip_unc(&canonicalize(path).unwrap())
     ));
     println!();
-    console::info("Next steps: `ansorum build`, `ansorum serve`, `ansorum audit`, and `ansorum eval`.");
+    console::info(
+        "Next steps: `ansorum build`, `ansorum serve`, `ansorum audit`, and `ansorum eval`.",
+    );
     println!("Visit https://ansorum.com/documentation/ for the full documentation.");
     Ok(())
 }
@@ -332,11 +336,7 @@ fn title_case_slug(input: &str) -> String {
         .filter(|part| !part.is_empty())
         .collect();
 
-    if words.is_empty() {
-        "Ansorum Answers".to_string()
-    } else {
-        words.join(" ")
-    }
+    if words.is_empty() { "Ansorum Answers".to_string() } else { words.join(" ") }
 }
 
 #[cfg(test)]
@@ -408,7 +408,8 @@ mod tests {
             .trim_start()
             .replace("%BASE_URL%", "https://example.com")
             .replace("%PROJECT_TITLE%", "Test Existing Dir");
-        populate(&dir, "Test Existing Dir", &config).expect("Could not populate ansorum directories");
+        populate(&dir, "Test Existing Dir", &config)
+            .expect("Could not populate ansorum directories");
 
         assert!(dir.join("config.toml").exists());
         assert!(dir.join("README.md").exists());

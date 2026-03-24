@@ -377,11 +377,8 @@ impl Config {
 }
 
 fn base_url_for_redirect_validation(base_url: &str) -> Result<Url> {
-    let candidate = if base_url.contains("://") {
-        base_url.to_string()
-    } else {
-        format!("http://{base_url}")
-    };
+    let candidate =
+        if base_url.contains("://") { base_url.to_string() } else { format!("http://{base_url}") };
 
     let url = Url::parse(&candidate)
         .map_err(|_| anyhow!("Invalid base_url `{base_url}`: expected a valid absolute URL"))?;
@@ -1294,11 +1291,7 @@ base_url = "https://example.com"
 default_ai_visibility = "summary_only"
 "#;
         let error = Config::parse(config).unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("unknown field `default_ai_visibility`")
-        );
+        assert!(error.to_string().contains("unknown field `default_ai_visibility`"));
     }
 
     // TODO: add a test for excluding paginated pages

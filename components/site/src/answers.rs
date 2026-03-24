@@ -43,11 +43,8 @@ pub struct AnswerCorpus {
 
 impl AnswerCorpus {
     pub fn from_library(library: &Library) -> Result<Self> {
-        let mut records = library
-            .pages
-            .values()
-            .filter_map(AnswerRecord::from_page)
-            .collect::<Vec<_>>();
+        let mut records =
+            library.pages.values().filter_map(AnswerRecord::from_page).collect::<Vec<_>>();
         records.sort_by(|left, right| {
             left.id.cmp(&right.id).then(left.source_path.cmp(&right.source_path))
         });
@@ -130,14 +127,8 @@ impl AnswerCorpus {
         for (index, record) in records.iter().enumerate() {
             by_id.insert(record.id.clone(), index);
             by_entity.entry(record.entity.clone()).or_insert_with(Vec::new).push(index);
-            by_intent
-                .entry(intent_key(&record.intent))
-                .or_insert_with(Vec::new)
-                .push(index);
-            by_audience
-                .entry(audience_key(&record.audience))
-                .or_insert_with(Vec::new)
-                .push(index);
+            by_intent.entry(intent_key(&record.intent)).or_insert_with(Vec::new).push(index);
+            by_audience.entry(audience_key(&record.audience)).or_insert_with(Vec::new).push(index);
         }
 
         for record in &records {
@@ -216,11 +207,8 @@ impl AnswerCorpus {
     }
 
     pub fn to_json(&self) -> Result<String> {
-        let visible = self
-            .records
-            .iter()
-            .filter(|record| record.is_machine_ai_visible())
-            .collect::<Vec<_>>();
+        let visible =
+            self.records.iter().filter(|record| record.is_machine_ai_visible()).collect::<Vec<_>>();
         self.to_json_subset(&visible)
     }
 
@@ -407,11 +395,7 @@ impl AuditReport {
     }
 }
 
-pub fn audit_library(
-    library: &Library,
-    answers: &AnswerCorpus,
-    today: NaiveDate,
-) -> AuditReport {
+pub fn audit_library(library: &Library, answers: &AnswerCorpus, today: NaiveDate) -> AuditReport {
     let mut report = AuditReport::default();
     let excluded_machine_ids = answers
         .iter()
@@ -427,8 +411,7 @@ pub fn audit_library(
         let answer_id = Some(answer.id.as_str());
         let source_path = Some(page.file.path.as_path());
 
-        if !answer.is_machine_ai_visible() && answer.ai_visibility != AiVisibility::Hidden
-        {
+        if !answer.is_machine_ai_visible() && answer.ai_visibility != AiVisibility::Hidden {
             report.push(
                 AuditSeverity::Error,
                 "visibility_leak",
@@ -556,7 +539,9 @@ pub fn audit_library(
             );
         }
 
-        if answer.ai_visibility == AiVisibility::Hidden && page.canonical_machine_markdown().is_some() {
+        if answer.ai_visibility == AiVisibility::Hidden
+            && page.canonical_machine_markdown().is_some()
+        {
             report.push(
                 AuditSeverity::Error,
                 "hidden_content_leak",
@@ -612,7 +597,8 @@ pub fn structured_data_for_page(page: &Page) -> Result<Option<StructuredDataOutp
         (None, None) => return Ok(None),
     };
 
-    let object = document.as_object_mut().expect("structured data sidecars are validated as objects");
+    let object =
+        document.as_object_mut().expect("structured data sidecars are validated as objects");
     object
         .entry("@context".to_string())
         .or_insert_with(|| JsonValue::String("https://schema.org".to_string()));
@@ -625,10 +611,7 @@ pub fn structured_data_for_page(page: &Page) -> Result<Option<StructuredDataOutp
     }
 
     let json = serde_json::to_string_pretty(&document).map_err(|error| {
-        anyhow!(
-            "{}: failed to serialize structured data: {error}",
-            page.file.path.display()
-        )
+        anyhow!("{}: failed to serialize structured data: {error}", page.file.path.display())
     })?;
 
     Ok(Some(StructuredDataOutput { json }))
@@ -650,10 +633,7 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
     object.insert("url".to_string(), JsonValue::String(page.permalink.clone()));
     object.insert("description".to_string(), JsonValue::String(answer.summary.clone()));
     object.insert("identifier".to_string(), JsonValue::String(answer.id.clone()));
-    object.insert(
-        "inLanguage".to_string(),
-        JsonValue::String(page.lang.clone()),
-    );
+    object.insert("inLanguage".to_string(), JsonValue::String(page.lang.clone()));
     object.insert(
         "audience".to_string(),
         json!({
@@ -672,7 +652,9 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
     if !title.is_empty() {
         object.insert("name".to_string(), JsonValue::String(title.to_string()));
     }
-    if let Some(description) = page.meta.description.as_ref().filter(|value| !value.trim().is_empty()) {
+    if let Some(description) =
+        page.meta.description.as_ref().filter(|value| !value.trim().is_empty())
+    {
         object.insert("description".to_string(), JsonValue::String(description.clone()));
     }
     if let Some(updated) = page.meta.updated.as_ref().or(page.meta.date.as_ref()) {
@@ -681,14 +663,7 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
     if !answer.external_refs.is_empty() {
         object.insert(
             "sameAs".to_string(),
-            JsonValue::Array(
-                answer
-                    .external_refs
-                    .iter()
-                    .cloned()
-                    .map(JsonValue::String)
-                    .collect(),
-            ),
+            JsonValue::Array(answer.external_refs.iter().cloned().map(JsonValue::String).collect()),
         );
     }
     if !answer.retrieval_aliases.is_empty() {
@@ -705,7 +680,8 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
             if !title.is_empty() {
                 object.insert("headline".to_string(), JsonValue::String(title.to_string()));
             }
-            object.insert("mainEntityOfPage".to_string(), JsonValue::String(page.permalink.clone()));
+            object
+                .insert("mainEntityOfPage".to_string(), JsonValue::String(page.permalink.clone()));
         }
         "FAQPage" => {
             object.insert(
@@ -733,10 +709,7 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
                 object.insert("termCode".to_string(), JsonValue::String(answer.id.clone()));
                 object.insert("name".to_string(), JsonValue::String(title.to_string()));
             }
-            object.insert(
-                "description".to_string(),
-                JsonValue::String(answer.summary.clone()),
-            );
+            object.insert("description".to_string(), JsonValue::String(answer.summary.clone()));
         }
         "BreadcrumbList" => {
             let items = page

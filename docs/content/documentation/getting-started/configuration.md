@@ -37,7 +37,7 @@ code = "sales-demo"
 target = "https://docs.example.com/demo"
 
 [ansorum.packs]
-auto_entity_packs = true
+auto_entity_packs = false
 auto_audience_packs = true
 
 [[ansorum.packs.curated]]

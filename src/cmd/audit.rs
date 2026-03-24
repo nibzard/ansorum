@@ -147,8 +147,9 @@ fn audit_format_name(format: AuditFormat) -> &'static str {
 }
 
 fn print_json_report(report: &AuditReport) -> Result<()> {
-    let json = serde_json::to_string_pretty(report)
-        .map_err(|error| errors::Error::msg(format!("Failed to serialize audit report: {error}")))?;
+    let json = serde_json::to_string_pretty(report).map_err(|error| {
+        errors::Error::msg(format!("Failed to serialize audit report: {error}"))
+    })?;
     println!("{json}");
     Ok(())
 }
@@ -196,7 +197,8 @@ mod tests {
         let root = fixture_root("test_sites_invalid/answers_audit");
         let config_file = root.join("config.toml");
 
-        let err = audit(&root, &config_file, false, AuditFormat::Json).expect_err("audit should fail");
+        let err =
+            audit(&root, &config_file, false, AuditFormat::Json).expect_err("audit should fail");
         assert_eq!(err.to_string(), "Audit failed");
     }
 }

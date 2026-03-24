@@ -54,8 +54,7 @@ static LINK_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"(?s)<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>"#).unwrap());
 static STRONG_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?s)<(strong|b)>(.*?)</(strong|b)>").unwrap());
-static EMPHASIS_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?s)<(em|i)>(.*?)</(em|i)>").unwrap());
+static EMPHASIS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<(em|i)>(.*?)</(em|i)>").unwrap());
 static CODE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<code>(.*?)</code>").unwrap());
 static BREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)<br\\s*/?>").unwrap());
 static CONTINUE_READING_RE: Lazy<Regex> =
@@ -222,7 +221,8 @@ impl Page {
     }
 
     pub fn structured_data_sidecar_path(&self) -> PathBuf {
-        let file_stem = self.file.path.file_stem().expect("pages should have a file name").to_string_lossy();
+        let file_stem =
+            self.file.path.file_stem().expect("pages should have a file name").to_string_lossy();
         self.file.path.with_file_name(format!("{file_stem}{STRUCTURED_DATA_SIDECAR_SUFFIX}"))
     }
 
@@ -235,7 +235,10 @@ impl Page {
         self.meta
             .title
             .as_deref()
-            .or_else(|| self.answer().and_then(|answer| answer.canonical_questions.first().map(String::as_str)))
+            .or_else(|| {
+                self.answer()
+                    .and_then(|answer| answer.canonical_questions.first().map(String::as_str))
+            })
             .unwrap_or("")
     }
 
@@ -441,15 +444,22 @@ fn rendered_html_to_markdown(html: &str) -> String {
         .into_owned();
     markdown = HEADING_RE
         .replace_all(&markdown, |caps: &regex::Captures<'_>| {
-            let level = caps.get(1).map(|m| m.as_str()).unwrap_or("1").parse::<usize>().unwrap_or(1);
-            let text = inline_html_to_markdown(caps.get(2).map(|m| m.as_str()).unwrap_or("")).trim().to_string();
+            let level =
+                caps.get(1).map(|m| m.as_str()).unwrap_or("1").parse::<usize>().unwrap_or(1);
+            let text = inline_html_to_markdown(caps.get(2).map(|m| m.as_str()).unwrap_or(""))
+                .trim()
+                .to_string();
             format!("\n{} {}\n", "#".repeat(level), text)
         })
         .into_owned();
     markdown = BLOCKQUOTE_RE
         .replace_all(&markdown, |caps: &regex::Captures<'_>| {
             let text = inline_html_to_markdown(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
-            let lines = text.lines().map(|line| format!("> {}", line.trim())).collect::<Vec<_>>().join("\n");
+            let lines = text
+                .lines()
+                .map(|line| format!("> {}", line.trim()))
+                .collect::<Vec<_>>()
+                .join("\n");
             format!("\n{lines}\n")
         })
         .into_owned();
@@ -568,10 +578,7 @@ fn serialized_machine_front_matter(
     })
     .expect("machine front matter should serialize");
 
-    serialized
-        .trim_start_matches("---\n")
-        .trim_end_matches("...\n")
-        .to_string()
+    serialized.trim_start_matches("---\n").trim_end_matches("...\n").to_string()
 }
 
 #[derive(Serialize)]
@@ -661,11 +668,11 @@ mod tests {
 
     use globset::{Glob, GlobSetBuilder};
     use tempfile::tempdir;
-    use tera::to_value;
     use templates::ZOLA_TERA;
+    use tera::to_value;
 
-    use crate::ser::SerializingPage;
     use crate::Page;
+    use crate::ser::SerializingPage;
     use config::{Config, LanguageOptions};
     use utils::slugs::SlugifyStrategy;
     use utils::types::InsertAnchor;
@@ -1002,7 +1009,8 @@ Body content."#;
         let markdown = page.canonical_machine_markdown().expect("expected machine markdown");
         let front_matter = machine_front_matter(&markdown);
 
-        let yaml: serde_yaml::Value = serde_yaml::from_str(front_matter).expect("parse yaml front matter");
+        let yaml: serde_yaml::Value =
+            serde_yaml::from_str(front_matter).expect("parse yaml front matter");
         assert_eq!(yaml["entity"].as_str(), Some("billing:core"));
         assert_eq!(yaml["canonical_questions"][0].as_str(), Some("how do refunds: work?"));
         assert_eq!(yaml["canonical_questions"][1].as_str(), Some("can I get a \"refund\"?"));

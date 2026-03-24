@@ -4,11 +4,11 @@ mod theme;
 use std::path::Path;
 
 pub use crate::config::{
+    Config,
     ansorum::{
         Ansorum, CuratedPack, DEFAULT_EVAL_MODEL, Delivery, Eval, EvalBackend, Packs,
         RedirectRoute, Redirects,
     },
-    Config,
     languages::LanguageOptions,
     link_checker::LinkChecker,
     link_checker::LinkCheckerLevel,
