@@ -169,9 +169,9 @@ Ansorum defaults to `gpt-5.4-mini`.
 Use the threshold flags to make eval enforce a quality bar:
 
 - `--min-pass-rate`
-- `--min-llm-average`
-- `--min-llm-score`
-- `--require-llm`
+- `--min-llm-average` (`--llm` or `ansorum.eval.enabled = true` required)
+- `--min-llm-score` (`--llm` or `ansorum.eval.enabled = true` required)
+- `--require-llm` (`--llm` or `ansorum.eval.enabled = true` required)
 
 ## check
 

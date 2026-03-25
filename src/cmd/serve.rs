@@ -217,9 +217,9 @@ async fn handle_request(
 
     let markdown_variant = state.markdown_routes.then(|| markdown_variant_path(&path)).flatten();
     let vary_accept = state.markdown_negotiation && markdown_variant.is_some();
-    let accept_markdown = state.markdown_negotiation && accepts_markdown(req.headers());
+    let prefer_markdown = state.markdown_negotiation && prefers_markdown(req.headers());
 
-    if accept_markdown
+    if prefer_markdown
         && let Some(markdown_path) = markdown_variant.as_ref()
         && let Some(content) = SITE_CONTENT.read().unwrap().get(markdown_path).cloned()
     {
@@ -256,11 +256,11 @@ async fn handle_request(
     }
 
     let metadata = match tokio::fs::metadata(root.as_path()).await {
-        Err(err) => return io_error(err, path_str, !accept_markdown && !is_markdown_route(&path)),
+        Err(err) => return io_error(err, path_str, !prefer_markdown && !is_markdown_route(&path)),
         Ok(metadata) => metadata,
     };
     if metadata.is_dir() {
-        if accept_markdown {
+        if prefer_markdown {
             let markdown_root = root.join("page.md");
             if let Ok(contents) = tokio::fs::read(&markdown_root).await {
                 if let Some(markdown_path) = markdown_variant.as_ref() {
@@ -287,7 +287,7 @@ async fn handle_request(
     let result = tokio::fs::read(&root).await;
 
     let contents = match result {
-        Err(err) => return io_error(err, path_str, !accept_markdown && !is_markdown_route(&path)),
+        Err(err) => return io_error(err, path_str, !prefer_markdown && !is_markdown_route(&path)),
         Ok(contents) => contents,
     };
 
@@ -477,33 +477,49 @@ fn is_markdown_route(path: &RelativePathBuf) -> bool {
     normalized == "page.md" || normalized.ends_with("/page.md")
 }
 
-fn accepts_markdown(headers: &HeaderMap) -> bool {
-    headers
-        .get(header::ACCEPT)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value.split(',').any(|part| accept_allows_markdown(part)))
+fn prefers_markdown(headers: &HeaderMap) -> bool {
+    headers.get(header::ACCEPT).and_then(|value| value.to_str().ok()).is_some_and(|value| {
+        let markdown = accept_quality(value, "text", "markdown");
+        let html = accept_quality(value, "text", "html");
+        markdown > html
+    })
 }
 
-fn accept_allows_markdown(part: &str) -> bool {
-    let mut segments = part.split(';');
-    let Some(mime) = segments.next().map(str::trim) else {
-        return false;
-    };
-    if !mime.eq_ignore_ascii_case("text/markdown") {
-        return false;
+fn accept_quality(header_value: &str, target_type: &str, target_subtype: &str) -> f32 {
+    let mut exact = None::<f32>;
+    let mut type_wildcard = None::<f32>;
+    let mut any_wildcard = None::<f32>;
+
+    for part in header_value.split(',') {
+        let mut segments = part.split(';');
+        let Some(mime) = segments.next().map(str::trim) else {
+            continue;
+        };
+        let Some((media_type, media_subtype)) = mime.split_once('/') else {
+            continue;
+        };
+        let quality = segments
+            .filter_map(|segment| {
+                let mut pieces = segment.splitn(2, '=');
+                let name = pieces.next()?.trim();
+                let value = pieces.next()?.trim();
+                name.eq_ignore_ascii_case("q").then_some(value)
+            })
+            .find_map(|value| value.parse::<f32>().ok())
+            .unwrap_or(1.0);
+
+        if media_type.eq_ignore_ascii_case(target_type)
+            && media_subtype.eq_ignore_ascii_case(target_subtype)
+        {
+            exact = Some(exact.map_or(quality, |current| current.max(quality)));
+        } else if media_type.eq_ignore_ascii_case(target_type) && media_subtype == "*" {
+            type_wildcard = Some(type_wildcard.map_or(quality, |current| current.max(quality)));
+        } else if media_type == "*" && media_subtype == "*" {
+            any_wildcard = Some(any_wildcard.map_or(quality, |current| current.max(quality)));
+        }
     }
 
-    let quality = segments
-        .filter_map(|segment| {
-            let mut parts = segment.splitn(2, '=');
-            let name = parts.next()?.trim();
-            let value = parts.next()?.trim();
-            name.eq_ignore_ascii_case("q").then_some(value)
-        })
-        .find_map(|value| value.parse::<f32>().ok())
-        .unwrap_or(1.0);
-
-    quality > 0.0
+    exact.or(type_wildcard).or(any_wildcard).unwrap_or(0.0)
 }
 
 fn redirect_code(path: &str) -> Option<&str> {
@@ -1686,6 +1702,80 @@ mod tests {
         assert_eq!(headers[header::CONTENT_TYPE], "text/html");
         assert_eq!(headers[header::VARY], "Accept");
         assert_eq!(body, "<html>Refunds</html>");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn does_not_negotiate_markdown_when_html_is_preferred() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state(std::env::temp_dir());
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/markdown;q=0.7, text/html;q=0.9")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "<html>Refunds</html>");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn does_not_negotiate_markdown_for_wildcard_accept_headers() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state(std::env::temp_dir());
+        let (status, headers, body) = run_request(request("/refunds/", Some("*/*")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "<html>Refunds</html>");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
+    fn negotiates_markdown_when_only_text_wildcard_matches_it_more_than_html() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds"), "<html>Refunds</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+
+        let state = test_app_state(std::env::temp_dir());
+        let (status, headers, body) =
+            run_request(request("/refunds/", Some("text/*;q=0.9, text/html;q=0.4")), state);
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
+        assert_eq!(headers[header::VARY], "Accept");
+        assert_eq!(body, "# Refunds");
 
         SITE_CONTENT.write().unwrap().clear();
     }
