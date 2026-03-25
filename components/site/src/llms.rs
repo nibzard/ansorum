@@ -52,6 +52,10 @@ pub fn build_outputs(
     Ok(LlmsOutputs { llms_txt, llms_full_txt, packs })
 }
 
+pub fn validate_packs(config: &Config, base_path: &Path, answers: &AnswerCorpus) -> Result<()> {
+    build_packs(config, base_path, answers).map(|_| ())
+}
+
 #[derive(Clone)]
 struct PackDefinition<'a> {
     name: String,
@@ -235,6 +239,9 @@ fn build_packs<'a>(
         }
 
         records.sort_by(|left, right| left.id.cmp(&right.id));
+        if records.is_empty() {
+            continue;
+        }
         let name = curated.name.clone();
         insert_pack(
             &mut packs,

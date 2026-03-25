@@ -112,6 +112,7 @@ fn run_eval(
     let machine_markdown = machine_markdown_by_id(&site);
 
     let llm_enabled = llm_override || site.config.ansorum.eval.enabled;
+    validate_llm_thresholds(llm_enabled, min_llm_average, min_llm_score, require_llm)?;
     let backend = llm_enabled.then_some(site.config.ansorum.eval.backend);
     let model = resolve_model(&site.config, llm_enabled, model_override)?;
     let api_base = resolve_api_base(&site.config, api_base_override);
@@ -852,6 +853,21 @@ fn validate_ratio(name: &str, value: Option<f64>) -> Result<()> {
     Ok(())
 }
 
+fn validate_llm_thresholds(
+    llm_enabled: bool,
+    min_llm_average: Option<f64>,
+    min_llm_score: Option<f64>,
+    require_llm: bool,
+) -> Result<()> {
+    if !llm_enabled && (min_llm_average.is_some() || min_llm_score.is_some() || require_llm) {
+        bail!(
+            "LLM thresholds require LLM scoring; enable it with `--llm` or `ansorum.eval.enabled = true`"
+        );
+    }
+
+    Ok(())
+}
+
 fn extract_response_text(response: &JsonValue) -> Option<String> {
     response.get("output_text").and_then(JsonValue::as_str).map(ToOwned::to_owned).or_else(|| {
         response
@@ -981,6 +997,7 @@ mod tests {
     use super::{
         OpenAiFailureContext, classify_openai_failure, contains_term, eval, finalize_report,
         load_fixture_file, rank_answers, report_failed, resolve_fixture_path, resolve_model,
+        validate_llm_thresholds,
     };
     use crate::cli::EvalFormat;
     use config::Config;
@@ -1228,6 +1245,16 @@ mod tests {
     }
 
     #[test]
+    fn llm_thresholds_require_llm_scoring_to_be_enabled() {
+        let err = validate_llm_thresholds(false, None, Some(0.8), false)
+            .expect_err("llm score threshold should require llm scoring");
+        assert_eq!(
+            err.to_string(),
+            "LLM thresholds require LLM scoring; enable it with `--llm` or `ansorum.eval.enabled = true`"
+        );
+    }
+
+    #[test]
     fn classifies_openai_timeout_failures() {
         let message = classify_openai_failure(
             "https://api.openai.com/v1/responses",
@@ -1312,7 +1339,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_command_fails_when_thresholds_are_unmet() {
+    fn eval_command_requires_llm_when_llm_thresholds_are_requested() {
         let root = env::current_dir().unwrap().join("test_site_answers");
         let config_file = root.join("config.toml");
 
@@ -1330,7 +1357,10 @@ mod tests {
             Some(1.0),
             true,
         )
-        .expect_err("eval should fail when llm is required");
-        assert_eq!(err.to_string(), "Eval failed");
+        .expect_err("eval should fail when llm thresholds are requested without llm scoring");
+        assert_eq!(
+            err.to_string(),
+            "LLM thresholds require LLM scoring; enable it with `--llm` or `ansorum.eval.enabled = true`"
+        );
     }
 }

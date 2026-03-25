@@ -336,6 +336,7 @@ impl Site {
             let library = self.library.read().unwrap();
             AnswerCorpus::from_library(&library)?
         };
+        llms::validate_packs(&self.config, &self.base_path, &self.answers)?;
         // taxonomy Tera fns are loaded in `register_early_global_fns`
         // so we do need to populate it first.
         self.populate_taxonomies()?;

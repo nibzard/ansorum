@@ -471,17 +471,41 @@ fn errors_on_conflicting_pack_output_names() {
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.config.ansorum.packs.curated[0].name = "customer".to_string();
-    site.load().unwrap();
-
-    let tmp_dir = tempdir().expect("create temp dir");
-    let public = tmp_dir.path().join("public");
-    site.set_output_path(&public);
-
-    let err = site.build().expect_err("pack collision should fail");
+    let err = site.load().expect_err("pack collision should fail during load");
     assert_eq!(
         err.to_string(),
         "Duplicate ansorum pack output path `customer` from curated pack `customer` from /home/agent/ansorum/test_site_answers/collections/packs/billing.toml conflicts with auto audience pack for `customer`"
     );
+}
+
+#[test]
+fn ignores_empty_curated_pack_collisions() {
+    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+    path.push("test_site_answers");
+    let config_file = path.join("config.toml");
+    let mut site = Site::new(&path, &config_file).unwrap();
+
+    let pack_dir = tempdir().expect("create temp dir");
+    let pack_path = pack_dir.path().join("hidden-customer.toml");
+    fs::write(&pack_path, "answers = [\"internal-support-escalation\"]\n")
+        .expect("write pack file");
+
+    site.config.ansorum.packs.curated[0].name = "customer".to_string();
+    site.config.ansorum.packs.curated[0].source = pack_path.display().to_string();
+    site.load().expect("empty curated collision should be ignored");
+
+    let output_dir = tempdir().expect("create output dir");
+    let public = output_dir.path().join("public");
+    site.set_output_path(&public);
+    site.build()
+        .expect("site should build when colliding curated pack resolves to no visible answers");
+
+    assert!(file_exists!(public, "customer/llms.txt"));
+    assert!(file_contains!(
+        public,
+        "customer/llms.txt",
+        "Scoped AI-visible answers for the `customer` audience."
+    ));
 }
 
 #[test]
