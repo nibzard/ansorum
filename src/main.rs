@@ -20,6 +20,20 @@ mod observability;
 mod prompt;
 
 fn get_config_file_path(dir: &Path, config_path: Option<&Path>) -> (PathBuf, PathBuf) {
+    if let Some(path) = config_path
+        && path.is_absolute()
+    {
+        let config_file = path.canonicalize().unwrap_or_else(|e| {
+            messages::unravel_errors(
+                &format!("Could not find canonical path of {}", path.display()),
+                &e.into(),
+            );
+            std::process::exit(1);
+        });
+        let root_dir = config_file.parent().unwrap_or_else(|| Path::new("/")).to_path_buf();
+        return (root_dir, config_file);
+    }
+
     let (root_dir, config_path) = match config_path {
         Some(path) => {
             // User specified a config file, use it directly
@@ -65,6 +79,33 @@ fn get_config_file_path(dir: &Path, config_path: Option<&Path>) -> (PathBuf, Pat
     });
 
     (root_dir.to_path_buf(), config_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_config_file_path;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn absolute_config_path_uses_config_parent_as_root() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).expect("epoch").as_nanos();
+        let base = std::env::temp_dir().join(format!("ansorum-config-path-test-{unique}"));
+        let project_root = base.join("site");
+        fs::create_dir_all(&project_root).expect("create project root");
+        let config_file = project_root.join("config.toml");
+        fs::write(&config_file, "base_url = \"https://example.com\"\n").expect("write config");
+
+        let work_dir = base.join("workspace").join("nested");
+        fs::create_dir_all(&work_dir).expect("create work dir");
+
+        let (root_dir, resolved_config) = get_config_file_path(&work_dir, Some(&config_file));
+
+        assert_eq!(root_dir, project_root);
+        assert_eq!(resolved_config, config_file);
+
+        fs::remove_dir_all(base).expect("cleanup");
+    }
 }
 
 // env-logger prints to stderr, so we detect color configuration by considering the stderr stream (and not stdout)

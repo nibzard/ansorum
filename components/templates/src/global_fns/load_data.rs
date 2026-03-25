@@ -158,7 +158,7 @@ impl Hash for DataSource {
             DataSource::Url(url) => url.hash(state),
             DataSource::Path(path) => {
                 path.hash(state);
-                get_file_time(path).expect("get file time").hash(state);
+                get_file_time(path).hash(state);
             }
             // TODO: double check expectations here
             DataSource::Literal(string_literal) => string_literal.hash(state),
@@ -570,6 +570,8 @@ mod tests {
     use super::{DataSource, LoadData, OutputFormat};
 
     use std::collections::HashMap;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
     use std::path::PathBuf;
 
     use crate::global_fns::load_data::Method;
@@ -586,6 +588,14 @@ mod tests {
     fn get_test_file(filename: &str) -> PathBuf {
         let test_files = PathBuf::from("../utils/test-files").canonicalize().unwrap();
         test_files.join(filename)
+    }
+
+    #[test]
+    fn hashing_missing_path_data_source_does_not_panic() {
+        let source = DataSource::Path(PathBuf::from("missing-file.toml"));
+        let mut hasher = DefaultHasher::new();
+        source.hash(&mut hasher);
+        let _ = hasher.finish();
     }
 
     #[test]

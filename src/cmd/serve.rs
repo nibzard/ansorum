@@ -846,7 +846,7 @@ pub fn serve(
     }
 
     let config_path = PathBuf::from(config_file);
-    let root_dir_str = root_dir.to_str().expect("Project root dir is not valid UTF-8.");
+    let root_dir_watch = root_dir.to_string_lossy().into_owned();
 
     // An array of (path, WatchMode, RecursiveMode) where the path is watched for changes,
     // the WatchMode value indicates whether this path must exist for zola serve to operate,
@@ -855,22 +855,31 @@ pub fn serve(
         // The first entry is ultimately to watch config.toml in a more robust manner on Linux when
         // the file changes by way of a caching strategy used by editors such as vim.
         // https://github.com/getzola/zola/issues/2266
-        (root_dir_str, WatchMode::Required, RecursiveMode::NonRecursive),
-        ("content", WatchMode::Required, RecursiveMode::Recursive),
-        ("sass", WatchMode::Condition(site.config.compile_sass), RecursiveMode::Recursive),
-        ("static", WatchMode::Optional, RecursiveMode::Recursive),
-        ("templates", WatchMode::Optional, RecursiveMode::Recursive),
-        ("themes", WatchMode::Condition(site.config.theme.is_some()), RecursiveMode::Recursive),
+        (root_dir_watch.clone(), WatchMode::Required, RecursiveMode::NonRecursive),
+        ("content".to_string(), WatchMode::Required, RecursiveMode::Recursive),
+        (
+            "sass".to_string(),
+            WatchMode::Condition(site.config.compile_sass),
+            RecursiveMode::Recursive,
+        ),
+        ("static".to_string(), WatchMode::Optional, RecursiveMode::Recursive),
+        ("templates".to_string(), WatchMode::Optional, RecursiveMode::Recursive),
+        (
+            "themes".to_string(),
+            WatchMode::Condition(site.config.theme.is_some()),
+            RecursiveMode::Recursive,
+        ),
     ];
     watch_this.extend(
         extra_watch_paths
             .iter()
-            .map(|path| (path.as_str(), WatchMode::Required, RecursiveMode::Recursive)),
+            .map(|path| (path.clone(), WatchMode::Required, RecursiveMode::Recursive)),
     );
 
     // Setup watchers
     let (tx, rx) = channel();
-    let mut debouncer = new_debouncer(Duration::from_millis(debounce), None, tx).unwrap();
+    let mut debouncer = new_debouncer(Duration::from_millis(debounce), None, tx)
+        .context("Could not initialize file watcher")?;
 
     // We watch for changes on the filesystem for every entry in watch_this
     // Will fail if either:
@@ -879,7 +888,7 @@ pub fn serve(
     // watchers will contain the paths we're actually watching
     let mut watchers = Vec::new();
     for (entry, watch_mode, recursive_mode) in watch_this {
-        let watch_path = root_dir.join(entry);
+        let watch_path = root_dir.join(&entry);
         let should_watch = match watch_mode {
             WatchMode::Required => true,
             WatchMode::Optional => watch_path.exists(),
@@ -887,7 +896,7 @@ pub fn serve(
         };
         if should_watch {
             debouncer
-                .watch(root_dir.join(entry), recursive_mode)
+                .watch(root_dir.join(&entry), recursive_mode)
                 .with_context(|| format!("Can't watch `{}` for changes in folder `{}`. Does it exist, and do you have correct permissions?", entry, root_dir.display()))?;
             watchers.push(entry.to_string());
         }
@@ -897,7 +906,9 @@ pub fn serve(
     create_directory(&output_path)?;
 
     // static_root needs to be canonicalized because we do the same for the http server.
-    let static_root = std::fs::canonicalize(&output_path).unwrap();
+    let static_root = std::fs::canonicalize(&output_path).with_context(|| {
+        format!("Could not canonicalize output path `{}`", output_path.display())
+    })?;
 
     // Create broadcast channel for WebSocket live reload
     let (reload_tx, _) = broadcast::channel::<String>(100);
@@ -960,12 +971,14 @@ pub fn serve(
     // We watch for changes in the config by monitoring its parent directory, but we ignore all
     // ordinary peer files. Map the parent directory back to the config file name to not confuse
     // the end user.
-    let config_name =
-        config_path.file_name().unwrap().to_str().expect("Config name is not valid UTF-8.");
+    let config_name = config_path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| config_path.display().to_string());
     let watch_list = watchers
         .iter()
-        .map(|w| if w == root_dir_str { config_name } else { w })
-        .collect::<Vec<&str>>()
+        .map(|w| if w == &root_dir_watch { config_name.as_str() } else { w.as_str() })
+        .collect::<Vec<_>>()
         .join(",");
     log::info!(
         "Listening for changes in {}{}{{{}}}",
