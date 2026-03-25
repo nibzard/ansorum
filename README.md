@@ -139,12 +139,12 @@ GPT-5.4 tier.
 ## Reference Project
 
 The repository includes a canonical answer-first example project in
-`test_site_answers/`.
+`examples/reference-project/`.
 
 Use it to exercise the full workflow end to end:
 
 ```bash
-cd test_site_answers
+cd examples/reference-project
 ansorum build
 ansorum serve
 ansorum audit
@@ -153,13 +153,13 @@ ansorum eval
 
 The main CI workflow enforces the same governed-answer contract on every push
 and pull request. In addition to the cross-platform Rust build matrix, GitHub
-Actions runs this deterministic gate on `test_site_answers/`:
+Actions runs this deterministic gate on `examples/reference-project/`:
 
 ```bash
 cargo test --locked --all
-./target/debug/ansorum --root test_site_answers build
-./target/debug/ansorum --root test_site_answers audit --format json
-./target/debug/ansorum --root test_site_answers eval --format json --min-pass-rate 1.0
+./target/debug/ansorum --root examples/reference-project build
+./target/debug/ansorum --root examples/reference-project audit --format json
+./target/debug/ansorum --root examples/reference-project eval --format json --min-pass-rate 1.0
 ```
 
 That CI path is intentionally offline and deterministic. Do not add `--llm` to

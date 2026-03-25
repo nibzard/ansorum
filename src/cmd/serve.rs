@@ -1282,6 +1282,10 @@ mod tests {
 
     static SITE_CONTENT_TEST_GUARD: Mutex<()> = Mutex::new(());
 
+    fn fixture_root(path: &str) -> PathBuf {
+        std::env::current_dir().unwrap().join(path)
+    }
+
     #[test]
     fn test_construct_url_base_url_is_slash() {
         let result = construct_url("/", false, 8080);
@@ -1336,7 +1340,7 @@ mod tests {
         no_port_append: bool,
         expected_base_url: String,
     ) {
-        let cli_dir = Path::new("./test_site").canonicalize().unwrap();
+        let cli_dir = fixture_root("tests/fixtures/site").canonicalize().unwrap();
 
         let (root_dir, config_file) = get_config_file_path(&cli_dir, None);
         assert_eq!(cli_dir, root_dir);
@@ -1903,7 +1907,7 @@ mod tests {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
 
-        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let root = fixture_root("examples/reference-project");
         let config_file = root.join("config.toml");
         let mut site = Site::new(&root, &config_file).expect("site");
         site.load().expect("load site");
@@ -1970,7 +1974,7 @@ mod tests {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
 
-        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let root = fixture_root("examples/reference-project");
         let config_file = root.join("config.toml");
         let mut site = Site::new(&root, &config_file).expect("site");
         site.load().expect("load site");
@@ -2050,7 +2054,7 @@ mod tests {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
 
-        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let root = fixture_root("examples/reference-project");
         let config_file = root.join("config.toml");
         let output_root = std::env::temp_dir().join(format!(
             "ansorum-serve-remove-page-{}",
@@ -2089,7 +2093,7 @@ mod tests {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
 
-        let root = std::env::current_dir().unwrap().join("test_site_answers");
+        let root = fixture_root("examples/reference-project");
         let config_file = root.join("config.toml");
         let output_root = std::env::temp_dir().join(format!(
             "ansorum-serve-remove-static-{}",

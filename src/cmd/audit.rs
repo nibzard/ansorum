@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn reference_project_audit_passes_in_human_and_json_modes() {
-        let root = fixture_root("test_site_answers");
+        let root = fixture_root("examples/reference-project");
         let config_file = root.join("config.toml");
 
         audit(&root, &config_file, false, AuditFormat::Human).expect("human audit should pass");
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn invalid_reference_project_audit_fails() {
-        let root = fixture_root("test_sites_invalid/answers_audit");
+        let root = fixture_root("tests/fixtures/invalid/answers_audit");
         let config_file = root.join("config.toml");
 
         let err =

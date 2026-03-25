@@ -74,10 +74,10 @@ jobs:
         run: cargo test --locked --all
 
       - name: Build reference answer corpus
-        run: ./target/debug/ansorum --root test_site_answers build
+        run: ./target/debug/ansorum --root examples/reference-project build
 
       - name: Audit compiler contract
-        run: ./target/debug/ansorum --root test_site_answers audit --format json
+        run: ./target/debug/ansorum --root examples/reference-project audit --format json
 
       - name: Evaluate compiler contract
-        run: ./target/debug/ansorum --root test_site_answers eval --format json --min-pass-rate 1.0
+        run: ./target/debug/ansorum --root examples/reference-project eval --format json --min-pass-rate 1.0

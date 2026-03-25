@@ -1,13 +1,10 @@
 mod common;
 
 use site::Site;
-use std::env;
 
 #[test]
 fn errors_on_index_md_page_in_section() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_sites_invalid");
-    path.push("indexmd");
+    let path = common::repo_path(&format!("{}/indexmd", common::INVALID_FIXTURES_ROOT));
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     let res = site.load();
@@ -22,9 +19,8 @@ fn errors_on_index_md_page_in_section() {
 
 #[test]
 fn errors_on_duplicate_answer_ids() {
-    let mut path = common::repo_root();
-    path.push("test_sites_invalid");
-    path.push("answers_duplicate_id");
+    let path =
+        common::repo_path(&format!("{}/answers_duplicate_id", common::INVALID_FIXTURES_ROOT));
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     let res = site.load();
@@ -35,9 +31,8 @@ fn errors_on_duplicate_answer_ids() {
 
 #[test]
 fn errors_on_duplicate_canonical_questions() {
-    let mut path = common::repo_root();
-    path.push("test_sites_invalid");
-    path.push("answers_duplicate_question");
+    let path =
+        common::repo_path(&format!("{}/answers_duplicate_question", common::INVALID_FIXTURES_ROOT));
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     let res = site.load();
@@ -48,9 +43,8 @@ fn errors_on_duplicate_canonical_questions() {
 
 #[test]
 fn errors_on_unknown_related_answer_ids() {
-    let mut path = common::repo_root();
-    path.push("test_sites_invalid");
-    path.push("answers_missing_related");
+    let path =
+        common::repo_path(&format!("{}/answers_missing_related", common::INVALID_FIXTURES_ROOT));
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     let res = site.load();
@@ -61,9 +55,10 @@ fn errors_on_unknown_related_answer_ids() {
 
 #[test]
 fn errors_on_invalid_structured_data_sidecar() {
-    let mut path = common::repo_root();
-    path.push("test_sites_invalid");
-    path.push("answers_invalid_schema_sidecar");
+    let path = common::repo_path(&format!(
+        "{}/answers_invalid_schema_sidecar",
+        common::INVALID_FIXTURES_ROOT
+    ));
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     let res = site.load();

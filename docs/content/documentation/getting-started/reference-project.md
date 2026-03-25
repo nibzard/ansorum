@@ -5,7 +5,7 @@ weight = 15
 
 ## Reference Ansorum Project
 
-Ansorum's canonical answer-first example lives in `test_site_answers/`.
+Ansorum's canonical answer-first example lives in `examples/reference-project/`.
 
 It is intentionally small, but it exercises the full v0 workflow in one coherent
 corpus:
@@ -33,7 +33,7 @@ Use this project as the source of truth for:
 From the repository root:
 
 ```bash
-cd test_site_answers
+cd examples/reference-project
 ansorum build
 ansorum serve
 ansorum audit

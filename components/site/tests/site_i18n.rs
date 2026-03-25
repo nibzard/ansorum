@@ -1,14 +1,11 @@
 mod common;
 
-use std::env;
-
 use common::*;
 use site::Site;
 
 #[test]
 fn can_parse_multilingual_site() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site_i18n");
+    let path = repo_path(SITE_I18N_FIXTURE);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
@@ -52,7 +49,7 @@ fn can_parse_multilingual_site() {
 
 #[test]
 fn can_build_multilingual_site() {
-    let (_, _tmp_dir, public) = build_site("test_site_i18n");
+    let (_, _tmp_dir, public) = build_site(SITE_I18N_FIXTURE);
 
     assert!(public.exists());
 
@@ -185,11 +182,11 @@ fn can_build_multilingual_site() {
 
 #[test]
 fn correct_translations_on_all_pages() {
-    let (site, _tmp_dir, public) = build_site("test_site_i18n");
+    let (site, _tmp_dir, public) = build_site(SITE_I18N_FIXTURE);
 
     assert!(public.exists());
 
-    let translations = find_expected_translations("test_site_i18n", &site.config.default_language);
+    let translations = find_expected_translations(SITE_I18N_FIXTURE, &site.config.default_language);
 
     for (path, link) in &site.permalinks {
         // link ends with /, does not add index.html

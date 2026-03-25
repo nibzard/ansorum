@@ -9,6 +9,11 @@ use site::Site;
 use std::ffi::OsStr;
 use tempfile::{TempDir, tempdir};
 
+pub const REFERENCE_PROJECT: &str = "examples/reference-project";
+pub const SITE_FIXTURE: &str = "tests/fixtures/site";
+pub const SITE_I18N_FIXTURE: &str = "tests/fixtures/site_i18n";
+pub const INVALID_FIXTURES_ROOT: &str = "tests/fixtures/invalid";
+
 // 2 helper macros to make all the build testing more bearable
 #[macro_export]
 macro_rules! file_exists {
@@ -165,6 +170,10 @@ pub fn find_expected_translations(
 
 pub fn repo_root() -> PathBuf {
     env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf()
+}
+
+pub fn repo_path(path: &str) -> PathBuf {
+    repo_root().join(path)
 }
 
 pub fn assert_file_matches_fixture(output_root: &Path, output_rel: &str, fixture_rel: &str) {

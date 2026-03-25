@@ -1005,7 +1005,8 @@ mod tests {
 
     #[test]
     fn parses_eval_fixture_lists() {
-        let path = env::current_dir().unwrap().join("test_site_answers/eval/fixtures.yaml");
+        let path =
+            env::current_dir().unwrap().join("examples/reference-project/eval/fixtures.yaml");
         let fixture = load_fixture_file(&path).expect("fixture should parse");
         assert_eq!(fixture.cases.len(), 2);
         assert_eq!(fixture.cases[0].question, "can i get a refund after 30 days");
@@ -1013,7 +1014,7 @@ mod tests {
 
     #[test]
     fn ranks_expected_billing_answers_first() {
-        let path = env::current_dir().unwrap().join("test_site_answers");
+        let path = env::current_dir().unwrap().join("examples/reference-project");
         let config_file = path.join("config.toml");
         let mut site = Site::new(&path, &config_file).unwrap();
         site.load().unwrap();
@@ -1026,7 +1027,7 @@ mod tests {
     #[test]
     fn eval_ranking_excludes_non_public_machine_invisible_answers() {
         let path =
-            env::current_dir().unwrap().join("test_sites_invalid/answers_visibility_outputs");
+            env::current_dir().unwrap().join("tests/fixtures/invalid/answers_visibility_outputs");
         let config_file = path.join("config.toml");
         let mut site = Site::new(&path, &config_file).unwrap();
         site.load().unwrap();
@@ -1053,7 +1054,7 @@ mod tests {
 
     #[test]
     fn reference_project_eval_fixtures_pass_deterministic_checks() {
-        let root = env::current_dir().unwrap().join("test_site_answers");
+        let root = env::current_dir().unwrap().join("examples/reference-project");
         let config_file = root.join("config.toml");
         let fixture =
             load_fixture_file(&root.join("eval/fixtures.yaml")).expect("fixture should parse");
@@ -1318,7 +1319,7 @@ mod tests {
 
     #[test]
     fn reference_project_eval_command_passes_without_llm() {
-        let root = env::current_dir().unwrap().join("test_site_answers");
+        let root = env::current_dir().unwrap().join("examples/reference-project");
         let config_file = root.join("config.toml");
 
         eval(
@@ -1340,7 +1341,7 @@ mod tests {
 
     #[test]
     fn eval_command_requires_llm_when_llm_thresholds_are_requested() {
-        let root = env::current_dir().unwrap().join("test_site_answers");
+        let root = env::current_dir().unwrap().join("examples/reference-project");
         let config_file = root.join("config.toml");
 
         let err = eval(

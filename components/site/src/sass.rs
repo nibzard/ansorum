@@ -74,11 +74,9 @@ mod tests {
 
     #[test]
     fn test_get_non_partial_scss() {
-        use std::env;
-
         let mut path =
-            env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-        path.push("test_site");
+            std::env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+        path.push("tests/fixtures/site");
         path.push("sass");
 
         let result = get_non_partial_scss(&path);
@@ -89,11 +87,9 @@ mod tests {
 
     #[test]
     fn test_get_non_partial_scss_underscores() {
-        use std::env;
-
         let mut path =
-            env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-        path.push("test_site");
+            std::env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+        path.push("tests/fixtures/site");
         path.push("_dir_with_underscores");
         path.push("..");
         path.push("sass");

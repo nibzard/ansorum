@@ -30,11 +30,11 @@ The fastest way to understand the product is:
 
 1. Install `ansorum`.
 2. Read the [Reference Project](@/documentation/getting-started/reference-project.md).
-3. Run the full workflow against `test_site_answers/`.
+3. Run the full workflow against `examples/reference-project/`.
 4. Copy that answer-first shape into your own repository.
 
 The repository's canonical answer-first example project lives in
-[`test_site_answers/`](https://github.com/nibzard/ansorum/tree/main/test_site_answers).
+[`examples/reference-project/`](https://github.com/nibzard/ansorum/tree/main/examples/reference-project).
 
 ## First Run
 
@@ -72,7 +72,7 @@ my-answers/
 ```
 
 That scaffold is ready to run through `build`, `serve`, `audit`, and `eval`
-without hand edits. `test_site_answers/` remains the fuller reference corpus
+without hand edits. `examples/reference-project/` remains the fuller reference corpus
 for additional patterns.
 
 ## Author Your First Answer
@@ -146,9 +146,9 @@ from the repository root:
 
 ```bash
 cargo test --locked --all
-./target/debug/ansorum --root test_site_answers build
-./target/debug/ansorum --root test_site_answers audit --format json
-./target/debug/ansorum --root test_site_answers eval --format json --min-pass-rate 1.0
+./target/debug/ansorum --root examples/reference-project build
+./target/debug/ansorum --root examples/reference-project audit --format json
+./target/debug/ansorum --root examples/reference-project eval --format json --min-pass-rate 1.0
 ```
 
 That is the default automation path because it verifies the answer-first

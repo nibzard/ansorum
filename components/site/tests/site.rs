@@ -1,13 +1,15 @@
 mod common;
 
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use ahash::AHashMap;
 use chrono::NaiveDate;
-use common::{assert_file_matches_fixture, build_site, build_site_with_setup};
+use common::{
+    INVALID_FIXTURES_ROOT, REFERENCE_PROJECT, SITE_FIXTURE, assert_file_matches_fixture,
+    build_site, build_site_with_setup, repo_path,
+};
 use config::TaxonomyConfig;
 use content::Page;
 use site::Site;
@@ -18,8 +20,7 @@ use utils::types::InsertAnchor;
 
 #[test]
 fn can_parse_site() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site");
+    let path = repo_path(SITE_FIXTURE);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
@@ -107,8 +108,7 @@ fn can_parse_site() {
 
 #[test]
 fn extracts_normalized_answer_records() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site_answers");
+    let path = repo_path(REFERENCE_PROJECT);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
@@ -157,8 +157,7 @@ fn extracts_normalized_answer_records() {
 
 #[test]
 fn reference_project_configures_redirects_and_passes_audit() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site_answers");
+    let path = repo_path(REFERENCE_PROJECT);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
@@ -181,7 +180,7 @@ fn reference_project_configures_redirects_and_passes_audit() {
 
 #[test]
 fn emits_machine_markdown_without_leaking_hidden_content() {
-    let (_, _tmp_dir, public) = build_site("test_site_answers");
+    let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
     assert!(file_exists!(public, "refunds/page.md"));
     assert!(file_contains!(public, "refunds/page.md", "# Refund policy"));
@@ -210,7 +209,7 @@ fn emits_machine_markdown_without_leaking_hidden_content() {
 
 #[test]
 fn machine_markdown_front_matter_stays_parseable_for_special_characters() {
-    let source_root = common::repo_root().join("test_site_answers");
+    let source_root = repo_path(REFERENCE_PROJECT);
     let tmp_dir = tempdir().expect("create temp dir");
     let site_root = tmp_dir.path().join("site");
     copy_dir(&source_root, &site_root);
@@ -263,7 +262,7 @@ Refund details for customers."#,
 
 #[test]
 fn keeps_retrieval_aliases_out_of_redirect_outputs() {
-    let (_, _tmp_dir, public) = build_site("test_site_answers");
+    let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
     assert!(file_exists!(public, "legacy/refund-policy/index.html"));
     assert!(file_contains!(
@@ -305,7 +304,7 @@ fn machine_front_matter(markdown: &str) -> &str {
 
 #[test]
 fn keeps_machine_markdown_when_only_markdown_negotiation_is_disabled() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site_answers", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(REFERENCE_PROJECT, |mut site| {
         site.config.ansorum.delivery.markdown_negotiation = false;
         (site, true)
     });
@@ -316,7 +315,7 @@ fn keeps_machine_markdown_when_only_markdown_negotiation_is_disabled() {
 
 #[test]
 fn skips_machine_markdown_outputs_when_markdown_routes_are_disabled() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site_answers", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(REFERENCE_PROJECT, |mut site| {
         site.config.ansorum.delivery.markdown_routes = false;
         site.config.ansorum.delivery.markdown_negotiation = false;
         (site, true)
@@ -329,29 +328,33 @@ fn skips_machine_markdown_outputs_when_markdown_routes_are_disabled() {
 
 #[test]
 fn matches_answer_first_golden_outputs() {
-    let (_, _tmp_dir, public) = build_site("test_site_answers");
+    let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
     assert_file_matches_fixture(
         &public,
         "refunds/page.md",
-        "test_site_answers/expected/public/refunds/page.md",
+        "examples/reference-project/expected/public/refunds/page.md",
     );
     assert_file_matches_fixture(
         &public,
         "answers.json",
-        "test_site_answers/expected/public/answers.json",
+        "examples/reference-project/expected/public/answers.json",
     );
-    assert_file_matches_fixture(&public, "llms.txt", "test_site_answers/expected/public/llms.txt");
+    assert_file_matches_fixture(
+        &public,
+        "llms.txt",
+        "examples/reference-project/expected/public/llms.txt",
+    );
     assert_file_matches_fixture(
         &public,
         "refunds/schema.json",
-        "test_site_answers/expected/public/refunds/schema.json",
+        "examples/reference-project/expected/public/refunds/schema.json",
     );
 }
 
 #[test]
 fn embeds_json_ld_and_writes_schema_sidecars() {
-    let (_, _tmp_dir, public) = build_site("test_site_answers");
+    let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
     assert!(file_exists!(public, "refunds/schema.json"));
     assert!(file_contains!(public, "refunds/schema.json", "\"@type\": \"FAQPage\""));
@@ -371,7 +374,7 @@ fn embeds_json_ld_and_writes_schema_sidecars() {
 
 #[test]
 fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
-    let (_, _tmp_dir, public) = build_site("test_site_answers");
+    let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
     assert!(file_exists!(public, "answers.json"));
 
@@ -398,7 +401,7 @@ fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
 
 #[test]
 fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
-    let (_, _tmp_dir, public) = build_site("test_site_answers");
+    let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
     assert!(file_exists!(public, "llms.txt"));
     assert!(file_exists!(public, "llms-full.txt"));
@@ -466,22 +469,20 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
 
 #[test]
 fn errors_on_conflicting_pack_output_names() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site_answers");
+    let path = repo_path(REFERENCE_PROJECT);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.config.ansorum.packs.curated[0].name = "customer".to_string();
     let err = site.load().expect_err("pack collision should fail during load");
     assert_eq!(
         err.to_string(),
-        "Duplicate ansorum pack output path `customer` from curated pack `customer` from /home/agent/ansorum/test_site_answers/collections/packs/billing.toml conflicts with auto audience pack for `customer`"
+        "Duplicate ansorum pack output path `customer` from curated pack `customer` from /home/agent/ansorum/examples/reference-project/collections/packs/billing.toml conflicts with auto audience pack for `customer`"
     );
 }
 
 #[test]
 fn ignores_empty_curated_pack_collisions() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site_answers");
+    let path = repo_path(REFERENCE_PROJECT);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
 
@@ -510,9 +511,7 @@ fn ignores_empty_curated_pack_collisions() {
 
 #[test]
 fn audits_freshness_visibility_and_machine_output_quality() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_sites_invalid");
-    path.push("answers_audit");
+    let path = repo_path(&format!("{INVALID_FIXTURES_ROOT}/answers_audit"));
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
@@ -537,7 +536,7 @@ fn audits_freshness_visibility_and_machine_output_quality() {
 
 #[test]
 fn errors_on_unknown_taxonomies() {
-    let (mut site, _, _) = build_site("test_site");
+    let (mut site, _, _) = build_site(SITE_FIXTURE);
     let mut page = Page::default();
     page.file.path = PathBuf::from("unknown/taxo.md");
     page.meta.taxonomies.insert("wrong".to_string(), vec![]);
@@ -552,7 +551,7 @@ fn errors_on_unknown_taxonomies() {
 
 #[test]
 fn can_build_site_without_live_reload() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
 
     assert!(&public.exists());
     assert!(file_exists!(public, "index.html"));
@@ -670,7 +669,7 @@ fn can_build_site_without_live_reload() {
 
 #[test]
 fn can_build_site_with_live_reload_and_drafts() {
-    let (site, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (site, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         use std::net::IpAddr;
         use std::str::FromStr;
         site.enable_live_reload(IpAddr::from_str("127.0.0.1").unwrap(), 1000);
@@ -729,7 +728,7 @@ fn can_build_site_with_live_reload_and_drafts() {
 
 #[test]
 fn can_build_site_with_taxonomies() {
-    let (site, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (site, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.load().unwrap();
         {
             let library = &mut *site.library.write().unwrap();
@@ -803,7 +802,7 @@ fn can_build_site_with_taxonomies() {
 
 #[test]
 fn can_build_site_and_insert_anchor_links() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
 
     assert!(Path::new(&public).exists());
     // anchor link inserted
@@ -816,7 +815,7 @@ fn can_build_site_and_insert_anchor_links() {
 
 #[test]
 fn can_build_site_insert_anchor_links_none_by_default() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
 
     assert!(Path::new(&public).exists());
     // anchor link not inserted
@@ -825,7 +824,7 @@ fn can_build_site_insert_anchor_links_none_by_default() {
 
 #[test]
 fn can_build_site_and_insert_anchor_links_global_config() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.config.markdown.insert_anchor_links = InsertAnchor::Right;
         (site, true)
     });
@@ -841,7 +840,7 @@ fn can_build_site_and_insert_anchor_links_global_config() {
 
 #[test]
 fn can_build_site_with_pagination_for_section() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.load().unwrap();
         {
             let mut library = site.library.write().unwrap();
@@ -967,7 +966,7 @@ fn can_build_site_with_pagination_for_section() {
 
 #[test]
 fn can_build_site_with_pagination_for_index() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.load().unwrap();
         {
             let mut library = site.library.write().unwrap();
@@ -1037,7 +1036,7 @@ fn can_build_site_with_pagination_for_index() {
 #[test]
 fn can_build_site_with_pagination_for_taxonomy() {
     let mut nb_a_pages = 0;
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.config.languages.get_mut("en").unwrap().taxonomies.push(TaxonomyConfig {
             name: "tags".to_string(),
             slug: "tags".to_string(),
@@ -1137,7 +1136,7 @@ fn can_build_site_with_pagination_for_taxonomy() {
 
 #[test]
 fn can_build_feeds() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
 
     assert!(&public.exists());
     assert!(file_exists!(public, "atom.xml"));
@@ -1162,7 +1161,7 @@ fn can_build_feeds() {
 
 #[test]
 fn can_build_search_index() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.config.build_search_index = true;
         (site, true)
     });
@@ -1174,7 +1173,7 @@ fn can_build_search_index() {
 
 #[test]
 fn can_build_with_extra_syntaxes() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
 
     assert!(&public.exists());
     assert!(file_exists!(public, "posts/extra-syntax/index.html"));
@@ -1183,8 +1182,7 @@ fn can_build_with_extra_syntaxes() {
 
 #[test]
 fn can_apply_page_templates() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site");
+    let path = repo_path(SITE_FIXTURE);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, &config_file).unwrap();
     site.load().unwrap();
@@ -1228,7 +1226,7 @@ fn can_apply_page_templates() {
 // https://github.com/getzola/zola/issues/571
 #[test]
 fn can_build_site_custom_builtins_from_theme() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
 
     assert!(&public.exists());
     // 404.html is a theme template.
@@ -1238,7 +1236,7 @@ fn can_build_site_custom_builtins_from_theme() {
 
 #[test]
 fn can_build_site_with_html_minified() {
-    let (_, _tmp_dir, public) = build_site_with_setup("test_site", |mut site| {
+    let (_, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
         site.config.minify_html = true;
         (site, true)
     });
@@ -1254,13 +1252,13 @@ fn can_build_site_with_html_minified() {
 
 #[test]
 fn can_ignore_markdown_content() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
     assert!(!file_exists!(public, "posts/ignored/index.html"));
 }
 
 #[test]
 fn can_cachebust_static_files() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
     assert!(file_contains!(
         public,
         "index.html",
@@ -1270,7 +1268,7 @@ fn can_cachebust_static_files() {
 
 #[test]
 fn can_get_hash_for_static_files() {
-    let (_, _tmp_dir, public) = build_site("test_site");
+    let (_, _tmp_dir, public) = build_site(SITE_FIXTURE);
     assert!(file_contains!(
         public,
         "index.html",
@@ -1285,7 +1283,7 @@ fn can_get_hash_for_static_files() {
 
 #[test]
 fn can_check_site() {
-    let (mut site, _tmp_dir, _public) = build_site("test_site");
+    let (mut site, _tmp_dir, _public) = build_site(SITE_FIXTURE);
 
     assert_eq!(
         site.config.link_checker.skip_anchor_prefixes,
@@ -1297,13 +1295,13 @@ fn can_check_site() {
     );
 
     site.config.enable_check_mode();
-    site.load().expect("link check test_site");
+    site.load().expect("link check site fixture");
 }
 
 #[test]
 #[should_panic]
 fn panics_on_invalid_external_domain() {
-    let (mut site, _tmp_dir, _public) = build_site("test_site");
+    let (mut site, _tmp_dir, _public) = build_site(SITE_FIXTURE);
 
     // remove the invalid domain skip prefix
     let i = site
@@ -1321,12 +1319,12 @@ fn panics_on_invalid_external_domain() {
     // check the test site, this time without the invalid domain skip prefix, which should cause a
     // panic
     site.config.enable_check_mode();
-    site.load().expect("link check test_site");
+    site.load().expect("link check site fixture");
 }
 
 #[test]
 fn external_links_ignored_on_check() {
-    let (mut site, _tmp_dir, _public) = build_site("test_site");
+    let (mut site, _tmp_dir, _public) = build_site(SITE_FIXTURE);
 
     // remove the invalid domain skip prefix
     let i = site
@@ -1347,13 +1345,12 @@ fn external_links_ignored_on_check() {
     // check the test site with all external links (including invalid domain) skipped, which should
     // not cause a panic
     site.config.enable_check_mode();
-    site.load().expect("link check test_site");
+    site.load().expect("link check site fixture");
 }
 
 #[test]
 fn can_find_site_and_page_authors() {
-    let mut path = env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
-    path.push("test_site");
+    let path = repo_path(SITE_FIXTURE);
     let config_file = path.join("config.toml");
     let mut site = Site::new(&path, config_file).unwrap();
     site.load().unwrap();
@@ -1377,7 +1374,7 @@ fn can_find_site_and_page_authors() {
 
 #[test]
 fn filters_non_public_answers_from_machine_outputs() {
-    let (site, _tmp_dir, public) = build_site("test_sites_invalid/answers_visibility_outputs");
+    let (site, _tmp_dir, public) = build_site("tests/fixtures/invalid/answers_visibility_outputs");
 
     assert!(file_exists!(public, "public/index.html"));
     assert!(file_exists!(public, "internal/index.html"));
@@ -1425,7 +1422,7 @@ fn filters_non_public_answers_from_machine_outputs() {
     assert!(report.findings.iter().any(|finding| finding.code == "related_visibility_leak"));
 }
 
-// Follows test_site/themes/sample/templates/current_path.html
+// Follows tests/fixtures/site/themes/sample/templates/current_path.html
 fn current_path(path: &str) -> String {
     format!("[current_path]({})", path)
 }
