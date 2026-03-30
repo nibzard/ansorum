@@ -1,0 +1,14 @@
+# Context
+
+## Background
+This release packages the new default ansorum init starter theme plus the pending Railway deployment documentation work.
+
+## Why This Way
+The init scaffold now defaults to a styled answer-center layout with canonical metadata, llms.txt and answers.json links, page.md links, and JSON-LD so a new site starts from an SEO, AEO, and GEO friendly baseline instead of a bare theme. The Railway guide documents the default user path: deploy the content repo, install the ansorum binary during the build, and serve on 0.0.0.0:$PORT.
+
+## Gotchas
+The release line stays on the prerelease track because historical upstream tags already occupy v0.2.1 and v0.2.2. This release therefore uses v0.2.0-alpha.1 as the safe next patch-style tag.
+
+## Related
+- cargo test --all
+- cargo run -- init <tmp>/site && cargo run -- --root <tmp>/site build
