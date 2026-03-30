@@ -4,6 +4,16 @@ Ansorum-specific release history starts at `0.1.0-alpha`.
 Earlier entries below are inherited from the upstream Zola history carried into
 this fork.
 
+## 0.2.0-alpha (2026-03-30)
+
+- Add an expanded help center QA fixture and reorganize example and test
+  fixtures around the reference project flow
+- Harden startup, load-data handling, markdown negotiation, evaluation, and
+  pack loading
+- Refresh the reference project corpus, generated outputs, and documentation to
+  better demonstrate `summary_only` delivery, search output, and governance
+  metadata
+
 ## 0.1.0-alpha (2026-03-18)
 
 - Rename the repository and primary binary to `ansorum`
