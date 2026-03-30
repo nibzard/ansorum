@@ -1,0 +1,10 @@
+# Context
+
+## Background
+Fix the public Ansorum install story and reduce release friction after finding that the repo still documented Zola install paths and the current prerelease had no attached binary assets.
+
+## Why This Way
+The change updates the README and installation docs to describe Ansorum-specific install paths and adds a manual dispatch fallback plus looser tag matching in the release workflow.
+
+## Gotchas
+The workflow change is a mitigation for missing release assets, not proof of the root cause on GitHub's side. A new tag push or workflow_dispatch run is still needed to validate artifact publication.
