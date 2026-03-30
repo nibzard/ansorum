@@ -1,0 +1,10 @@
+# Context
+
+## Background
+Refreshes the reference project answer corpus and generated outputs so the example better demonstrates summary-only markdown, governance metadata, and search artifacts.
+
+## Why This Way
+The commit keeps the example, golden outputs, docs, and site tests aligned around the updated cancel/refunds content and canonical answer title.
+
+## Gotchas
+Generated files under examples/reference-project/public and expected/public changed alongside the authored markdown and tests.
