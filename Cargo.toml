@@ -1,6 +1,6 @@
 [package]
 name = "ansorum"
-version = "0.2.0-alpha"
+version = "0.2.0-alpha.1"
 authors = ["Vincent Prouillet <hello@vincentprouillet.com>"]
 edition = "2024"
 license = "EUPL-1.2"
@@ -78,7 +78,7 @@ indexing-ja = ["search/indexing-ja"]
 members = ["components/*"]
 
 [workspace.package]
-version = "0.2.0-alpha"
+version = "0.2.0-alpha.1"
 
 [workspace.dependencies]
 # External dependencies

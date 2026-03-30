@@ -4,6 +4,15 @@ Ansorum-specific release history starts at `0.1.0-alpha`.
 Earlier entries below are inherited from the upstream Zola history carried into
 this fork.
 
+## 0.2.0-alpha.1 (2026-03-30)
+
+- Make `ansorum init` scaffold a styled answer-center starter with built-in
+  templates, homepage content, and a default stylesheet
+- Add stronger SEO, AEO, and GEO starter surfaces including canonical metadata,
+  `llms.txt`, `answers.json`, `page.md`, and JSON-LD links from generated pages
+- Document how to deploy an Ansorum site on Railway and align getting-started
+  docs with the richer scaffold output
+
 ## 0.2.0-alpha (2026-03-30)
 
 - Add an expanded help center QA fixture and reorganize example and test

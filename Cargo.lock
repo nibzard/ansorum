@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "ansorum"
-version = "0.2.0-alpha"
+version = "0.2.0-alpha.1"
 dependencies = [
  "ahash 0.8.12",
  "anstream",
@@ -829,7 +829,7 @@ dependencies = [
 
 [[package]]
 name = "content"
-version = "0.2.0-alpha"
+version = "0.2.0-alpha.1"
 dependencies = [
  "ahash 0.8.12",
  "config",

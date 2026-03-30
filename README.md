@@ -98,11 +98,12 @@ ansorum serve
 starter project with:
 
 - `config.toml`
+- starter templates in `templates/`
 - starter answers in `content/`
 - a JSON-LD sidecar example at `content/refunds.schema.json`
 - a curated pack definition in `collections/packs/billing.toml`
 - deterministic eval fixtures in `eval/fixtures.yaml`
-- `static/` for copied assets
+- `static/site.css` for the built-in starter look
 
 The generated layout looks like this before the first build:
 
@@ -114,13 +115,19 @@ my-site/
 │       └── billing.toml
 ├── config.toml
 ├── content/
+│   ├── _index.md
 │   ├── cancel.md
 │   ├── internal-playbook.md
 │   ├── refunds.md
 │   └── refunds.schema.json
 ├── eval/
 │   └── fixtures.yaml
-└── static/
+├── static/
+│   └── site.css
+└── templates/
+    ├── base.html
+    ├── index.html
+    └── page.html
 ```
 
 The normal operator loop is:
@@ -268,6 +275,8 @@ the default contract gate; reserve LLM scoring for explicit, credentialed runs.
 
 `ansorum init` now creates an answer-first starter project with:
 
+- starter templates in `templates/`
+- a built-in stylesheet in `static/site.css`
 - starter answers in `content/`
 - a JSON-LD sidecar example in `content/refunds.schema.json`
 - redirects and pack configuration in `config.toml`

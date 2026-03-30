@@ -14,9 +14,10 @@ base_url = "%BASE_URL%"
 title = "%PROJECT_TITLE%"
 description = "Starter Ansorum project for an answer-first knowledge corpus."
 generate_feeds = false
-generate_sitemap = false
-generate_robots_txt = false
-build_search_index = false
+generate_sitemap = true
+generate_robots_txt = true
+build_search_index = true
+minify_html = true
 
 [ansorum.redirects]
 external_host_allowlist = ["docs.example.com"]
@@ -50,6 +51,8 @@ This project was scaffolded by `ansorum init`.
 It includes:
 
 - answer-first starter content in `content/`
+- starter templates in `templates/`
+- a built-in stylesheet at `static/site.css`
 - a JSON-LD sidecar example at `content/refunds.schema.json`
 - a curated pack definition in `collections/packs/billing.toml`
 - deterministic eval fixtures in `eval/fixtures.yaml`
@@ -67,8 +70,22 @@ Use `ansorum eval --llm` only when `OPENAI_API_KEY` is set and you want OpenAI
 Responses API rubric scoring.
 "#;
 
+const HOME: &str = r#"+++
+title = "%PROJECT_TITLE%"
+description = "Answer-first documentation optimized for human readers, search engines, and AI systems."
++++
+
+%PROJECT_TITLE% ships with an answer-center starter designed for clear human
+navigation and clean machine-readable outputs from the same source.
+
+Start with the public answers below, then adapt the content, templates, and
+styling to your own domain and support surface.
+"#;
+
 const REFUNDS: &str = r#"+++
 title = "Refund policy"
+description = "How refunds work, who qualifies, and when payment returns land."
+weight = 10
 
 id = "refunds-policy"
 summary = "How refunds work, who qualifies, and when payment returns land."
@@ -85,6 +102,9 @@ ai_visibility = "public"
 llms_priority = "core"
 token_budget = "medium"
 retrieval_aliases = ["refund policy", "refund rules"]
+
+[extra]
+homepage = true
 +++
 
 Refund details for customers.
@@ -96,6 +116,8 @@ Refunds follow the [billing policy](https://example.com/policy).
 
 const CANCEL: &str = r#"+++
 title = "Cancel a subscription"
+description = "How to cancel a subscription and what happens after."
+weight = 20
 
 id = "cancel-subscription"
 summary = "How to cancel a subscription and what happens after."
@@ -111,6 +133,9 @@ ai_visibility = "summary_only"
 llms_priority = "optional"
 token_budget = "small"
 retrieval_aliases = ["cancel subscription"]
+
+[extra]
+homepage = true
 +++
 
 Cancellation details for customers.
@@ -122,6 +147,8 @@ Use the [billing portal](https://example.com/billing) to manage changes.
 
 const INTERNAL_PLAYBOOK: &str = r#"+++
 title = "Internal support escalation"
+description = "Internal escalation process for complex billing cases."
+weight = 90
 
 id = "internal-support-escalation"
 summary = "Internal escalation process for complex billing cases."
@@ -176,6 +203,438 @@ const EVAL_FIXTURES: &str = r#"- question: can i get a refund after 30 days
   forbidden_ids: [internal-support-escalation]
   required_terms: [canonical page, cancel]
   rubric_focus: prefer the public cancellation answer and keep canonical links visible
+"#;
+
+const BASE_TEMPLATE: &str = r##"<!DOCTYPE html>
+<html lang="{{ config.default_language | default(value="en") }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% set current_title = config.title %}
+    {% set current_description = config.description %}
+    {% set current_url = config.base_url %}
+    {% set og_type = "website" %}
+    {% if section is defined %}
+        {% set current_title = section.title | default(value=config.title) %}
+        {% if section.description %}
+            {% set current_description = section.description %}
+        {% endif %}
+        {% set current_url = section.permalink %}
+    {% endif %}
+    {% if page is defined %}
+        {% set current_title = page.title %}
+        {% if page.description %}
+            {% set current_description = page.description %}
+        {% endif %}
+        {% set current_url = page.permalink %}
+        {% set og_type = "article" %}
+    {% endif %}
+    <title>{% block title %}{% if current_title == config.title %}{{ config.title }}{% else %}{{ current_title }} | {{ config.title }}{% endif %}{% endblock %}</title>
+    <meta name="description" content="{{ current_description }}">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <link rel="canonical" href="{{ current_url | safe }}">
+    <meta property="og:site_name" content="{{ config.title }}">
+    <meta property="og:type" content="{{ og_type }}">
+    <meta property="og:title" content="{{ current_title }}">
+    <meta property="og:description" content="{{ current_description }}">
+    <meta property="og:url" content="{{ current_url | safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ current_title }}">
+    <meta name="twitter:description" content="{{ current_description }}">
+    <meta name="theme-color" content="#b45a3c">
+    <link rel="alternate" type="text/plain" href="{{ get_url(path='llms.txt') | safe }}" title="llms.txt">
+    <link rel="alternate" type="application/json" href="{{ get_url(path='answers.json') | safe }}" title="answers.json">
+    {% if page is defined %}
+    <link rel="alternate" type="text/markdown" href="{{ page.permalink | safe }}page.md" title="{{ page.title }} markdown">
+    {% endif %}
+    <link rel="stylesheet" href="{{ get_url(path='site.css') | safe }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}starter{% endblock %}">
+    {% set home = get_section(path='_index.md', required=false) %}
+    <div class="shell">
+        <header class="masthead">
+            <div class="masthead__inner">
+                <a class="brand" href="{{ config.base_url | safe }}">{{ config.title }}</a>
+                <div class="brand__meta">Answer-first documentation for humans and machines.</div>
+                <nav class="topnav" aria-label="Primary">
+                    <a href="{{ config.base_url | safe }}">Home</a>
+                    <a href="{{ get_url(path='llms.txt') | safe }}">llms.txt</a>
+                    <a href="{{ get_url(path='answers.json') | safe }}">answers.json</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="main">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="footer">
+            <div class="footer__grid">
+                <div>
+                    <h2>Why this starter works</h2>
+                    <p>Readable HTML, canonical Markdown, answer indexes, and JSON-LD sidecars come from one authored corpus.</p>
+                </div>
+                <div>
+                    <h2>Machine surfaces</h2>
+                    <ul>
+                        <li><a href="{{ get_url(path='llms.txt') | safe }}">llms.txt</a></li>
+                        <li><a href="{{ get_url(path='answers.json') | safe }}">answers.json</a></li>
+                        <li><a href="{{ get_url(path='sitemap.xml') | safe }}">sitemap.xml</a></li>
+                    </ul>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
+"##;
+
+const INDEX_TEMPLATE: &str = r#"{% extends "base.html" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "{{ config.title }}",
+  "url": "{{ config.base_url | safe }}",
+  "description": "{{ section.description | default(value=config.description) }}"
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">SEO, AEO, and GEO ready</p>
+    <h1>{{ section.title | default(value=config.title) }}</h1>
+    <p class="lede">{{ section.description | default(value=config.description) }}</p>
+    <div class="hero__body">
+        {{ section.content | safe }}
+    </div>
+    <div class="hero__actions">
+        <a class="button button--primary" href="{{ get_url(path='llms.txt') | safe }}">Open llms.txt</a>
+        <a class="button" href="{{ get_url(path='answers.json') | safe }}">Browse answers.json</a>
+    </div>
+</section>
+
+<section class="answers" aria-labelledby="featured-answers">
+    <div class="section-heading">
+        <p class="eyebrow">Public answer corpus</p>
+        <h2 id="featured-answers">Start with these authoritative answers</h2>
+    </div>
+    <div class="answer-grid">
+        {% for entry in section.pages %}
+            {% if entry.extra.homepage | default(value=false) %}
+            <article class="answer-card">
+                <p class="answer-card__label">Canonical answer</p>
+                <h3><a href="{{ entry.permalink | safe }}">{{ entry.title }}</a></h3>
+                {% if entry.description %}
+                <p>{{ entry.description }}</p>
+                {% endif %}
+                <div class="answer-card__links">
+                    <a href="{{ entry.permalink | safe }}">Read page</a>
+                    <a href="{{ entry.permalink | safe }}page.md">page.md</a>
+                </div>
+            </article>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+"#;
+
+const PAGE_TEMPLATE: &str = r#"{% extends "base.html" %}
+
+{% block extra_head %}
+{% if page is defined %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ page.title }}",
+  "description": "{{ page.description | default(value=config.description) }}",
+  "url": "{{ page.permalink | safe }}"
+}
+</script>
+{% endif %}
+{% endblock %}
+
+{% block body_class %}starter starter--page{% endblock %}
+
+{% block content %}
+<article class="article">
+    <header class="article__header">
+        <p class="eyebrow">Canonical answer</p>
+        <h1>{{ page.title }}</h1>
+        {% if page.description %}
+        <p class="article__summary">{{ page.description }}</p>
+        {% endif %}
+        <div class="article__actions">
+            <a class="button button--primary" href="{{ page.permalink | safe }}page.md">Open page.md</a>
+            <a class="button" href="{{ get_url(path='llms.txt') | safe }}">View llms.txt</a>
+        </div>
+    </header>
+
+    <div class="article__content">
+        {{ page.content | safe }}
+    </div>
+
+    <aside class="article__meta">
+        <h2>Machine-friendly surfaces</h2>
+        <ul>
+            <li><a href="{{ page.permalink | safe }}page.md">Canonical Markdown</a></li>
+            <li><a href="{{ get_url(path='answers.json') | safe }}">Answer index</a></li>
+            <li><a href="{{ get_url(path='llms.txt') | safe }}">llms.txt</a></li>
+        </ul>
+    </aside>
+</article>
+{% endblock %}
+"#;
+
+const SITE_CSS: &str = r#":root {
+  --paper: #f7f1e8;
+  --paper-strong: #fffaf2;
+  --ink: #1f1a17;
+  --ink-muted: #5d5148;
+  --accent: #b45a3c;
+  --accent-strong: #8f3e21;
+  --line: rgba(31, 26, 23, 0.12);
+  --shadow: 0 24px 60px rgba(83, 49, 31, 0.14);
+  --radius: 22px;
+  --content: 74ch;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background:
+    radial-gradient(circle at top, rgba(180, 90, 60, 0.14), transparent 34%),
+    linear-gradient(180deg, #fbf5ec 0%, var(--paper) 60%, #f1e6d9 100%);
+  color: var(--ink);
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Noto Serif", serif;
+  line-height: 1.65;
+}
+
+body { margin: 0; }
+
+a {
+  color: var(--accent-strong);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
+img { max-width: 100%; }
+
+.shell {
+  min-height: 100vh;
+  padding: 0 1.25rem 4rem;
+}
+
+.masthead__inner,
+.main,
+.footer {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.masthead {
+  padding: 1.25rem 0 0;
+}
+
+.masthead__inner {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 250, 242, 0.8);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+}
+
+.brand {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.brand__meta,
+.eyebrow,
+.footer p,
+.footer li,
+.answer-card__label {
+  color: var(--ink-muted);
+}
+
+.topnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.topnav a {
+  font-size: 0.96rem;
+  text-decoration: none;
+}
+
+.main {
+  padding-top: 2rem;
+}
+
+.hero,
+.article {
+  padding: clamp(1.5rem, 3vw, 3rem);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 4px);
+  background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(255, 248, 238, 0.88));
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% -18% auto;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(180, 90, 60, 0.2), transparent 70%);
+}
+
+.hero h1,
+.article h1,
+.section-heading h2 {
+  margin: 0;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.hero h1 { font-size: clamp(2.4rem, 6vw, 4.8rem); max-width: 11ch; }
+.section-heading h2 { font-size: clamp(1.6rem, 3vw, 2.5rem); }
+
+.lede,
+.article__summary {
+  max-width: 48rem;
+  font-size: 1.12rem;
+  color: var(--ink-muted);
+}
+
+.hero__body,
+.article__content {
+  max-width: var(--content);
+}
+
+.hero__actions,
+.article__actions,
+.answer-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(180, 90, 60, 0.28);
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.button--primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.answers {
+  margin-top: 2rem;
+}
+
+.section-heading {
+  margin-bottom: 1rem;
+}
+
+.answer-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.answer-card {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 250, 242, 0.84);
+  box-shadow: 0 16px 40px rgba(83, 49, 31, 0.08);
+}
+
+.answer-card h3 {
+  margin: 0.15rem 0 0.5rem;
+  font-size: 1.28rem;
+}
+
+.article {
+  display: grid;
+  gap: 2rem;
+}
+
+.article__meta {
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.article__content :where(h2, h3, h4) {
+  margin-top: 2rem;
+  line-height: 1.15;
+}
+
+.article__content code {
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.4rem;
+  background: rgba(31, 26, 23, 0.07);
+}
+
+.article__content pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 16px;
+  background: #231c19;
+  color: #f9efe0;
+}
+
+.footer {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 250, 242, 0.82);
+}
+
+.footer__grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+@media (max-width: 720px) {
+  .shell { padding-inline: 0.85rem; }
+  .masthead__inner,
+  .hero,
+  .article,
+  .footer { padding: 1.1rem; }
+  .hero h1 { max-width: 100%; }
+}
 "#;
 
 // canonicalize(path) function on windows system returns a path with UNC.
@@ -279,14 +738,20 @@ fn populate(path: &Path, project_title: &str, config: &str) -> Result<()> {
     create_directory(&path.join("collections/packs"))?;
     create_directory(&path.join("content"))?;
     create_directory(&path.join("eval"))?;
+    create_directory(&path.join("templates"))?;
     create_directory(&path.join("static"))?;
 
     create_file(&path.join("collections/packs/billing.toml"), BILLING_PACK)?;
+    create_file(&path.join("content/_index.md"), HOME.replace("%PROJECT_TITLE%", project_title))?;
     create_file(&path.join("content/refunds.md"), REFUNDS)?;
     create_file(&path.join("content/cancel.md"), CANCEL)?;
     create_file(&path.join("content/internal-playbook.md"), INTERNAL_PLAYBOOK)?;
     create_file(&path.join("content/refunds.schema.json"), REFUNDS_SCHEMA)?;
     create_file(&path.join("eval/fixtures.yaml"), EVAL_FIXTURES)?;
+    create_file(&path.join("templates/base.html"), BASE_TEMPLATE)?;
+    create_file(&path.join("templates/index.html"), INDEX_TEMPLATE)?;
+    create_file(&path.join("templates/page.html"), PAGE_TEMPLATE)?;
+    create_file(&path.join("static/site.css"), SITE_CSS)?;
 
     Ok(())
 }
@@ -414,14 +879,22 @@ mod tests {
         assert!(dir.join("config.toml").exists());
         assert!(dir.join("README.md").exists());
         assert!(dir.join("collections/packs/billing.toml").exists());
+        assert!(dir.join("templates/base.html").exists());
+        assert!(dir.join("templates/index.html").exists());
+        assert!(dir.join("templates/page.html").exists());
         assert!(dir.join("content/refunds.md").exists());
+        assert!(dir.join("content/_index.md").exists());
         assert!(dir.join("content/cancel.md").exists());
         assert!(dir.join("content/internal-playbook.md").exists());
         assert!(dir.join("content/refunds.schema.json").exists());
         assert!(dir.join("eval/fixtures.yaml").exists());
         assert!(dir.join("static").exists());
+        assert!(dir.join("static/site.css").exists());
         assert!(dir.join("content").exists());
         assert!(read_file(&dir.join("config.toml")).unwrap().contains("[ansorum.redirects]"));
+        assert!(read_file(&dir.join("config.toml")).unwrap().contains("generate_sitemap = true"));
+        assert!(read_file(&dir.join("templates/base.html")).unwrap().contains("answers.json"));
+        assert!(read_file(&dir.join("static/site.css")).unwrap().contains("--paper"));
         assert!(read_file(&dir.join("eval/fixtures.yaml")).unwrap().contains("expected_ids"));
 
         remove_dir_all(&dir).unwrap();
@@ -445,10 +918,15 @@ mod tests {
         assert!(dir.join("config.toml").exists());
         assert!(dir.join("README.md").exists());
         assert!(dir.join("collections/packs/billing.toml").exists());
+        assert!(dir.join("templates/base.html").exists());
+        assert!(dir.join("templates/index.html").exists());
+        assert!(dir.join("templates/page.html").exists());
         assert!(dir.join("content").exists());
+        assert!(dir.join("content/_index.md").exists());
         assert!(dir.join("content/refunds.md").exists());
         assert!(dir.join("content/refunds.schema.json").exists());
         assert!(dir.join("eval/fixtures.yaml").exists());
+        assert!(dir.join("static/site.css").exists());
 
         remove_dir_all(&dir).unwrap();
     }

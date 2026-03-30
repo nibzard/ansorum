@@ -51,8 +51,8 @@ You will be asked for:
 > What is the URL of your site? (https://example.com):
 ```
 
-The generated scaffold includes starter answers, a sidecar, a curated pack, and
-deterministic eval fixtures:
+The generated scaffold includes starter answers, starter templates, a sidecar,
+a curated pack, and deterministic eval fixtures:
 
 ```text
 my-answers/
@@ -62,18 +62,26 @@ my-answers/
 │       └── billing.toml
 ├── config.toml
 ├── content/
+│   ├── _index.md
 │   ├── cancel.md
 │   ├── internal-playbook.md
 │   ├── refunds.md
 │   └── refunds.schema.json
 ├── eval/
 │   └── fixtures.yaml
-└── static/
+├── static/
+│   └── site.css
+└── templates/
+    ├── base.html
+    ├── index.html
+    └── page.html
 ```
 
 That scaffold is ready to run through `build`, `serve`, `audit`, and `eval`
-without hand edits. `examples/reference-project/` remains the fuller reference corpus
-for additional patterns.
+without hand edits. It also includes a built-in starter theme with SEO-friendly
+metadata and machine-surface links out of the box.
+`examples/reference-project/` remains the fuller reference corpus for
+additional patterns.
 
 ## Author Your First Answer
 
