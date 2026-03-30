@@ -8,5 +8,5 @@ Curated billing pack for customer-visible billing answers.
 
 ## Additional Context
 
-- how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)
+- Cancel a subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)
 

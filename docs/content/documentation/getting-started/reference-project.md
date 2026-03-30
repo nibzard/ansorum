@@ -11,12 +11,15 @@ It is intentionally small, but it exercises the full v0 workflow in one coherent
 corpus:
 
 - public billing answers with first-class answer frontmatter
+- both TOML and YAML frontmatter styles
 - internal-only support content with hidden AI visibility
 - canonical markdown output at `/page.md`
 - machine indexes via `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
+- search output via `search_index.en.js`
 - JSON-LD sidecars from `<answer-stem>.schema.json`
 - configured `/r/:code` redirects
 - deterministic `audit` and `eval` inputs
+- governance metadata such as `review_by`, `owner`, and `confidence_notes`
 
 ## Why This Project Matters
 
@@ -57,6 +60,14 @@ It also demonstrates the core policy controls:
 - `ai_visibility = "summary_only"` when agents should get the summary and
   canonical links but not the full rendered body
 - `ai_visibility = "hidden"` when an answer should stay out of machine outputs
+- `review_by`, `owner`, and `confidence_notes` as governance-oriented metadata
+  that `audit` can reason about
+
+The pack setup is intentionally selective:
+
+- curated packs are enabled
+- audience packs are enabled
+- entity packs are left disabled to keep the example output surface compact
 
 Structured data is authored as a sibling file, for example
 `content/refunds.schema.json`. Ansorum's v0 convention is one sidecar per
@@ -69,6 +80,7 @@ After `ansorum build`, the reference project should produce:
 - `public/refunds/page.md`
 - `public/refunds/schema.json`
 - `public/cancel/page.md`
+- `public/cancel/schema.json`
 - `public/answers.json`
 - `public/llms.txt`
 - `public/llms-full.txt`
@@ -76,12 +88,15 @@ After `ansorum build`, the reference project should produce:
 - `public/billing/answers.json`
 - `public/customer/llms.txt`
 - `public/customer/answers.json`
+- `public/search_index.en.js`
+- `public/legacy/refund-policy/index.html`
 
 During `ansorum serve`, the same project demonstrates:
 
 - canonical HTML at `/refunds/`
 - negotiated Markdown with `Accept: text/markdown`
 - explicit Markdown at `/refunds/page.md`
+- `summary_only` Markdown behavior at `/cancel/page.md`
 - redirect delivery at `/r/sales-demo` and `/r/billing-portal`
 
 Treat this project as the source of truth for screenshots, docs examples, and

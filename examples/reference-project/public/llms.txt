@@ -8,7 +8,7 @@ Reference Ansorum project for a billing and support answer corpus.
 
 ## Additional Context
 
-- how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)
+- Cancel a subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)
 
 ## Scoped Packs
 

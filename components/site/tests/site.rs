@@ -127,7 +127,7 @@ fn extracts_normalized_answer_records() {
 
     let cancel =
         site.answers.get("cancel-subscription").expect("missing cancel-subscription answer");
-    assert_eq!(cancel.title, "how do i cancel my subscription");
+    assert_eq!(cancel.title, "Cancel a subscription");
     assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel/page.md");
 
     let credits = site.answers.get("billing-credits").expect("missing billing-credits answer");
@@ -365,11 +365,7 @@ fn embeds_json_ld_and_writes_schema_sidecars() {
 
     assert!(file_exists!(public, "cancel/schema.json"));
     assert!(file_contains!(public, "cancel/schema.json", "\"@type\": \"HowTo\""));
-    assert!(file_contains!(
-        public,
-        "cancel/schema.json",
-        "\"name\": \"how do i cancel my subscription\""
-    ));
+    assert!(file_contains!(public, "cancel/schema.json", "\"name\": \"Cancel a subscription\""));
 }
 
 #[test]
@@ -416,7 +412,7 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert!(file_contains!(
         public,
         "llms.txt",
-        "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
+        "Cancel a subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
     ));
     assert!(file_contains!(public, "llms.txt", "## Scoped Packs"));
     assert!(file_contains!(public, "llms.txt", "https://answers.example.com/billing/llms.txt"));
@@ -431,7 +427,7 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert!(file_contains!(
         public,
         "llms-full.txt",
-        "how do i cancel my subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
+        "Cancel a subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
     ));
     assert!(!file_contains!(public, "llms-full.txt", "internal-support-escalation"));
 

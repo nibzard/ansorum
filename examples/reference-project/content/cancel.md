@@ -1,5 +1,5 @@
 +++
-title = "how do i cancel my subscription"
+title = "Cancel a subscription"
 weight = 20
 
 id = "cancel-subscription"
@@ -18,8 +18,21 @@ token_budget = "small"
 retrieval_aliases = ["cancel subscription"]
 +++
 
-Cancellation details for customers.
+Cancel your plan from the billing portal. Changes take effect at the end of the
+current billing period unless your contract says otherwise.
 
-## Keep access
+## Steps
 
-Use the [billing portal](https://example.com/billing) to manage changes.
+1. Open the [billing portal](https://example.com/billing).
+2. Choose the subscription you want to change.
+3. Select **Cancel subscription** and confirm the request.
+
+## What happens next
+
+- Your access remains available until the current paid period ends.
+- Scheduled renewals stop immediately after the cancellation is confirmed.
+- If you think you were billed in error, review the [Refund policy](/refunds/).
+
+## Need a copy for finance?
+
+Download the final invoice from the portal before the subscription expires.

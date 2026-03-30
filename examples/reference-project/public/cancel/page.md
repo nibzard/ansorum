@@ -16,7 +16,7 @@ related:
 - refunds-policy
 ---
 
-# how do i cancel my subscription
+# Cancel a subscription
 
 How to cancel a subscription and what happens after.
 

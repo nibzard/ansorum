@@ -3,7 +3,7 @@
   "answers": [
     {
       "id": "cancel-subscription",
-      "title": "how do i cancel my subscription",
+      "title": "Cancel a subscription",
       "summary": "How to cancel a subscription and what happens after.",
       "canonical_url": "https://answers.example.com/cancel/",
       "markdown_url": "https://answers.example.com/cancel/page.md",
