@@ -1,0 +1,10 @@
+# Context
+
+## Background
+Prepare the Ansorum 0.2.0-alpha release from the current master head after fixture, runtime hardening, and reference-project refresh work landed.
+
+## Why This Way
+The release commit updates the version-bearing metadata surfaces and changelog so the pushed tag and generated release artifacts all describe the same prerelease.
+
+## Gotchas
+The repository creates GitHub releases from pushed tags in CI, so publishing is driven by the v0.2.0-alpha tag rather than a separate manual release step.
