@@ -3,250 +3,114 @@ title = "Installation"
 weight = 10
 +++
 
-Zola provides pre-built binaries for MacOS, Linux and Windows on the
-[GitHub release page](https://github.com/getzola/zola/releases).
+Ansorum installation currently has two practical paths:
 
-### macOS
+- install a prebuilt binary from the
+  [GitHub releases page](https://github.com/nibzard/ansorum/releases) when an
+  asset exists for your platform
+- install from source with Cargo
 
-Zola is available on [Brew](https://brew.sh):
+The release workflow is configured to publish these binary targets:
+
+- `x86_64-unknown-linux-gnu`
+- `x86_64-unknown-linux-musl`
+- `aarch64-unknown-linux-gnu`
+- `x86_64-pc-windows-msvc`
+- `x86_64-apple-darwin`
+- `aarch64-apple-darwin`
+
+## Prebuilt Binary From GitHub Releases
+
+Use the release page when there is an uploaded asset matching your platform.
+The artifact naming convention is:
+
+```text
+ansorum-<tag>-<target>.tar.gz
+```
+
+A versioned Linux example using the static `musl` binary:
 
 ```sh
-$ brew install zola
+VERSION=vX.Y.Z
+TARGET=x86_64-unknown-linux-musl
+curl -fsSLo ansorum.tar.gz \
+  "https://github.com/nibzard/ansorum/releases/download/${VERSION}/ansorum-${VERSION}-${TARGET}.tar.gz"
+tar -xzf ansorum.tar.gz
+install -m 0755 ansorum ~/.local/bin/ansorum
+ansorum --version
 ```
 
-Zola is also available on [MacPorts](https://www.macports.org):
+Swap `TARGET` for the asset you need on your platform.
+Replace `vX.Y.Z` with a real release tag that has uploaded assets.
+
+## From Source With Cargo
+
+To build and install Ansorum from source, you need
+[Rust and Cargo](https://www.rust-lang.org/).
+
+Install the `ansorum` binary directly from this repository:
 
 ```sh
-$ sudo port install zola
+cargo install --locked --git https://github.com/nibzard/ansorum ansorum --bin ansorum
+ansorum --version
 ```
 
-### Arch Linux
+Cargo installs binaries into `~/.cargo/bin/` by default.
 
-Zola is available in the official Arch Linux repositories.
+If you need the native TLS feature set instead of the default Rust TLS setup:
 
 ```sh
-$ pacman -S zola
+cargo install --locked --no-default-features --features=native-tls \
+  --git https://github.com/nibzard/ansorum ansorum --bin ansorum
+ansorum --version
 ```
 
-### Alpine Linux
+## GitHub Actions
 
-Zola is available in the official Alpine Linux community repository since Alpine v3.13.
-
-See this section of the Alpine Wiki explaining how to enable the community repository if necessary: https://wiki.alpinelinux.org/wiki/Repositories#Enabling_the_community_repository
-
-```sh
-$ apk add zola
-```
-
-### Debian
-
-Zola is available over at [barnumbirr/zola-debian](https://github.com/barnumbirr/zola-debian).
-Grab the latest `.deb` for your Debian version then simply run:
-
-```sh
-$ sudo dpkg -i zola_<version>_amd64_debian_<debian_version>.deb
-```
-
-### Gentoo
-
-Zola is available via [GURU](https://wiki.gentoo.org/wiki/Project:GURU).
-
-See the end user documentation for how to [enable](https://wiki.gentoo.org/wiki/Project:GURU/Information_for_End_Users#Adding_the_GURU_repository) the GURU repository. Afterwards simply run:
-
-```sh
-$ sudo emerge --ask www-apps/zola
-```
-
-### Void Linux
-
-Zola is available in the official Void Linux repositories.
-
-```sh
-$ sudo xbps-install zola
-```
-
-### FreeBSD
-
-Zola is available in the official package repository.
-
-```sh
-$ pkg install zola
-```
-
-### OpenBSD
-
-Zola is available in the official package repository.
-
-```sh
-$ doas pkg_add zola
-```
-
-### openSUSE
-
-#### openSUSE Tumbleweed
-
-Zola is [available](https://software.opensuse.org/package/zola?baseproject=ALL) in the official openSUSE Tumbleweed main OSS repository.
-
-```sh
-$ sudo zypper install zola
-```
-
-#### openSUSE Leap
-
-Zola is [available](https://software.opensuse.org/package/zola?baseproject=ALL) in the official experimental _utilities_ repository.
-
-```sh
-$ sudo zypper addrepo https://download.opensuse.org/repositories/utilities/15.6/utilities.repo
-$ sudo zypper refresh
-$ sudo zypper install zola
-```
-
-### pkgsrc
-
-Zola is available in the official package repository, with [pkgin](https://pkgin.net/).
-
-```sh
-$ pkgin install zola
-```
-
-### Snapcraft
-
-Zola is available on snapcraft:
-
-```sh
-$ snap install --edge zola
-```
-
-### Flatpak
-
-Zola is available as a flatpak on [flathub](https://flathub.org):
-
-```sh
-$ flatpak install flathub org.getzola.zola
-```
-
-To use zola:
-
-```sh
-$ flatpak run org.getzola.zola [command]
-```
-
-To avoid having to type this every time, an alias can be created in `~/.bashrc`:
-
-```sh
-$ alias zola="flatpak run org.getzola.zola"
-```
-
-### NixOS / Nixpkgs
-
-Zola is [available](https://search.nixos.org/packages?show=zola&query=zola)
-in the nixpkgs repository. If you're using NixOS, you can install Zola
-by adding the following to `/etc/nixos/configuration.nix`:
-
-```
-environment.systemPackages = [
-  pkgs.zola
-];
-```
-
-If you're using Nix as a package manager in another OS, you can install it using:
-
-```
-nix-env -iA nixpkgs.zola
-```
-
-### Via Github Actions
-
-Zola can be installed in a GHA workflow with [taiki-e/install-action](https://github.com/taiki-e/install-action).
-Simply add it in your CI config, for example:
+Ansorum can be installed in CI directly from the repository with Cargo:
 
 ```yaml
 jobs:
   foo:
     steps:
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: zola@0.19.1
-      # ...
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install --locked --path .
+      - run: ansorum --version
 ```
 
-See the action repo for docs and more examples.
+## Docker
 
-### Docker
-
-Zola is available on [the GitHub registry](https://github.com/getzola/zola/pkgs/container/zola).
-It has no `latest` tag, you will need to specify a [specific version to pull](https://github.com/getzola/zola/pkgs/container/zola/versions).
+The release workflow is intended to publish versioned container images to
+GitHub Container Registry:
 
 ```sh
-$ docker pull ghcr.io/getzola/zola:v0.19.1
+docker pull ghcr.io/nibzard/ansorum:vX.Y.Z
 ```
 
 #### Build
 
 ```sh
-$ docker run -u "$(id -u):$(id -g)" -v $PWD:/app --workdir /app ghcr.io/getzola/zola:v0.19.1 build
+docker run -u "$(id -u):$(id -g)" -v $PWD:/app --workdir /app ghcr.io/nibzard/ansorum:vX.Y.Z build
 ```
 
 #### Serve
 
 ```sh
-$ docker run -u "$(id -u):$(id -g)" -v $PWD:/app --workdir /app -p 8080:8080 ghcr.io/getzola/zola:v0.19.1 serve --interface 0.0.0.0 --port 8080 --base-url localhost
+docker run -u "$(id -u):$(id -g)" -v $PWD:/app --workdir /app -p 8080:8080 ghcr.io/nibzard/ansorum:vX.Y.Z serve --interface 0.0.0.0 --port 8080 --base-url localhost
 ```
 
 You can now browse http://localhost:8080.
 
 #### Multi-stage build
 
-Since there is no shell in the Zola docker image, if you want to use it from inside a Dockerfile, you have to use the
-exec form of `RUN`, like:
+Since there is no shell in the Ansorum docker image, if you want to use it
+from inside a Dockerfile, use the exec form of `RUN`:
 
 ```Dockerfile
-FROM ghcr.io/getzola/zola:v0.19.1 as zola
+FROM ghcr.io/nibzard/ansorum:vX.Y.Z as ansorum
 
 COPY . /project
 WORKDIR /project
-RUN ["zola", "build"]
+RUN ["ansorum", "build"]
 ```
-
-## Windows
-
-Zola could be installed using official Winget command:
-
-```sh
-$ winget install getzola.zola
-```
-
-Also it is available on [Scoop](https://scoop.sh):
-
-```sh
-$ scoop install zola
-```
-
-and [Chocolatey](https://chocolatey.org/):
-
-```sh
-$ choco install zola
-```
-
-Zola does not work in PowerShell ISE.
-
-## From source
-
-To build Zola from source, you will need to have [Rust and Cargo](https://www.rust-lang.org/)
-installed.
-
-From a terminal, you can now run the following commands:
-
-```sh
-$ cargo install --locked --git https://github.com/getzola/zola
-$ zola --version
-```
-
-If you encountered compilation errors like `error: failed to run custom build command for 'ring v0.16.20'`, you can try the command below instead:
-
-```sh
-$ cargo install --locked --no-default-features --features=native-tls --git https://github.com/getzola/zola
-```
-
-Cargo will install the `zola` binary in `~/.cargo/bin/`.
-You can move it into the repository of your site if you want.

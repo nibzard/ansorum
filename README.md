@@ -21,6 +21,46 @@ The product is not "a lighter website framework." The product is:
 - a lightweight gateway for Markdown negotiation and redirects
 - audit and eval tooling so answer quality is testable before publish
 
+## Install
+
+Ansorum is intended to ship prebuilt binaries on the
+[GitHub releases page](https://github.com/nibzard/ansorum/releases).
+
+If a release asset is available for your platform, you can install it with a
+versioned download URL. For example, on Linux with the static `musl` build:
+
+```bash
+VERSION=vX.Y.Z
+TARGET=x86_64-unknown-linux-musl
+curl -fsSLo ansorum.tar.gz \
+  "https://github.com/nibzard/ansorum/releases/download/${VERSION}/ansorum-${VERSION}-${TARGET}.tar.gz"
+tar -xzf ansorum.tar.gz
+install -m 0755 ansorum ~/.local/bin/ansorum
+ansorum --version
+```
+
+The release workflow is configured to publish these targets:
+
+- `x86_64-unknown-linux-gnu`
+- `x86_64-unknown-linux-musl`
+- `aarch64-unknown-linux-gnu`
+- `x86_64-pc-windows-msvc`
+- `x86_64-apple-darwin`
+- `aarch64-apple-darwin`
+
+Replace `vX.Y.Z` with a real release tag that has uploaded assets.
+
+If there is no prebuilt asset yet for the release you want, install from
+source with Cargo:
+
+```bash
+cargo install --locked --git https://github.com/nibzard/ansorum ansorum --bin ansorum
+ansorum --version
+```
+
+Container images are intended to publish to `ghcr.io/nibzard/ansorum:<tag>` as
+part of the release workflow.
+
 ## Core Workflow
 
 Ansorum is for teams that need one canonical answer layer behind docs, support,
@@ -42,6 +82,67 @@ Ansorum is designed to help teams:
 - control what agents can see and at what fidelity
 - detect stale, duplicate, conflicting, or weak answers before publishing
 - evaluate whether the corpus actually answers real questions well
+
+## Create a New Website
+
+If you want to start a new Ansorum site, use the built-in scaffold:
+
+```bash
+ansorum init my-site
+cd my-site
+ansorum build
+ansorum serve
+```
+
+`ansorum init` asks for your site URL and creates a working answer-first
+starter project with:
+
+- `config.toml`
+- starter answers in `content/`
+- a JSON-LD sidecar example at `content/refunds.schema.json`
+- a curated pack definition in `collections/packs/billing.toml`
+- deterministic eval fixtures in `eval/fixtures.yaml`
+- `static/` for copied assets
+
+The generated layout looks like this before the first build:
+
+```text
+my-site/
+├── README.md
+├── collections/
+│   └── packs/
+│       └── billing.toml
+├── config.toml
+├── content/
+│   ├── cancel.md
+│   ├── internal-playbook.md
+│   ├── refunds.md
+│   └── refunds.schema.json
+├── eval/
+│   └── fixtures.yaml
+└── static/
+```
+
+The normal operator loop is:
+
+```bash
+ansorum build
+ansorum serve
+ansorum audit
+ansorum eval
+```
+
+What to edit first:
+
+- set the real `base_url` and title in `config.toml`
+- replace the starter answers in `content/` with your own corpus
+- add one Markdown file per answerable topic
+- optionally add `content/<answer-stem>.schema.json` for JSON-LD
+- place logos, CSS, images, and JS in `static/`
+
+Ansorum is opinionated: it is best for answer-first docs, help centers, support
+knowledge, and similar websites where one canonical answer should compile into
+human and machine-facing outputs.
 
 ## Observability Contract
 
