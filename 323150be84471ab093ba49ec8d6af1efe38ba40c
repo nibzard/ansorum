@@ -1,0 +1,10 @@
+# Context
+
+## Background
+Standardized machine-facing markdown delivery and llms outputs to align with the llms-txt workflow and route conventions.
+
+## Why This Way
+Switched canonical machine markdown from `/page.md` to `/<slug>.md`, updated direct and negotiated serving to the same route shape, made `llms.txt` emit standard markdown link-list sections, and changed `llms-full.txt` to embed each answer's canonical machine-safe markdown instead of acting as a second reference index.
+
+## Gotchas
+Root markdown routes are emitted as `/index.md`. Starter templates now use a dedicated Tera macro for markdown URLs instead of manual string concatenation.
