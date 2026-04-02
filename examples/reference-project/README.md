@@ -6,9 +6,9 @@ It demonstrates one coherent workflow in a small billing and support corpus:
 
 - first-class answer frontmatter in `content/*.md`
 - both TOML and YAML answer frontmatter
-- canonical machine markdown at `/page.md`
+- canonical machine markdown at `/<slug>.md`
 - structured-data sidecars via `content/<answer-stem>.schema.json`
-- root and scoped machine indexes via `llms.txt`, `llms-full.txt`, and `answers.json`
+- root and scoped machine indexes via `llms.txt` and `answers.json`, plus expanded corpus export via `llms-full.txt`
 - search output via `search_index.en.js`
 - redirect routes configured under `[ansorum.redirects]`
 - audit-ready answer metadata such as `review_by`, `owner`, and `confidence_notes`
@@ -25,9 +25,9 @@ ansorum eval
 
 The build should emit these reference outputs:
 
-- `public/refunds/page.md`
+- `public/refunds.md`
 - `public/refunds/schema.json`
-- `public/cancel/page.md`
+- `public/cancel.md`
 - `public/cancel/schema.json`
 - `public/answers.json`
 - `public/llms.txt`
@@ -53,8 +53,8 @@ Intentional choices in this example:
 Use `ansorum serve` to exercise the delivery workflow:
 
 - `GET /refunds/` for HTML
-- `GET /refunds/page.md` for canonical machine markdown
-- `GET /cancel/page.md` for a `summary_only` machine view
+- `GET /refunds.md` for canonical machine markdown
+- `GET /cancel.md` for a `summary_only` machine view
 - `GET /refunds/` with `Accept: text/markdown` for negotiated markdown
 - `GET /r/sales-demo` for an external allowlisted redirect
 - `GET /r/billing-portal` for a site-relative redirect

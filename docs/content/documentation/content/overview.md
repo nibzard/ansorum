@@ -21,7 +21,7 @@ A typical answer corpus looks like this:
 ```
 
 Each `.md` file becomes a page route for humans and may also emit machine
-artifacts such as `/page.md` and `schema.json`. The output path can still be
+artifacts such as `/<slug>.md` and `schema.json`. The output path can still be
 customized through page frontmatter such as `path` or `slug`, but the critical
 contract is the answer metadata documented on the
 [page frontmatter page](@/documentation/content/page.md#ansorum-answer-front-matter).

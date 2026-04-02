@@ -66,7 +66,7 @@ ansorum build
 In an Ansorum project, `build` is expected to emit:
 
 - HTML pages for humans
-- canonical machine Markdown at `/page.md`
+- canonical machine Markdown at `/<slug>.md`
 - `answers.json`
 - `llms.txt` and `llms-full.txt`
 - scoped pack outputs where configured
@@ -107,7 +107,7 @@ address is `127.0.0.1:1111`.
 
 - canonical HTML routes
 - negotiated Markdown via `Accept: text/markdown`
-- explicit `/page.md` routes
+- explicit `/<slug>.md` routes
 - configured redirect routes under `/r/:code`
 - live reload during editing
 
@@ -219,7 +219,7 @@ export ANSORUM_EVENT_HOOK_TIMEOUT_MS=5000
 
 Stable v0 event names:
 
-- `ansorum.markdown.fetch`: canonical `/page.md` fetches and negotiated
+- `ansorum.markdown.fetch`: canonical `/<slug>.md` fetches and negotiated
   `Accept: text/markdown` fetches. Payload includes `request_path`,
   `served_path`, `content_source`, and `delivery_mode`.
 - `ansorum.llms.fetch`: root `llms.txt`, `llms-full.txt`, and scoped pack

@@ -118,7 +118,7 @@ fn extracts_normalized_answer_records() {
     let refunds = site.answers.get("refunds-policy").expect("missing refunds-policy answer");
     assert_eq!(refunds.title, "Refund policy");
     assert_eq!(refunds.canonical_url, "https://answers.example.com/refunds/");
-    assert_eq!(refunds.markdown_url, "https://answers.example.com/refunds/page.md");
+    assert_eq!(refunds.markdown_url, "https://answers.example.com/refunds.md");
     assert_eq!(refunds.entity, "billing");
     assert_eq!(
         refunds.retrieval_aliases,
@@ -128,13 +128,13 @@ fn extracts_normalized_answer_records() {
     let cancel =
         site.answers.get("cancel-subscription").expect("missing cancel-subscription answer");
     assert_eq!(cancel.title, "Cancel a subscription");
-    assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel/page.md");
+    assert_eq!(cancel.markdown_url, "https://answers.example.com/cancel.md");
 
     let credits = site.answers.get("billing-credits").expect("missing billing-credits answer");
     assert_eq!(credits.title, "Billing credits");
     assert_eq!(credits.summary, "How billing credits are issued and when they are applied.");
     assert_eq!(credits.canonical_url, "https://answers.example.com/billing-credits/");
-    assert_eq!(credits.markdown_url, "https://answers.example.com/billing-credits/page.md");
+    assert_eq!(credits.markdown_url, "https://answers.example.com/billing-credits.md");
     assert_eq!(credits.entity, "billing");
     assert_eq!(credits.related, vec!["refunds-policy".to_string()]);
 
@@ -182,29 +182,29 @@ fn reference_project_configures_redirects_and_passes_audit() {
 fn emits_machine_markdown_without_leaking_hidden_content() {
     let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
-    assert!(file_exists!(public, "refunds/page.md"));
-    assert!(file_contains!(public, "refunds/page.md", "# Refund policy"));
+    assert!(file_exists!(public, "refunds.md"));
+    assert!(file_contains!(public, "refunds.md", "# Refund policy"));
     assert!(file_contains!(
         public,
-        "refunds/page.md",
+        "refunds.md",
         "canonical_url: https://answers.example.com/refunds/"
     ));
-    assert!(file_contains!(public, "refunds/page.md", "retrieval_aliases:"));
+    assert!(file_contains!(public, "refunds.md", "retrieval_aliases:"));
 
-    assert!(file_exists!(public, "cancel/page.md"));
+    assert!(file_exists!(public, "cancel.md"));
     assert!(file_contains!(
         public,
-        "cancel/page.md",
+        "cancel.md",
         "How to cancel a subscription and what happens after."
     ));
     assert!(file_contains!(
         public,
-        "cancel/page.md",
+        "cancel.md",
         "Canonical page: <https://answers.example.com/cancel/>"
     ));
-    assert!(!file_contains!(public, "cancel/page.md", "Cancellation details for customers."));
+    assert!(!file_contains!(public, "cancel.md", "Cancellation details for customers."));
 
-    assert!(!file_exists!(public, "internal-playbook/page.md"));
+    assert!(!file_exists!(public, "internal-playbook.md"));
 }
 
 #[test]
@@ -249,7 +249,7 @@ Refund details for customers."#,
     site.build().expect("Couldn't build the site");
 
     let markdown =
-        fs::read_to_string(public.join("refunds").join("page.md")).expect("read machine markdown");
+        fs::read_to_string(public.join("refunds.md")).expect("read machine markdown");
     let front_matter = machine_front_matter(&markdown);
 
     let yaml: serde_yaml::Value =
@@ -309,8 +309,8 @@ fn keeps_machine_markdown_when_only_markdown_negotiation_is_disabled() {
         (site, true)
     });
 
-    assert!(file_exists!(public, "refunds/page.md"));
-    assert!(file_exists!(public, "cancel/page.md"));
+    assert!(file_exists!(public, "refunds.md"));
+    assert!(file_exists!(public, "cancel.md"));
 }
 
 #[test]
@@ -321,9 +321,9 @@ fn skips_machine_markdown_outputs_when_markdown_routes_are_disabled() {
         (site, true)
     });
 
-    assert!(!file_exists!(public, "refunds/page.md"));
-    assert!(!file_exists!(public, "cancel/page.md"));
-    assert!(!file_exists!(public, "internal-playbook/page.md"));
+    assert!(!file_exists!(public, "refunds.md"));
+    assert!(!file_exists!(public, "cancel.md"));
+    assert!(!file_exists!(public, "internal-playbook.md"));
 }
 
 #[test]
@@ -332,8 +332,8 @@ fn matches_answer_first_golden_outputs() {
 
     assert_file_matches_fixture(
         &public,
-        "refunds/page.md",
-        "examples/reference-project/expected/public/refunds/page.md",
+        "refunds.md",
+        "examples/reference-project/expected/public/refunds.md",
     );
     assert_file_matches_fixture(
         &public,
@@ -344,6 +344,11 @@ fn matches_answer_first_golden_outputs() {
         &public,
         "llms.txt",
         "examples/reference-project/expected/public/llms.txt",
+    );
+    assert_file_matches_fixture(
+        &public,
+        "llms-full.txt",
+        "examples/reference-project/expected/public/llms-full.txt",
     );
     assert_file_matches_fixture(
         &public,
@@ -401,7 +406,7 @@ fn emits_answers_json_with_deterministic_order_and_visibility_metadata() {
     assert_eq!(answers[0]["id"], "cancel-subscription");
     assert_eq!(answers[1]["id"], "refunds-policy");
 
-    assert_eq!(answers[0]["markdown_url"], "https://answers.example.com/cancel/page.md");
+    assert_eq!(answers[0]["markdown_url"], "https://answers.example.com/cancel.md");
     assert_eq!(answers[0]["ai_visibility"], "summary_only");
     assert_eq!(answers[0]["summary"], "How to cancel a subscription and what happens after.");
 
@@ -419,33 +424,65 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert!(file_exists!(public, "llms.txt"));
     assert!(file_exists!(public, "llms-full.txt"));
     assert!(file_contains!(public, "llms.txt", "# Acme Billing Answers"));
+    assert!(file_contains!(
+        public,
+        "llms.txt",
+        "> Reference Ansorum project for a billing and support answer corpus."
+    ));
     assert!(file_contains!(public, "llms.txt", "## Core Answers"));
     assert!(file_contains!(
         public,
         "llms.txt",
-        "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"
+        "- [Refund policy](https://answers.example.com/refunds.md): How refunds work, who qualifies, and when payment returns land."
     ));
-    assert!(file_contains!(public, "llms.txt", "## Additional Context"));
+    assert!(file_contains!(public, "llms.txt", "## Optional"));
     assert!(file_contains!(
         public,
         "llms.txt",
-        "Cancel a subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
+        "- [Cancel a subscription](https://answers.example.com/cancel.md): How to cancel a subscription and what happens after."
     ));
     assert!(file_contains!(public, "llms.txt", "## Scoped Packs"));
-    assert!(file_contains!(public, "llms.txt", "https://answers.example.com/billing/llms.txt"));
-    assert!(file_contains!(public, "llms.txt", "https://answers.example.com/customer/llms.txt"));
+    assert!(file_contains!(
+        public,
+        "llms.txt",
+        "- [Billing answers](https://answers.example.com/billing/llms.txt): Scoped pack `billing`"
+    ));
+    assert!(file_contains!(
+        public,
+        "llms.txt",
+        "- [Customer answers](https://answers.example.com/customer/llms.txt): Scoped pack `customer`"
+    ));
 
-    assert!(file_contains!(public, "llms-full.txt", "# Acme Billing Answers full export"));
+    assert!(file_contains!(public, "llms-full.txt", "# Acme Billing Answers Full Export"));
     assert!(file_contains!(
         public,
         "llms-full.txt",
-        "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"
+        "> Reference Ansorum project for a billing and support answer corpus."
+    ));
+    assert!(file_contains!(public, "llms-full.txt", "## Core Answers"));
+    assert!(file_contains!(
+        public,
+        "llms-full.txt",
+        "### [Refund policy](https://answers.example.com/refunds.md)"
+    ));
+    assert!(file_contains!(public, "llms-full.txt", "## Eligibility"));
+    assert!(file_contains!(
+        public,
+        "llms-full.txt",
+        "Contact billing support with the invoice number and the reason for the request."
+    ));
+    assert!(file_contains!(public, "llms-full.txt", "## Optional"));
+    assert!(file_contains!(
+        public,
+        "llms-full.txt",
+        "### [Cancel a subscription](https://answers.example.com/cancel.md)"
     ));
     assert!(file_contains!(
         public,
         "llms-full.txt",
-        "Cancel a subscription: How to cancel a subscription and what happens after. (https://answers.example.com/cancel/page.md)"
+        "Canonical page: <https://answers.example.com/cancel/>"
     ));
+    assert!(!file_contains!(public, "llms-full.txt", "Open the billing portal."));
     assert!(!file_contains!(public, "llms-full.txt", "internal-support-escalation"));
 
     assert!(file_exists!(public, "billing/llms.txt"));
@@ -458,7 +495,7 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
     assert!(file_contains!(
         public,
         "billing/llms.txt",
-        "Refund policy: How refunds work, who qualifies, and when payment returns land. (https://answers.example.com/refunds/page.md)"
+        "- [Refund policy](https://answers.example.com/refunds.md): How refunds work, who qualifies, and when payment returns land."
     ));
 
     assert!(file_exists!(public, "customer/llms.txt"));
@@ -468,6 +505,7 @@ fn emits_llms_exports_and_scoped_packs_from_answer_corpus() {
         "customer/llms.txt",
         "Scoped AI-visible answers for the `customer` audience."
     ));
+    assert!(file_contains!(public, "customer/llms.txt", "## Optional"));
     assert!(!file_exists!(public, "support/llms.txt"));
 
     let billing_index = fs::read_to_string(public.join("billing").join("answers.json"))
@@ -1393,9 +1431,9 @@ fn filters_non_public_answers_from_machine_outputs() {
     assert!(file_exists!(public, "internal/index.html"));
     assert!(file_exists!(public, "private/index.html"));
 
-    assert!(file_exists!(public, "public/page.md"));
-    assert!(!file_exists!(public, "internal/page.md"));
-    assert!(!file_exists!(public, "private/page.md"));
+    assert!(file_exists!(public, "public.md"));
+    assert!(!file_exists!(public, "internal.md"));
+    assert!(!file_exists!(public, "private.md"));
 
     assert!(file_exists!(public, "answers.json"));
     assert!(file_contains!(public, "answers.json", "\"billing-overview\""));

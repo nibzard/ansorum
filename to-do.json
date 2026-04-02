@@ -49,7 +49,7 @@
         "Add dedicated answer-first test fixtures under tests/fixtures/site or a new focused fixture tree that model real answer units rather than inherited page-first examples.",
         "Add parser tests for first-class answer frontmatter in both TOML and YAML forms.",
         "Add fail-fast validation tests for missing required fields, duplicate ids, duplicate canonical questions where relevant, and invalid enums.",
-        "Add golden-output tests for /page.md, answers.json, llms.txt, and structured-data sidecar behavior.",
+        "Add golden-output tests for /<slug>.md, answers.json, llms.txt, and structured-data sidecar behavior.",
         "Acceptance: later compiler changes that break answer parsing, validation, visibility handling, or canonical machine outputs fail this harness immediately."
       ],
       "tags": [
@@ -64,7 +64,7 @@
         "components/site/tests/site.rs",
         "examples/reference-project/expected/public/answers.json",
         "examples/reference-project/expected/public/llms.txt",
-        "examples/reference-project/expected/public/refunds/page.md",
+        "examples/reference-project/expected/public/refunds.md",
         "examples/reference-project/expected/public/refunds/schema.json",
         "tests/fixtures/invalid/answers_duplicate_question",
         "tests/fixtures/invalid/answers_duplicate_question/config.toml",
@@ -196,10 +196,10 @@
     },
     {
       "id": "ANS-006",
-      "title": "Emit canonical machine markdown at /page.md from the rendered content model",
+      "title": "Emit canonical machine markdown at /<slug>.md from the rendered content model",
       "priority": 2,
       "status": "done",
-      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Ansorum's machine markdown must come from the rendered content model, not from raw source files. Add a dedicated export path so each answer page emits a canonical markdown representation at /page.md. The export should preserve rendered headings and links while respecting ai_visibility so hidden or summary-only content does not leak.",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Ansorum's machine markdown must come from the rendered content model, not from raw source files. Add a dedicated export path so each answer page emits a canonical markdown representation at /<slug>.md. The export should preserve rendered headings and links while respecting ai_visibility so hidden or summary-only content does not leak.",
       "steps": [
         "Design the machine-markdown rendering path and file naming rules.",
         "Ensure the export reflects rendered content and answer metadata, not raw author source only.",
@@ -332,10 +332,10 @@
     },
     {
       "id": "ANS-010",
-      "title": "Serve /page.md and Accept: text/markdown with cache-safe negotiation",
+      "title": "Serve /<slug>.md and Accept: text/markdown with cache-safe negotiation",
       "priority": 2,
       "status": "done",
-      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Extend the local and future gateway behavior to serve canonical markdown cleanly. The server must support explicit /page.md routes and Accept negotiation on the canonical HTML route, returning Vary: Accept so caches remain correct. Keep disk-backed and in-memory serve behavior aligned because this becomes the reference developer experience for machine delivery.",
+      "details": "Ground truth: implement the Ansorum behavior defined in ANSWER_COMPILER_SPEC.md even when inherited Zola behavior differs. Extend the local and future gateway behavior to serve canonical markdown cleanly. The server must support explicit /<slug>.md routes and Accept negotiation on the canonical HTML route, returning Vary: Accept so caches remain correct. Keep disk-backed and in-memory serve behavior aligned because this becomes the reference developer experience for machine delivery.",
       "steps": [
         "Add route resolution for markdown artifacts in serve mode.",
         "Implement Accept: text/markdown negotiation on canonical page routes.",
@@ -477,7 +477,7 @@
       "steps": [
         "Create answer-first test content and fixtures.",
         "Add coverage for frontmatter parsing and fail-fast build validation.",
-        "Add integration tests for outputs such as /page.md, answers.json, llms files, and structured data.",
+        "Add integration tests for outputs such as /<slug>.md, answers.json, llms files, and structured data.",
         "Add serve, redirect, audit, and eval coverage where practical."
       ],
       "tags": [
@@ -819,7 +819,7 @@
       "details": "The current build can emit non-public answers into machine-facing outputs when `visibility` is `private` or `internal` but `ai_visibility` is not `hidden`. The audit command detects this leak, but build/serve/output generation still publish it. References: components/site/src/answers.rs:218-225 and 416-430, components/site/src/lib.rs:754-790, components/site/src/llms.rs:344-349, components/content/src/page.rs:350-394.",
       "steps": [
         "Decide the product rule: either fail build/load immediately for invalid visibility combinations or hard-filter non-public answers from every machine output path.",
-        "Apply the rule consistently to `answers.json`, `llms.txt`, scoped pack outputs, and canonical `/page.md` generation so the same answer cannot leak through a different emitter.",
+        "Apply the rule consistently to `answers.json`, `llms.txt`, scoped pack outputs, and canonical `/<slug>.md` generation so the same answer cannot leak through a different emitter.",
         "Keep `audit` aligned with the runtime behavior so audit findings and emitted artifacts cannot disagree.",
         "Add regression tests covering `private` and `internal` answers with invalid `ai_visibility` combinations and assert that no machine artifact leaks content.",
         "Acceptance: a non-public answer cannot appear in any machine-facing output unless the product contract explicitly allows it."
@@ -856,7 +856,7 @@
         "Replace raw `starts_with` and substring slicing with path-aware stripping based on the parsed mount path.",
         "Handle root mounts and non-root mounts with the same normalization rules.",
         "Ensure redirect handling, markdown negotiation, and static file lookup all operate on the correctly stripped path.",
-        "Add regression tests for mounted base URLs such as `/docs/`, near-prefix collisions such as `/docset/`, and direct `/page.md` fetches under a mount.",
+        "Add regression tests for mounted base URLs such as `/docs/`, near-prefix collisions such as `/docset/`, and direct `/<slug>.md` fetches under a mount.",
         "Acceptance: `ansorum serve` behaves correctly for mounted sites and does not overmatch sibling prefixes."
       ],
       "tags": [
@@ -904,10 +904,10 @@
       "title": "Honor delivery configuration for markdown routes and Accept negotiation",
       "priority": 1,
       "status": "done",
-      "details": "The Ansorum delivery config exposes `markdown_routes` and `markdown_negotiation`, but build and serve ignore those switches and always emit `/page.md` plus negotiation behavior. That makes the config misleading and weakens operator control over machine endpoints. References: components/config/src/config/ansorum.rs:339-353, components/site/src/lib.rs:754-790, src/cmd/serve.rs:167-176 and 206-217.",
+      "details": "The Ansorum delivery config exposes `markdown_routes` and `markdown_negotiation`, but build and serve ignore those switches and always emit `/<slug>.md` plus negotiation behavior. That makes the config misleading and weakens operator control over machine endpoints. References: components/config/src/config/ansorum.rs:339-353, components/site/src/lib.rs:754-790, src/cmd/serve.rs:167-176 and 206-217.",
       "steps": [
         "Define the expected contract for `markdown_routes` and `markdown_negotiation` at build time and serve time.",
-        "Gate `/page.md` emission on `markdown_routes` and gate `Accept: text/markdown` negotiation on `markdown_negotiation`.",
+        "Gate `/<slug>.md` emission on `markdown_routes` and gate `Accept: text/markdown` negotiation on `markdown_negotiation`.",
         "Ensure the config remains internally valid and that docs match the implemented behavior.",
         "Add regression tests for all combinations of the two flags in build outputs and serve responses.",
         "Acceptance: toggling delivery config actually changes emitted artifacts and serve behavior."
@@ -985,7 +985,7 @@
         "src/cmd/init.rs",
         "examples/reference-project/content/refunds.md",
         "examples/reference-project/expected/public/answers.json",
-        "examples/reference-project/expected/public/refunds/page.md",
+        "examples/reference-project/expected/public/refunds.md",
         "examples/reference-project/public/legacy/refund-policy/index.html",
         "to-do.json"
       ],
@@ -1023,12 +1023,12 @@
       "title": "Serialize canonical machine markdown front matter safely instead of hand-writing YAML-like text",
       "priority": 3,
       "status": "done",
-      "details": "Canonical `/page.md` output is currently assembled with raw string writes for scalar fields and lists. Values containing YAML-significant characters, multiline text, or other edge cases can corrupt the machine-facing contract. References: components/content/src/page.rs:356-394 and 538-550.",
+      "details": "Canonical `/<slug>.md` output is currently assembled with raw string writes for scalar fields and lists. Values containing YAML-significant characters, multiline text, or other edge cases can corrupt the machine-facing contract. References: components/content/src/page.rs:356-394 and 538-550.",
       "steps": [
         "Replace handwritten header generation with a real serializer or an explicitly escaped format contract.",
         "Validate behavior for titles, entities, aliases, and questions containing punctuation, colons, quotes, or newlines.",
         "Keep output deterministic and compatible with the intended machine-markdown contract.",
-        "Add regression tests for escaping edge cases in `/page.md` output.",
+        "Add regression tests for escaping edge cases in `/<slug>.md` output.",
         "Acceptance: machine markdown remains parseable and stable for authored metadata with special characters."
       ],
       "tags": [
@@ -1041,7 +1041,7 @@
         "components/content/src/page.rs",
         "components/site/Cargo.toml",
         "components/site/tests/site.rs",
-        "examples/reference-project/expected/public/refunds/page.md",
+        "examples/reference-project/expected/public/refunds.md",
         "to-do.json"
       ],
       "created_at": "2026-03-18T21:47:00Z",
@@ -1131,7 +1131,7 @@
       "title": "Make eval respect machine visibility filters during ranking and selection",
       "priority": 2,
       "status": "done",
-      "details": "Final review found that `src/cmd/eval.rs` ranks every answer whose `ai_visibility` is not `hidden`, which is broader than the machine-output contract already enforced by `answers.json`, `llms.txt`, and `/page.md`. Misconfigured `private` or `internal` answers can therefore appear in eval retrieval results even though the rest of the product excludes them from machine-visible surfaces. Align eval candidate filtering with `is_machine_ai_visible` and add regression coverage using the existing `tests/fixtures/invalid/answers_visibility_outputs` fixture so forbidden internal/private answers never rank or select.",
+      "details": "Final review found that `src/cmd/eval.rs` ranks every answer whose `ai_visibility` is not `hidden`, which is broader than the machine-output contract already enforced by `answers.json`, `llms.txt`, and `/<slug>.md`. Misconfigured `private` or `internal` answers can therefore appear in eval retrieval results even though the rest of the product excludes them from machine-visible surfaces. Align eval candidate filtering with `is_machine_ai_visible` and add regression coverage using the existing `tests/fixtures/invalid/answers_visibility_outputs` fixture so forbidden internal/private answers never rank or select.",
       "steps": [
         "Filter eval candidates with the same machine-visibility rule used by `AnswerCorpus` and LLMS generation, not `ai_visibility != hidden` alone.",
         "Add a regression test proving eval ranking excludes `internal-only` and `private-playbook` from `tests/fixtures/invalid/answers_visibility_outputs`.",

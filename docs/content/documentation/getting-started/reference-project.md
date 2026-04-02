@@ -13,8 +13,8 @@ corpus:
 - public billing answers with first-class answer frontmatter
 - both TOML and YAML frontmatter styles
 - internal-only support content with hidden AI visibility
-- canonical markdown output at `/page.md`
-- machine indexes via `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
+- canonical markdown output at `/<slug>.md`
+- machine indexes via `answers.json`, `llms.txt`, and scoped packs, plus expanded corpus export via `llms-full.txt`
 - search output via `search_index.en.js`
 - JSON-LD sidecars from `<answer-stem>.schema.json`
 - configured `/r/:code` redirects
@@ -77,9 +77,9 @@ answer, named as `<answer-stem>.schema.json`.
 
 After `ansorum build`, the reference project should produce:
 
-- `public/refunds/page.md`
+- `public/refunds.md`
 - `public/refunds/schema.json`
-- `public/cancel/page.md`
+- `public/cancel.md`
 - `public/cancel/schema.json`
 - `public/answers.json`
 - `public/llms.txt`
@@ -95,8 +95,8 @@ During `ansorum serve`, the same project demonstrates:
 
 - canonical HTML at `/refunds/`
 - negotiated Markdown with `Accept: text/markdown`
-- explicit Markdown at `/refunds/page.md`
-- `summary_only` Markdown behavior at `/cancel/page.md`
+- explicit Markdown at `/refunds.md`
+- `summary_only` Markdown behavior at `/cancel.md`
 - redirect delivery at `/r/sales-demo` and `/r/billing-portal`
 
 Treat this project as the source of truth for screenshots, docs examples, and

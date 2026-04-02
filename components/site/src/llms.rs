@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use config::Config;
-use content::{AnswerAudience, AnswerIntent, LlmsPriority};
+use content::{AnswerAudience, AnswerIntent, Library, LlmsPriority};
 use errors::{Result, anyhow, bail};
 use serde::Deserialize;
 use utils::slugs::slugify_paths;
@@ -26,6 +26,7 @@ pub fn build_outputs(
     config: &Config,
     base_path: &Path,
     answers: &AnswerCorpus,
+    library: &Library,
 ) -> Result<LlmsOutputs> {
     let generated_packs = build_packs(config, base_path, answers)?;
     let pack_refs = generated_packs
@@ -33,12 +34,12 @@ pub fn build_outputs(
         .map(|pack| PackReference {
             name: pack.name.clone(),
             title: pack.title.clone(),
-            llms_url: config.make_permalink(&format!("{}/llms.txt", pack.path)),
+            llms_url: machine_file_url(config, &format!("{}/llms.txt", pack.path)),
         })
         .collect::<Vec<_>>();
 
     let llms_txt = render_root_llms(config, answers, &pack_refs);
-    let llms_full_txt = render_full_llms(config, answers);
+    let llms_full_txt = render_full_llms(config, answers, library)?;
     let packs = generated_packs
         .into_iter()
         .map(|pack| {
@@ -288,7 +289,7 @@ fn render_root_llms(
 ) -> String {
     let mut output = String::new();
     push_heading(&mut output, config.title.as_deref().unwrap_or("Ansorum"));
-    push_paragraph(&mut output, corpus_description(config));
+    push_summary(&mut output, corpus_description(config));
     push_section(
         &mut output,
         "Core Answers",
@@ -297,13 +298,18 @@ fn render_root_llms(
 
     let optional = answers.iter().filter(|record| is_optional(record)).collect::<Vec<_>>();
     if !optional.is_empty() {
-        push_section(&mut output, "Additional Context", &optional);
+        push_section(&mut output, "Optional", &optional);
     }
 
     if !pack_refs.is_empty() {
         output.push_str("## Scoped Packs\n\n");
         for pack in pack_refs {
-            output.push_str(&format!("- {} (`{}`): {}\n", pack.title, pack.name, pack.llms_url));
+            output.push_str(&format!(
+                "- [{}]({}): Scoped pack `{}`\n",
+                markdown_link_text(&pack.title),
+                pack.llms_url,
+                pack.name
+            ));
         }
         output.push('\n');
     }
@@ -311,19 +317,25 @@ fn render_root_llms(
     output
 }
 
-fn render_full_llms(config: &Config, answers: &AnswerCorpus) -> String {
+fn render_full_llms(config: &Config, answers: &AnswerCorpus, library: &Library) -> Result<String> {
     let mut output = String::new();
     push_heading(
         &mut output,
-        &format!("{} full export", config.title.as_deref().unwrap_or("Ansorum")),
+        &format!("{} Full Export", config.title.as_deref().unwrap_or("Ansorum")),
     );
-    push_paragraph(&mut output, corpus_description(config));
-    push_section(
+    push_summary(&mut output, corpus_description(config));
+    push_expanded_section(
         &mut output,
-        "AI-visible Answers",
-        &answers.iter().filter(|record| is_llms_visible(record)).collect::<Vec<_>>(),
-    );
-    output
+        "Core Answers",
+        &answers.iter().filter(|record| is_core(record)).collect::<Vec<_>>(),
+        library,
+    )?;
+
+    let optional = answers.iter().filter(|record| is_optional(record)).collect::<Vec<_>>();
+    if !optional.is_empty() {
+        push_expanded_section(&mut output, "Optional", &optional, library)?;
+    }
+    Ok(output)
 }
 
 fn render_pack_llms(
@@ -336,14 +348,14 @@ fn render_pack_llms(
         &mut output,
         &format!("{} | {}", config.title.as_deref().unwrap_or("Ansorum"), pack.title),
     );
-    push_paragraph(&mut output, &pack.description);
+    push_summary(&mut output, &pack.description);
 
     let core = records.iter().copied().filter(|record| is_core(record)).collect::<Vec<_>>();
     let optional = records.iter().copied().filter(|record| is_optional(record)).collect::<Vec<_>>();
 
     push_section(&mut output, "Core Answers", &core);
     if !optional.is_empty() {
-        push_section(&mut output, "Additional Context", &optional);
+        push_section(&mut output, "Optional", &optional);
     }
 
     output
@@ -353,8 +365,9 @@ fn push_heading(output: &mut String, heading: &str) {
     output.push_str(&format!("# {heading}\n\n"));
 }
 
-fn push_paragraph(output: &mut String, text: &str) {
-    output.push_str(text);
+fn push_summary(output: &mut String, text: &str) {
+    output.push_str("> ");
+    output.push_str(&single_line(text));
     output.push_str("\n\n");
 }
 
@@ -366,11 +379,62 @@ fn push_section(output: &mut String, title: &str, records: &[&AnswerRecord]) {
     output.push_str(&format!("## {title}\n\n"));
     for record in records {
         output.push_str(&format!(
-            "- {}: {} ({})\n",
-            record.title, record.summary, record.markdown_url
+            "- [{}]({}): {}\n",
+            markdown_link_text(&record.title),
+            record.markdown_url,
+            single_line(&record.summary)
         ));
     }
     output.push('\n');
+}
+
+fn push_expanded_section(
+    output: &mut String,
+    title: &str,
+    records: &[&AnswerRecord],
+    library: &Library,
+) -> Result<()> {
+    if records.is_empty() {
+        return Ok(());
+    }
+
+    output.push_str(&format!("## {title}\n\n"));
+    for record in records {
+        let page = library.pages.get(&record.source_path).ok_or_else(|| {
+            anyhow!(
+                "Missing page for llms-full export answer `{}` at {}",
+                record.id,
+                record.source_path.display()
+            )
+        })?;
+        let machine_markdown = page.canonical_machine_markdown().ok_or_else(|| {
+            anyhow!(
+                "Missing machine markdown for llms-full export answer `{}` at {}",
+                record.id,
+                record.source_path.display()
+            )
+        })?;
+
+        output.push_str(&format!(
+            "### [{}]({})\n\n",
+            markdown_link_text(&record.title),
+            record.markdown_url
+        ));
+        output.push_str(machine_markdown.trim_end());
+        output.push_str("\n\n");
+    }
+    Ok(())
+}
+
+fn single_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn markdown_link_text(text: &str) -> String {
+    single_line(text)
+        .replace('\\', r"\\")
+        .replace('[', r"\[")
+        .replace(']', r"\]")
 }
 
 fn corpus_description(config: &Config) -> &str {
@@ -378,6 +442,10 @@ fn corpus_description(config: &Config) -> &str {
         .description
         .as_deref()
         .unwrap_or("Authoritative answer corpus compiled for human and agent consumption.")
+}
+
+fn machine_file_url(config: &Config, path: &str) -> String {
+    config.make_permalink(path).trim_end_matches('/').to_string()
 }
 
 fn is_ai_visible(record: &AnswerRecord) -> bool {

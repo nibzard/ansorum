@@ -251,7 +251,7 @@ async fn handle_request(
     };
 
     // Ensure we are only looking for things in our public folder
-    if !root.starts_with(original_root) {
+    if !root.starts_with(&original_root) {
         return not_found();
     }
 
@@ -261,9 +261,9 @@ async fn handle_request(
     };
     if metadata.is_dir() {
         if prefer_markdown {
-            let markdown_root = root.join("page.md");
-            if let Ok(contents) = tokio::fs::read(&markdown_root).await {
-                if let Some(markdown_path) = markdown_variant.as_ref() {
+            if let Some(markdown_path) = markdown_variant.as_ref() {
+                let markdown_root = original_root.join(markdown_path.as_str());
+                if let Ok(contents) = tokio::fs::read(&markdown_root).await {
                     log_machine_delivery(
                         req.method(),
                         path_str,
@@ -271,12 +271,14 @@ async fn handle_request(
                         "disk",
                         "negotiated",
                     );
+                    return build_content_response(
+                        content_type_from_extension(
+                            markdown_root.extension().and_then(OsStr::to_str),
+                        ),
+                        contents,
+                        true,
+                    );
                 }
-                return build_content_response(
-                    content_type_from_extension(markdown_root.extension().and_then(OsStr::to_str)),
-                    contents,
-                    true,
-                );
             }
         }
 
@@ -467,14 +469,17 @@ fn markdown_variant_path(path: &RelativePathBuf) -> Option<RelativePathBuf> {
         return None;
     }
 
-    let mut markdown_path = path.clone();
-    markdown_path.push("page.md");
-    Some(markdown_path)
+    let normalized = path.as_str().trim_matches('/');
+    if normalized.is_empty() {
+        Some(RelativePathBuf::from("index.md"))
+    } else {
+        Some(RelativePathBuf::from(format!("{normalized}.md")))
+    }
 }
 
 fn is_markdown_route(path: &RelativePathBuf) -> bool {
     let normalized = path.as_str().trim_matches('/');
-    normalized == "page.md" || normalized.ends_with("/page.md")
+    normalized == "index.md" || normalized.ends_with(".md")
 }
 
 fn prefers_markdown(headers: &HeaderMap) -> bool {
@@ -1329,7 +1334,7 @@ mod tests {
 
     #[test]
     fn disk_content_type_preserves_machine_markdown_content_type() {
-        assert_eq!(disk_content_type(Path::new("refunds/page.md")), "text/markdown");
+        assert_eq!(disk_content_type(Path::new("refunds.md")), "text/markdown");
     }
 
     fn create_and_verify_new_site(
@@ -1548,6 +1553,34 @@ mod tests {
     }
 
     #[test]
+    fn serves_root_markdown_route_and_negotiated_variant_from_memory() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::new(), "<html>Home</html>".into());
+        SITE_CONTENT
+            .write()
+            .unwrap()
+            .insert(RelativePathBuf::from("index.md"), "# Home".into());
+
+        let state = test_app_state(std::env::temp_dir());
+
+        let (direct_status, direct_headers, direct_body) =
+            run_request(request("/index.md", None), state.clone());
+        assert_eq!(direct_status, StatusCode::OK);
+        assert_eq!(direct_headers[header::CONTENT_TYPE], "text/markdown");
+        assert_eq!(direct_body, "# Home");
+
+        let (negotiated_status, negotiated_headers, negotiated_body) =
+            run_request(request("/", Some("text/markdown")), state);
+        assert_eq!(negotiated_status, StatusCode::OK);
+        assert_eq!(negotiated_headers[header::CONTENT_TYPE], "text/markdown");
+        assert_eq!(negotiated_headers[header::VARY], "Accept");
+        assert_eq!(negotiated_body, "# Home");
+
+        SITE_CONTENT.write().unwrap().clear();
+    }
+
+    #[test]
     fn serves_markdown_variant_from_memory_when_accept_header_requests_it() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
@@ -1558,7 +1591,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) =
@@ -1656,7 +1689,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) = run_request(request("/refunds/", Some("text/html")), state);
@@ -1684,7 +1717,7 @@ mod tests {
         let refunds = root.join("refunds");
         fs::create_dir_all(&refunds).expect("create dir");
         fs::write(refunds.join("index.html"), "<html>Refunds</html>").expect("write html");
-        fs::write(refunds.join("page.md"), "# Refunds").expect("write markdown");
+        fs::write(root.join("refunds.md"), "# Refunds").expect("write markdown");
 
         let state = test_app_state(root.clone());
         let (status, headers, body) =
@@ -1709,7 +1742,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) =
@@ -1734,7 +1767,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) =
@@ -1759,7 +1792,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) = run_request(request("/refunds/", Some("*/*")), state);
@@ -1783,7 +1816,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state(std::env::temp_dir());
         let (status, headers, body) =
@@ -1808,7 +1841,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state_with_delivery(
             std::env::temp_dir(),
@@ -1839,7 +1872,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state_with_delivery(
             std::env::temp_dir(),
@@ -1856,7 +1889,7 @@ mod tests {
         assert!(html_headers.get(header::VARY).is_none());
         assert_eq!(html_body, "<html>Refunds</html>");
 
-        let (markdown_status, _, _) = run_request(request("/refunds/page.md", None), state);
+        let (markdown_status, _, _) = run_request(request("/refunds.md", None), state);
         assert_eq!(markdown_status, StatusCode::NOT_FOUND);
 
         SITE_CONTENT.write().unwrap().clear();
@@ -1923,7 +1956,7 @@ mod tests {
         site.build().expect("build site");
 
         let state = test_app_state(output_root.clone());
-        let (status, headers, body) = run_request(request("/refunds/page.md", None), state);
+        let (status, headers, body) = run_request(request("/refunds.md", None), state);
 
         assert_eq!(status, StatusCode::OK);
         assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");
@@ -1944,7 +1977,7 @@ mod tests {
         SITE_CONTENT
             .write()
             .unwrap()
-            .insert(RelativePathBuf::from("refunds/page.md"), "# Refunds".into());
+            .insert(RelativePathBuf::from("refunds.md"), "# Refunds".into());
 
         let state = test_app_state_with_base_path(std::env::temp_dir(), "/docs");
         let (status, headers, body) =
@@ -1990,7 +2023,7 @@ mod tests {
         site.build().expect("build site");
 
         let state = test_app_state_with_base_path(output_root.clone(), "/docs");
-        let (status, headers, body) = run_request(request("/docs/refunds/page.md", None), state);
+        let (status, headers, body) = run_request(request("/docs/refunds.md", None), state);
 
         assert_eq!(status, StatusCode::OK);
         assert_eq!(headers[header::CONTENT_TYPE], "text/markdown");

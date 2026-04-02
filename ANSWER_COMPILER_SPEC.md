@@ -233,7 +233,7 @@ These decisions are fixed unless explicitly revised later.
 - Evaluation backend: OpenAI Responses API with GPT-5.4 models first
 - Analytics: logs and event hooks only in v0
 - Redirects: external redirects allowed with allowlist enforcement
-- Canonical machine Markdown route: `/page.md`
+- Canonical machine Markdown route: `/<slug>.md`
 - Structured data authoring: sidecar files
 - CLI compatibility: drop `zola` alias
 
@@ -519,7 +519,7 @@ The delivery layer must support both:
 
 Supported patterns:
 
-- `/page.md`
+- `/<slug>.md`
 - `/page` with `Accept: text/markdown`
 
 The server must set:
@@ -581,15 +581,17 @@ It should include:
 
 ### 4. `llms-full.txt`
 
-The compiler must generate a broad export of the public AI-visible corpus.
+The compiler must generate an expanded export of the public AI-visible corpus.
 
 It should include:
 
 - all `core` entries
 - all `optional` entries allowed for AI visibility
 - stable ordering
-- concise summaries
 - canonical links to machine Markdown pages
+- the full canonical machine Markdown body for each included answer
+- `summary_only` answers in their machine-safe summarized form rather than the
+  full rendered body
 
 ### 5. `answers.json`
 

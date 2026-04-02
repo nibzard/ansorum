@@ -122,7 +122,7 @@ These fields drive:
 
 - `answers.json`
 - `llms.txt` and scoped packs
-- `/page.md`
+- `/<slug>.md`
 - `audit` findings
 - `eval` ranking and grading
 - serve-time Markdown negotiation

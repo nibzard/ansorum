@@ -205,7 +205,8 @@ const EVAL_FIXTURES: &str = r#"- question: can i get a refund after 30 days
   rubric_focus: prefer the public cancellation answer and keep canonical links visible
 "#;
 
-const BASE_TEMPLATE: &str = r##"<!DOCTYPE html>
+const BASE_TEMPLATE: &str = r##"{% import "macros.html" as macros %}
+<!DOCTYPE html>
 <html lang="{{ config.default_language | default(value="en") }}">
 <head>
     <meta charset="utf-8">
@@ -245,7 +246,7 @@ const BASE_TEMPLATE: &str = r##"<!DOCTYPE html>
     <link rel="alternate" type="text/plain" href="{{ get_url(path='llms.txt') | safe }}" title="llms.txt">
     <link rel="alternate" type="application/json" href="{{ get_url(path='answers.json') | safe }}" title="answers.json">
     {% if page is defined %}
-    <link rel="alternate" type="text/markdown" href="{{ page.permalink | safe }}page.md" title="{{ page.title }} markdown">
+    <link rel="alternate" type="text/markdown" href="{{ macros::machine_markdown_url(path=page.path) | safe }}" title="{{ page.title }} markdown">
     {% endif %}
     <link rel="stylesheet" href="{{ get_url(path='site.css') | safe }}">
     {% block extra_head %}{% endblock %}
@@ -290,7 +291,14 @@ const BASE_TEMPLATE: &str = r##"<!DOCTYPE html>
 </html>
 "##;
 
-const INDEX_TEMPLATE: &str = r#"{% extends "base.html" %}
+const MACROS_TEMPLATE: &str = r#"{% macro machine_markdown_url(path) %}
+{% set normalized = path | trim_start_matches(pat="/") | trim_end_matches(pat="/") %}
+{% if normalized == "" %}{{ get_url(path="index.md") | safe }}{% else %}{{ get_url(path=normalized ~ ".md") | safe }}{% endif %}
+{% endmacro machine_markdown_url %}
+"#;
+
+const INDEX_TEMPLATE: &str = r#"{% import "macros.html" as macros %}
+{% extends "base.html" %}
 
 {% block content %}
 <section class="hero">
@@ -322,7 +330,7 @@ const INDEX_TEMPLATE: &str = r#"{% extends "base.html" %}
                 {% endif %}
                 <div class="answer-card__links">
                     <a href="{{ entry.permalink | safe }}">Read page</a>
-                    <a href="{{ entry.permalink | safe }}page.md">page.md</a>
+                    <a href="{{ macros::machine_markdown_url(path=entry.path) | safe }}">Markdown</a>
                 </div>
             </article>
             {% endif %}
@@ -332,7 +340,8 @@ const INDEX_TEMPLATE: &str = r#"{% extends "base.html" %}
 {% endblock %}
 "#;
 
-const PAGE_TEMPLATE: &str = r#"{% extends "base.html" %}
+const PAGE_TEMPLATE: &str = r#"{% import "macros.html" as macros %}
+{% extends "base.html" %}
 
 {% block body_class %}starter starter--page{% endblock %}
 
@@ -345,7 +354,7 @@ const PAGE_TEMPLATE: &str = r#"{% extends "base.html" %}
         <p class="article__summary">{{ page.description }}</p>
         {% endif %}
         <div class="article__actions">
-            <a class="button button--primary" href="{{ page.permalink | safe }}page.md">Open page.md</a>
+            <a class="button button--primary" href="{{ macros::machine_markdown_url(path=page.path) | safe }}">Open Markdown</a>
             <a class="button" href="{{ get_url(path='llms.txt') | safe }}">View llms.txt</a>
         </div>
     </header>
@@ -357,7 +366,7 @@ const PAGE_TEMPLATE: &str = r#"{% extends "base.html" %}
     <aside class="article__meta">
         <h2>Machine-friendly surfaces</h2>
         <ul>
-            <li><a href="{{ page.permalink | safe }}page.md">Canonical Markdown</a></li>
+            <li><a href="{{ macros::machine_markdown_url(path=page.path) | safe }}">Canonical Markdown</a></li>
             <li><a href="{{ get_url(path='answers.json') | safe }}">Answer index</a></li>
             <li><a href="{{ get_url(path='llms.txt') | safe }}">llms.txt</a></li>
         </ul>
@@ -723,6 +732,7 @@ fn populate(path: &Path, project_title: &str, config: &str) -> Result<()> {
     create_file(&path.join("content/refunds.schema.json"), REFUNDS_SCHEMA)?;
     create_file(&path.join("eval/fixtures.yaml"), EVAL_FIXTURES)?;
     create_file(&path.join("templates/base.html"), BASE_TEMPLATE)?;
+    create_file(&path.join("templates/macros.html"), MACROS_TEMPLATE)?;
     create_file(&path.join("templates/index.html"), INDEX_TEMPLATE)?;
     create_file(&path.join("templates/page.html"), PAGE_TEMPLATE)?;
     create_file(&path.join("static/site.css"), SITE_CSS)?;
@@ -854,6 +864,7 @@ mod tests {
         assert!(dir.join("README.md").exists());
         assert!(dir.join("collections/packs/billing.toml").exists());
         assert!(dir.join("templates/base.html").exists());
+        assert!(dir.join("templates/macros.html").exists());
         assert!(dir.join("templates/index.html").exists());
         assert!(dir.join("templates/page.html").exists());
         assert!(dir.join("content/refunds.md").exists());
@@ -868,6 +879,11 @@ mod tests {
         assert!(read_file(&dir.join("config.toml")).unwrap().contains("[ansorum.redirects]"));
         assert!(read_file(&dir.join("config.toml")).unwrap().contains("generate_sitemap = true"));
         assert!(read_file(&dir.join("templates/base.html")).unwrap().contains("answers.json"));
+        assert!(
+            read_file(&dir.join("templates/macros.html"))
+                .unwrap()
+                .contains("machine_markdown_url")
+        );
         assert!(read_file(&dir.join("static/site.css")).unwrap().contains("--paper"));
         assert!(read_file(&dir.join("eval/fixtures.yaml")).unwrap().contains("expected_ids"));
 
@@ -893,6 +909,7 @@ mod tests {
         assert!(dir.join("README.md").exists());
         assert!(dir.join("collections/packs/billing.toml").exists());
         assert!(dir.join("templates/base.html").exists());
+        assert!(dir.join("templates/macros.html").exists());
         assert!(dir.join("templates/index.html").exists());
         assert!(dir.join("templates/page.html").exists());
         assert!(dir.join("content").exists());

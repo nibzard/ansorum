@@ -618,8 +618,7 @@ pub fn structured_data_for_page(page: &Page) -> Result<Option<StructuredDataOutp
 }
 
 fn markdown_url_from_page(page: &Page) -> String {
-    let trimmed = page.permalink.trim_end_matches('/');
-    format!("{trimmed}/page.md")
+    page.canonical_machine_markdown_permalink()
 }
 
 fn structured_data_preset(page: &Page) -> Option<JsonValue> {

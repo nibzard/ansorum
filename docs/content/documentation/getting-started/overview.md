@@ -18,7 +18,7 @@ with typed metadata describing:
 Ansorum compiles that answer corpus into:
 
 - HTML for humans
-- canonical Markdown at `/page.md` when `ansorum.delivery.markdown_routes` is enabled
+- canonical Markdown at `/<slug>.md` when `ansorum.delivery.markdown_routes` is enabled
 - root and scoped machine indexes such as `answers.json`
 - `llms.txt` and `llms-full.txt`
 - structured data outputs from `<answer-stem>.schema.json`
@@ -129,9 +129,9 @@ Serve the answer corpus locally with HTML, optional Markdown negotiation, and re
 ansorum serve
 ```
 
-Set `ansorum.delivery.markdown_routes = false` to suppress `/page.md` outputs
+Set `ansorum.delivery.markdown_routes = false` to suppress `/<slug>.md` outputs
 and direct Markdown delivery. Set `ansorum.delivery.markdown_negotiation = false`
-to keep `/page.md` routes while always serving HTML from canonical page URLs.
+to keep `/<slug>.md` routes while always serving HTML from canonical page URLs.
 
 Audit metadata quality, freshness, and visibility issues before publish:
 
@@ -167,7 +167,7 @@ reference corpus without requiring network access or OpenAI credentials.
 For a healthy answer-first project, one authored answer should compile into:
 
 - a human page such as `/refunds/`
-- canonical machine Markdown at `/refunds/page.md`
+- canonical machine Markdown at `/refunds.md`
 - inclusion or exclusion from `answers.json` and `llms.txt` according to
   visibility
 - optional structured data at `/refunds/schema.json`

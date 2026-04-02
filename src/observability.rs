@@ -125,7 +125,7 @@ pub fn machine_delivery_event(
 ) -> Option<EventRecord> {
     let normalized_path = served_path.trim_start_matches('/');
 
-    if normalized_path == "page.md" || normalized_path.ends_with("/page.md") {
+    if normalized_path == "index.md" || normalized_path.ends_with(".md") {
         return Some(EventRecord {
             name: "ansorum.markdown.fetch",
             payload: json!({
@@ -233,9 +233,8 @@ mod tests {
 
     #[test]
     fn classifies_negotiated_markdown_fetches() {
-        let event =
-            machine_delivery_event("GET", "/refunds/", "/refunds/page.md", "memory", "negotiated")
-                .expect("expected markdown event");
+        let event = machine_delivery_event("GET", "/refunds/", "/refunds.md", "memory", "negotiated")
+            .expect("expected markdown event");
 
         assert_eq!(event.name, "ansorum.markdown.fetch");
         assert_eq!(
@@ -243,7 +242,7 @@ mod tests {
             json!({
                 "method": "GET",
                 "request_path": "/refunds/",
-                "served_path": "/refunds/page.md",
+                "served_path": "/refunds.md",
                 "content_source": "memory",
                 "delivery_mode": "negotiated",
                 "status": 200,

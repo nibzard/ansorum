@@ -351,6 +351,19 @@ impl Page {
         SerializingPage::new(self, Some(library), false)
     }
 
+    pub fn canonical_machine_markdown_path(&self) -> String {
+        let normalized = self.path.trim_matches('/');
+        if normalized.is_empty() { "index.md".to_string() } else { format!("{normalized}.md") }
+    }
+
+    pub fn canonical_machine_markdown_permalink(&self) -> String {
+        if self.path == "/" {
+            format!("{}/index.md", self.permalink.trim_end_matches('/'))
+        } else {
+            format!("{}.md", self.permalink.trim_end_matches('/'))
+        }
+    }
+
     pub fn canonical_machine_markdown(&self) -> Option<String> {
         let answer = self.answer()?;
         if !answer.is_machine_ai_visible() {
@@ -1052,6 +1065,37 @@ Cancellation details for customers."#;
         assert!(markdown.contains("How to cancel."));
         assert!(markdown.contains(&format!("Canonical page: <{}>", page.permalink)));
         assert!(!markdown.contains("Cancellation details for customers."));
+    }
+
+    #[test]
+    fn root_machine_markdown_paths_use_index_md() {
+        let config = Config::default_for_test();
+        let content = r#"
++++
+title = "Home"
+path = "/"
+id = "home-answer"
+summary = "Root summary."
+canonical_questions = ["where do i start"]
+intent = "reference"
+entity = "docs"
+audience = "customer"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "small"
++++
+Root body."#;
+        let res = Page::parse(Path::new("index.md"), content, &config, &PathBuf::new());
+        assert!(res.is_ok());
+        let page = res.unwrap();
+
+        assert_eq!(page.path, "/");
+        assert_eq!(page.canonical_machine_markdown_path(), "index.md");
+        assert_eq!(
+            page.canonical_machine_markdown_permalink(),
+            format!("{}index.md", page.permalink)
+        );
     }
 
     #[test]

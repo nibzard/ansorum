@@ -8,7 +8,7 @@ Ansorum turns Markdown content into an authoritative answer system with:
 
 - canonical HTML for humans
 - canonical Markdown for agents
-- `llms.txt` and `llms-full.txt`
+- `llms.txt` and expanded `llms-full.txt`
 - machine indexes like `answers.json`
 - structured data outputs
 - audit and evaluation loops for answer quality
@@ -207,7 +207,7 @@ token_budget = "medium"
 ```
 
 Ansorum then compiles that answer into canonical HTML, canonical machine
-Markdown at `/page.md`, answer indexes, `llms.txt` outputs, and structured data
+Markdown at `/<slug>.md`, answer indexes, `llms.txt` outputs, and structured data
 sidecars when present. Sidecars follow a single v0 convention: a sibling file
 named from the Markdown stem, such as `content/refunds.md` alongside
 `content/refunds.schema.json`. You can disable direct Markdown route emission
@@ -234,7 +234,7 @@ Future MIT-only restart rules live in
 The near-term Ansorum build should provide:
 
 - first-class answer frontmatter
-- `/page.md` outputs
+- `/<slug>.md` outputs
 - `Accept: text/markdown` negotiation
 - `llms.txt` and scoped packs
 - JSON-LD sidecar support
@@ -287,7 +287,7 @@ That project demonstrates:
 
 - first-class answer frontmatter in TOML and YAML
 - `summary_only` and `hidden` AI visibility controls
-- `/page.md`, `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
+- `/<slug>.md`, `answers.json`, `llms.txt`, `llms-full.txt`, and scoped packs
 - `<answer-stem>.schema.json` sidecars
 - `/r/:code` redirects with allowlist enforcement
 - deterministic eval fixtures

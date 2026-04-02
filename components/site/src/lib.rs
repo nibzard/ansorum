@@ -760,7 +760,9 @@ impl Site {
         if self.config.ansorum.delivery.markdown_routes
             && let Some(machine_markdown) = page.canonical_machine_markdown()
         {
-            self.write_content(&components, "page.md", machine_markdown)?;
+            let machine_path = page.canonical_machine_markdown_path();
+            let (machine_components, machine_filename) = split_output_path(&machine_path);
+            self.write_content(&machine_components, &machine_filename, machine_markdown)?;
         }
         if let Some(structured_data) = structured_data {
             self.write_content(&components, "schema.json", structured_data.json)?;
@@ -795,7 +797,8 @@ impl Site {
             return Ok(());
         }
 
-        let outputs = llms::build_outputs(&self.config, &self.base_path, &self.answers)?;
+        let library = self.library.read().unwrap();
+        let outputs = llms::build_outputs(&self.config, &self.base_path, &self.answers, &library)?;
         self.write_content(&[], "llms.txt", outputs.llms_txt)?;
         self.write_content(&[], "llms-full.txt", outputs.llms_full_txt)?;
 
@@ -1339,6 +1342,12 @@ impl Site {
             })
             .collect::<Result<()>>()
     }
+}
+
+fn split_output_path(path: &str) -> (Vec<&str>, String) {
+    let mut parts = path.split('/').filter(|part| !part.is_empty()).collect::<Vec<_>>();
+    let filename = parts.pop().unwrap_or("index.md").to_string();
+    (parts, filename)
 }
 
 fn log_time(start: Instant, message: &str) -> Instant {

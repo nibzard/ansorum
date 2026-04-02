@@ -9,7 +9,7 @@ this fork.
 - Make `ansorum init` scaffold a styled answer-center starter with built-in
   templates, homepage content, and a default stylesheet
 - Add stronger SEO, AEO, and GEO starter surfaces including canonical metadata,
-  `llms.txt`, `answers.json`, `page.md`, and JSON-LD links from generated pages
+  `llms.txt`, `answers.json`, `/<slug>.md`, and JSON-LD links from generated pages
 - Document how to deploy an Ansorum site on Railway and align getting-started
   docs with the richer scaffold output
 
