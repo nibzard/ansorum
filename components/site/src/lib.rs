@@ -5,6 +5,7 @@ pub mod llms;
 mod minify;
 pub mod sass;
 pub mod sitemap;
+pub mod structured_data;
 pub mod tpls;
 
 use std::borrow::Cow;
@@ -20,6 +21,7 @@ use tera::{Context, Tera};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::answers::{AnswerCorpus, structured_data_for_page};
+use crate::structured_data::{site_structured_data_for_page, site_structured_data_for_section};
 use config::{Config, IndexFormat, get_config};
 use content::{Library, Page, Paginator, Section, Taxonomy};
 use errors::{Result, anyhow, bail};
@@ -743,12 +745,15 @@ impl Site {
             return Ok(());
         }
 
-        let output = page.render_html(&self.tera, &self.config, &self.library.read().unwrap())?;
+        let library = self.library.read().unwrap();
+        let output = page.render_html(&self.tera, &self.config, &library)?;
+        let site_structured_data = site_structured_data_for_page(page, &self.config, &library)?;
+        drop(library);
         let structured_data = structured_data_for_page(page)?;
-        let content = match structured_data.as_ref() {
-            Some(structured_data) => self.inject_structured_data(output, &structured_data.json),
-            None => output,
-        };
+        let mut content = self.inject_structured_data(output, &site_structured_data);
+        if let Some(structured_data) = structured_data.as_ref() {
+            content = self.inject_structured_data(content, &structured_data.json);
+        }
         let content = self.inject_livereload(content);
         let components: Vec<&str> = page.path.split('/').collect();
         let current_path = self.write_content(&components, "index.html", content)?;
@@ -1261,8 +1266,12 @@ impl Site {
                 &Paginator::from_section(section, &self.library.read().unwrap()),
             )?;
         } else {
-            let output =
-                section.render_html(&self.tera, &self.config, &self.library.read().unwrap())?;
+            let library = self.library.read().unwrap();
+            let output = section.render_html(&self.tera, &self.config, &library)?;
+            let structured_data =
+                site_structured_data_for_section(section, &self.config, &library)?;
+            drop(library);
+            let output = self.inject_structured_data(output, &structured_data);
             let content = self.inject_livereload(output);
             self.write_content(&components, "index.html", content)?;
         }

@@ -356,12 +356,29 @@ fn matches_answer_first_golden_outputs() {
 fn embeds_json_ld_and_writes_schema_sidecars() {
     let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
+    assert!(file_contains!(public, "index.html", "\"@type\": \"WebSite\""));
+    assert!(file_contains!(
+        public,
+        "index.html",
+        "\"@id\": \"https://answers.example.com/#website\""
+    ));
+    assert!(file_contains!(public, "index.html", "\"@type\": \"Organization\""));
+    assert!(!file_contains!(public, "index.html", "zentinelproxy.io"));
+
     assert!(file_exists!(public, "refunds/schema.json"));
     assert!(file_contains!(public, "refunds/schema.json", "\"@type\": \"FAQPage\""));
     assert!(file_contains!(public, "refunds/schema.json", "\"name\": \"Refund policy\""));
     assert!(file_contains!(public, "refunds/schema.json", "\"publisher\""));
     assert!(file_contains!(public, "refunds/index.html", "<script type=\"application/ld+json\">"));
+    assert!(file_contains!(public, "refunds/index.html", "\"@type\": \"WebPage\""));
+    assert!(file_contains!(public, "refunds/index.html", "\"@type\": \"BreadcrumbList\""));
     assert!(file_contains!(public, "refunds/index.html", "\"@type\": \"FAQPage\""));
+    assert!(file_contains!(
+        public,
+        "refunds/index.html",
+        "\"@id\": \"https://answers.example.com/refunds/#breadcrumb\""
+    ));
+    assert!(!file_contains!(public, "refunds/index.html", "zentinelproxy.io"));
 
     assert!(file_exists!(public, "cancel/schema.json"));
     assert!(file_contains!(public, "cancel/schema.json", "\"@type\": \"HowTo\""));

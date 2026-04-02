@@ -67,6 +67,11 @@ curl -fsSL "https://github.com/nibzard/ansorum/releases/download/${VERSION}/anso
 
 Replace `vX.Y.Z` with the release you want to pin to.
 
+If the release tag you choose does not have uploaded binary assets yet, this
+download step will fail. In that case, either pin to a tag that does have
+assets or switch the service to a Docker/source-build workflow instead of the
+release-asset download flow shown here.
+
 The static `musl` target is the safest default on Railway because it avoids
 glibc compatibility questions in the runtime image.
 
@@ -84,13 +89,13 @@ canonical absolute URL yet.
 Once you have generated a Railway domain, you can switch to:
 
 ```sh
-/app/.ansorum/bin/ansorum serve --interface 0.0.0.0 --port "$PORT" --base-url "https://${RAILWAY_PUBLIC_DOMAIN}"
+/app/.ansorum/bin/ansorum serve --interface 0.0.0.0 --port "$PORT" --base-url "https://${RAILWAY_PUBLIC_DOMAIN}" --no-port-append
 ```
 
 If you use a custom domain, prefer setting the explicit domain instead:
 
 ```sh
-/app/.ansorum/bin/ansorum serve --interface 0.0.0.0 --port "$PORT" --base-url "https://docs.example.com"
+/app/.ansorum/bin/ansorum serve --interface 0.0.0.0 --port "$PORT" --base-url "https://docs.example.com" --no-port-append
 ```
 
 ## Generate a Public Domain
@@ -120,6 +125,9 @@ That is why the command always includes:
 
 `ansorum serve` is the right long-running process because it builds the site and
 then serves it from one command.
+
+When `--base-url` is an absolute URL, add `--no-port-append` so Ansorum keeps
+public URLs canonical instead of appending Railway's internal listen port.
 
 ## Recommended Production Shape
 

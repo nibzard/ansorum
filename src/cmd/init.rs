@@ -292,18 +292,6 @@ const BASE_TEMPLATE: &str = r##"<!DOCTYPE html>
 
 const INDEX_TEMPLATE: &str = r#"{% extends "base.html" %}
 
-{% block extra_head %}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "{{ config.title }}",
-  "url": "{{ config.base_url | safe }}",
-  "description": "{{ section.description | default(value=config.description) }}"
-}
-</script>
-{% endblock %}
-
 {% block content %}
 <section class="hero">
     <p class="eyebrow">SEO, AEO, and GEO ready</p>
@@ -345,20 +333,6 @@ const INDEX_TEMPLATE: &str = r#"{% extends "base.html" %}
 "#;
 
 const PAGE_TEMPLATE: &str = r#"{% extends "base.html" %}
-
-{% block extra_head %}
-{% if page is defined %}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": "{{ page.title }}",
-  "description": "{{ page.description | default(value=config.description) }}",
-  "url": "{{ page.permalink | safe }}"
-}
-</script>
-{% endif %}
-{% endblock %}
 
 {% block body_class %}starter starter--page{% endblock %}
 
