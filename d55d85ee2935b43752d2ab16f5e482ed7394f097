@@ -1,0 +1,15 @@
+# Context
+
+## Background
+Moved site-level JSON-LD generation out of theme templates and starter scaffolds into the site pipeline so WebSite, Organization, WebPage, and breadcrumb data are derived from canonical config and render context.
+
+## Why This Way
+This removes hardcoded theme-specific schema values, keeps answer-specific schema generation intact, and makes site-wide structured data automatic for pages and sections.
+
+## Gotchas
+Answer pages still emit a separate answer-specific JSON-LD document and /schema.json output; site-wide and answer-specific schema are intentionally layered.
+
+## Related
+- components/site/src/structured_data.rs
+- examples/reference-project/themes/tanuki/templates/base.html
+- src/cmd/init.rs
