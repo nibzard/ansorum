@@ -1,0 +1,15 @@
+# Context
+
+## Background
+This change turns ansorum CLI output into a machine-readable remediation surface for AI coding agents while also packaging the product around an AI reference-layer starter.
+
+## Why This Way
+Build, check, audit, eval, and serve now share a structured diagnostics/report envelope so agent loops can fix issues directly from command output. Invalid fixtures and command-level tests were added to keep the error taxonomy stable.
+
+## Gotchas
+Example site output under examples/reference-project/public/ is intentionally updated to match the new starter metadata and template rendering.
+
+## Related
+- Added --format json/json-stream coverage across commands
+- Added --fail-on warn support and warning-promotion behavior
+- Added invalid fixture matrix for parser and template failures
