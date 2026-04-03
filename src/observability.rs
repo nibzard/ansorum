@@ -82,6 +82,17 @@ pub fn emit_event(
     payload: JsonValue,
     dispatch_mode: DispatchMode,
 ) {
+    emit_event_with_options(surface, command, event, payload, dispatch_mode, true);
+}
+
+pub fn emit_event_with_options(
+    surface: &'static str,
+    command: &'static str,
+    event: impl Into<String>,
+    payload: JsonValue,
+    dispatch_mode: DispatchMode,
+    log_to_console: bool,
+) {
     let envelope = EventEnvelope {
         schema_version: EVENT_SCHEMA_VERSION,
         emitted_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
@@ -98,7 +109,9 @@ pub fn emit_event(
         }
     };
 
-    log::info!("{serialized}");
+    if log_to_console {
+        log::info!("{serialized}");
+    }
 
     let Some(config) = EVENT_HOOK.as_ref().cloned() else {
         return;

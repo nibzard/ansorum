@@ -95,6 +95,28 @@
         {% if page.description %}
         <p class="article__description" itemprop="description">{{ page.description }}</p>
         {% endif %}
+        {% if page.answer %}
+        <dl class="article-answer-meta">
+            {% if page.answer.review_by %}
+            <div>
+                <dt>Last reviewed</dt>
+                <dd>{{ page.answer.review_by }}</dd>
+            </div>
+            {% endif %}
+            {% if page.answer.owner %}
+            <div>
+                <dt>Owner</dt>
+                <dd>{{ page.answer.owner }}</dd>
+            </div>
+            {% endif %}
+            {% if page.answer.confidence_notes %}
+            <div>
+                <dt>Confidence</dt>
+                <dd>{{ page.answer.confidence_notes }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+        {% endif %}
     </header>
 
     <div class="article__content" itemprop="articleBody">

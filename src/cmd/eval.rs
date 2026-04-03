@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use config::{Config, DEFAULT_EVAL_MODEL, EvalBackend};
 use content::is_machine_ai_visible;
@@ -13,7 +13,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 use site::Site;
 
-use crate::cli::EvalFormat;
+use crate::cli::{EvalFormat, FailOn};
+use crate::diagnostics::{
+    self, CommandFailure, CommandReport, CommandSuccess, Diagnostic, ReportOutcome,
+};
 use crate::observability::{self, DispatchMode};
 
 const DEFAULT_FIXTURES_PATH: &str = "eval/fixtures.yaml";
@@ -34,7 +37,9 @@ pub fn eval(
     min_llm_average: Option<f64>,
     min_llm_score: Option<f64>,
     require_llm: bool,
+    fail_on: FailOn,
 ) -> Result<()> {
+    let start = Instant::now();
     let report = match run_eval(
         root_dir,
         config_file,
@@ -65,18 +70,53 @@ pub fn eval(
                 require_llm,
                 &error.to_string(),
             );
+            print_failure_report(
+                root_dir,
+                config_file,
+                format,
+                &error.to_string(),
+                start.elapsed(),
+            )?;
             return Err(error);
         }
     };
 
     emit_eval_report(root_dir, config_file, include_drafts, format, llm_override, &report);
 
+    let mut diagnostics = eval_report_diagnostics(&report);
+    let threshold_exceeded = if fail_on == FailOn::Warn {
+        let summary = diagnostics::DiagnosticSummary::from_diagnostics(&diagnostics);
+        if fail_on.threshold_exceeded(summary.errors, summary.warnings) {
+            diagnostics.push(
+                Diagnostic::error(
+                    "warn_threshold_exceeded",
+                    "Eval completed with warnings, but `--fail-on warn` requires a warning-free run",
+                )
+                .with_phase("validate")
+                .with_suggestion("Resolve warning diagnostics or re-run with `--fail-on error`"),
+            );
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     match format {
         EvalFormat::Human => print_human_report(&report),
-        EvalFormat::Json => print_json_report(&report)?,
+        EvalFormat::Json | EvalFormat::JsonStream => print_json_report(
+            root_dir,
+            config_file,
+            &report,
+            diagnostics,
+            start.elapsed(),
+            format,
+            threshold_exceeded,
+        )?,
     }
 
-    if report_failed(&report) {
+    if report_failed(&report) || threshold_exceeded {
         bail!("Eval failed");
     }
 
@@ -837,11 +877,131 @@ fn print_human_report(report: &EvalReport) {
     }
 }
 
-fn print_json_report(report: &EvalReport) -> Result<()> {
-    let json = serde_json::to_string_pretty(report)
-        .map_err(|error| anyhow!("Failed to serialize eval report: {error}"))?;
-    println!("{json}");
-    Ok(())
+fn eval_report_diagnostics(report: &EvalReport) -> Vec<Diagnostic> {
+    let mut diagnostics = report
+        .cases
+        .iter()
+        .filter(|case| !case.passed)
+        .map(|case| {
+            let mut message = format!("Eval case failed for question `{}`", case.question);
+            if let Some(selected_id) = case.selection.selected_id.as_deref() {
+                message.push_str(&format!(" (selected `{selected_id}`)"));
+            }
+            Diagnostic::error("eval_case_failed", message).with_phase("validate")
+        })
+        .collect::<Vec<_>>();
+
+    if let Some(min_pass_rate) = report.thresholds.min_pass_rate
+        && report.summary.total_cases > 0
+    {
+        let pass_rate = report.summary.passed_cases as f64 / report.summary.total_cases as f64;
+        if pass_rate < min_pass_rate {
+            diagnostics.push(
+                Diagnostic::error(
+                    "eval_min_pass_rate_unmet",
+                    format!(
+                        "Eval pass rate {:.3} is below required minimum {:.3}",
+                        pass_rate, min_pass_rate
+                    ),
+                )
+                .with_phase("validate"),
+            );
+        }
+    }
+
+    if let Some(min_llm_average) = report.thresholds.min_llm_average {
+        let llm_average = report.summary.llm_average.unwrap_or(0.0);
+        if llm_average < min_llm_average {
+            diagnostics.push(
+                Diagnostic::error(
+                    "eval_min_llm_average_unmet",
+                    format!(
+                        "Eval LLM average {:.3} is below required minimum {:.3}",
+                        llm_average, min_llm_average
+                    ),
+                )
+                .with_phase("validate"),
+            );
+        }
+    }
+
+    if report.thresholds.require_llm
+        && report.summary.llm_scored_cases != report.summary.total_cases
+    {
+        diagnostics.push(
+            Diagnostic::error(
+                "eval_require_llm_unmet",
+                "Eval requires LLM scoring for every case, but one or more cases were not scored",
+            )
+            .with_phase("validate"),
+        );
+    }
+
+    diagnostics
+}
+
+fn print_json_report(
+    root_dir: &Path,
+    config_file: &Path,
+    report: &EvalReport,
+    diagnostics: Vec<Diagnostic>,
+    duration: Duration,
+    format: EvalFormat,
+    threshold_exceeded: bool,
+) -> Result<()> {
+    let success = CommandSuccess {
+        stage: "completed",
+        diagnostics,
+        artifacts: Default::default(),
+        report: Some(
+            serde_json::to_value(report)
+                .map_err(|error| anyhow!("Failed to serialize eval report: {error}"))?,
+        ),
+    };
+    let mut envelope = CommandReport::completed(
+        "eval",
+        if report_failed(report) || threshold_exceeded {
+            ReportOutcome::Failed
+        } else {
+            ReportOutcome::Passed
+        },
+        root_dir,
+        config_file,
+        duration,
+        success,
+    );
+    let compact = format.is_json_stream();
+    if compact {
+        let mut stream = diagnostics::ReportStreamContext::new("eval");
+        envelope.attach_stream_event(&mut stream);
+    }
+    diagnostics::print_json_report(&envelope, compact)
+}
+
+fn print_failure_report(
+    root_dir: &Path,
+    config_file: &Path,
+    format: EvalFormat,
+    message: &str,
+    duration: Duration,
+) -> Result<()> {
+    if !format.is_json() {
+        return Ok(());
+    }
+
+    let mut report = CommandReport::failure(
+        "eval",
+        Some(root_dir),
+        Some(config_file),
+        duration,
+        CommandFailure::new(Diagnostic::error("eval_failed", message).with_phase("validate")),
+    );
+    let compact = format.is_json_stream();
+    if compact {
+        let mut stream = diagnostics::ReportStreamContext::new("eval");
+        report.attach_stream_event(&mut stream);
+    }
+    diagnostics::print_json_report(&report, compact)
 }
 
 fn validate_ratio(name: &str, value: Option<f64>) -> Result<()> {
@@ -915,7 +1075,7 @@ fn emit_eval_report(
     llm_override: bool,
     report: &EvalReport,
 ) {
-    observability::emit_event(
+    observability::emit_event_with_options(
         "governance",
         "eval",
         "ansorum.eval.completed",
@@ -929,6 +1089,7 @@ fn emit_eval_report(
             "report": report,
         }),
         DispatchMode::Sync,
+        !format.is_json(),
     );
 }
 
@@ -948,7 +1109,7 @@ fn emit_eval_failure(
     require_llm: bool,
     error: &str,
 ) {
-    observability::emit_event(
+    observability::emit_event_with_options(
         "governance",
         "eval",
         "ansorum.eval.completed",
@@ -971,6 +1132,7 @@ fn emit_eval_failure(
             "error": error,
         }),
         DispatchMode::Sync,
+        !format.is_json(),
     );
 }
 
@@ -978,6 +1140,7 @@ fn eval_format_name(format: EvalFormat) -> &'static str {
     match format {
         EvalFormat::Human => "human",
         EvalFormat::Json => "json",
+        EvalFormat::JsonStream => "json_stream",
     }
 }
 
@@ -999,7 +1162,7 @@ mod tests {
         load_fixture_file, rank_answers, report_failed, resolve_fixture_path, resolve_model,
         validate_llm_thresholds,
     };
-    use crate::cli::EvalFormat;
+    use crate::cli::{EvalFormat, FailOn};
     use config::Config;
     use site::Site;
 
@@ -1335,6 +1498,7 @@ mod tests {
             None,
             None,
             false,
+            FailOn::Error,
         )
         .expect("eval should pass");
     }
@@ -1357,6 +1521,7 @@ mod tests {
             None,
             Some(1.0),
             true,
+            FailOn::Error,
         )
         .expect_err("eval should fail when llm thresholds are requested without llm scoring");
         assert_eq!(

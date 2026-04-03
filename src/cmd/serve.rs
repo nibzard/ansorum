@@ -59,6 +59,8 @@ use site::sass::compile_sass;
 use site::{BuildMode, SITE_CONTENT, Site};
 use utils::fs::{clean_site_output_folder, copy_file, create_directory};
 
+use crate::cli::DiagnosticFormat;
+use crate::diagnostics::{self, CommandArtifacts, CommandReport, CommandSuccess};
 use crate::fs_utils::{ChangeKind, SimpleFileSystemEventKind, filter_events};
 use crate::messages;
 use crate::observability::{self, DispatchMode};
@@ -706,20 +708,95 @@ fn rebuild_done_handling(
     broadcaster: &broadcast::Sender<String>,
     res: Result<()>,
     reload_path: &str,
-) {
-    match res {
+    human_output: bool,
+) -> Vec<diagnostics::Diagnostic> {
+    let diagnostics_list = match res {
         Ok(_) => {
             clear_serve_error();
+            Vec::new()
         }
         Err(e) => {
             let msg = "Failed to build the site";
-            messages::unravel_errors(msg, &e);
+            if human_output {
+                messages::unravel_errors(msg, &e);
+            }
+            let diagnostics_list = diagnostics::CommandFailure::from_message_with_causes(
+                "serve_rebuild_failed",
+                e.to_string(),
+                "rebuild",
+                diagnostics::collect_error_causes(&e),
+            )
+            .diagnostics;
             set_serve_error(msg, e);
+            diagnostics_list
         }
-    }
+    };
 
     // Always send reload so the client fetches the page (with error dialog if needed)
     let _ = broadcaster.send(make_reload_message(reload_path));
+    diagnostics_list
+}
+
+fn site_recreate_failed(error: &Error, human_output: bool) -> Vec<diagnostics::Diagnostic> {
+    let msg = "Failed to build the site";
+    if human_output {
+        messages::unravel_errors(msg, error);
+    }
+
+    diagnostics::CommandFailure::from_message_with_causes(
+        "serve_rebuild_failed",
+        error.to_string(),
+        "rebuild",
+        diagnostics::collect_error_causes(error),
+    )
+    .diagnostics
+}
+
+fn emit_serve_runtime_report(
+    root_dir: &Path,
+    config_file: &Path,
+    started: Instant,
+    compact_json: bool,
+    stream_context: Option<&mut diagnostics::ReportStreamContext>,
+    outcome: diagnostics::ReportOutcome,
+    change_kind: &ChangeKind,
+    strategy: &str,
+    paths: Vec<String>,
+    diagnostics_list: Vec<diagnostics::Diagnostic>,
+) {
+    let mut report = CommandReport::completed(
+        "serve",
+        outcome,
+        root_dir,
+        config_file,
+        started.elapsed(),
+        CommandSuccess {
+            stage: "rebuild",
+            diagnostics: diagnostics_list,
+            artifacts: Default::default(),
+            report: Some(json!({
+                "change_kind": serve_change_kind_label(change_kind),
+                "strategy": strategy,
+                "paths": paths,
+            })),
+        },
+    );
+    if let Some(stream) = stream_context {
+        report.attach_stream_event(stream);
+    }
+    let _ = diagnostics::print_json_report(&report, compact_json);
+}
+
+fn serve_change_kind_label(change_kind: &ChangeKind) -> &'static str {
+    match change_kind {
+        ChangeKind::Content => "content",
+        ChangeKind::Templates => "templates",
+        ChangeKind::StaticFiles => "static_files",
+        ChangeKind::Sass => "sass",
+        ChangeKind::Themes => "themes",
+        ChangeKind::Config => "config",
+        ChangeKind::ExtraPath => "extra_path",
+    }
 }
 
 fn construct_url(base_url: &str, no_port_append: bool, interface_port: u16) -> String {
@@ -763,7 +840,14 @@ fn create_new_site(
     include_drafts: bool,
     store_html: bool,
     mut no_port_append: bool,
-) -> Result<(Site, SocketAddr, String)> {
+    format: DiagnosticFormat,
+) -> Result<(
+    Site,
+    SocketAddr,
+    String,
+    diagnostics::SiteContentSummary,
+    Vec<diagnostics::Diagnostic>,
+)> {
     SITE_CONTENT.write().unwrap().clear();
 
     let mut site = Site::new(root_dir, config_file)?;
@@ -801,10 +885,14 @@ fn create_new_site(
     site.load()?;
     // With Axum, WebSocket runs on the same server as HTTP
     site.enable_live_reload_with_port(interface_port);
-    messages::notify_site_size(&site);
-    messages::warn_about_ignored_pages(&site);
+    let content_summary = messages::collect_site_content_summary(&site);
+    let diagnostics = messages::collect_ignored_page_diagnostics(&site);
+    if !format.is_json() {
+        messages::notify_site_size(&site);
+        messages::warn_about_ignored_pages(&site);
+    }
     site.build()?;
-    Ok((site, address, constructed_base_url))
+    Ok((site, address, constructed_base_url, content_summary, diagnostics))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -824,9 +912,15 @@ pub fn serve(
     utc_offset: UtcOffset,
     extra_watch_paths: Vec<String>,
     debounce: u64,
+    format: DiagnosticFormat,
 ) -> Result<()> {
     let start = Instant::now();
-    let (mut site, bind_address, constructed_base_url) = create_new_site(
+    let human_output = !format.is_json();
+    let compact_json = format.is_json_stream();
+    let mut stream_context =
+        compact_json.then(|| diagnostics::ReportStreamContext::new("serve"));
+    let (mut site, bind_address, constructed_base_url, content_summary, startup_diagnostics) =
+        create_new_site(
         root_dir,
         interface,
         interface_port,
@@ -837,13 +931,16 @@ pub fn serve(
         include_drafts,
         store_html,
         no_port_append,
+        format,
     )?;
     let base_path = match constructed_base_url.splitn(4, '/').nth(3) {
         Some(path) => format!("/{path}"),
         None => "/".to_string(),
     };
 
-    messages::report_elapsed_time(start);
+    if human_output {
+        messages::report_elapsed_time(start);
+    }
 
     // Stop right there if we can't bind to the address
     if (TcpListener::bind(bind_address)).is_err() {
@@ -930,6 +1027,8 @@ pub fn serve(
         })
         .collect::<HashMap<_, _>>();
 
+    let startup_base_url = constructed_base_url.clone();
+
     // Start Axum server in a separate thread
     thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -960,12 +1059,14 @@ pub fn serve(
 
             let local_addr = listener.local_addr().unwrap();
 
-            log::info!(
-                "Web server is available at {} (bound to {})\n",
-                &constructed_base_url.replace(&bind_address.to_string(), &local_addr.to_string()),
-                &local_addr
-            );
-            if open && let Err(err) = open::that(&constructed_base_url) {
+            if human_output {
+                log::info!(
+                    "Web server is available at {} (bound to {})\n",
+                    &constructed_base_url.replace(&bind_address.to_string(), &local_addr.to_string()),
+                    &local_addr
+                );
+            }
+            if human_output && open && let Err(err) = open::that(&constructed_base_url) {
                 log::error!("Failed to open URL in your browser: {err}");
             }
 
@@ -985,16 +1086,46 @@ pub fn serve(
         .map(|w| if w == &root_dir_watch { config_name.as_str() } else { w.as_str() })
         .collect::<Vec<_>>()
         .join(",");
-    log::info!(
-        "Listening for changes in {}{}{{{}}}",
-        root_dir.display(),
-        MAIN_SEPARATOR,
-        watch_list
-    );
+    if human_output {
+        log::info!(
+            "Listening for changes in {}{}{{{}}}",
+            root_dir.display(),
+            MAIN_SEPARATOR,
+            watch_list
+        );
+    }
 
     let preserve_dotfiles_in_output = site.config.preserve_dotfiles_in_output;
 
-    log::info!("Press Ctrl+C to stop\n");
+    if human_output {
+        log::info!("Press Ctrl+C to stop\n");
+    } else {
+        let mut startup_report = CommandReport::success(
+            "serve",
+            root_dir,
+            config_file,
+            start.elapsed(),
+            CommandSuccess {
+                stage: "listening",
+                diagnostics: startup_diagnostics,
+                artifacts: CommandArtifacts {
+                    output_dir: Some(output_path.display().to_string()),
+                    content: Some(content_summary),
+                },
+                report: Some(json!({
+                    "base_url": startup_base_url,
+                    "bind_address": bind_address.to_string(),
+                    "watch_paths": watchers,
+                    "store_html": store_html,
+                    "fast_rebuild": fast_rebuild,
+                })),
+            },
+        );
+        if let Some(stream) = stream_context.as_mut() {
+            startup_report.attach_stream_event(stream);
+        }
+        diagnostics::print_json_report(&startup_report, compact_json)?;
+    }
     // Clean the output folder on ctrl+C
     ctrlc::set_handler(move || {
         match clean_site_output_folder(&output_path, preserve_dotfiles_in_output) {
@@ -1008,20 +1139,26 @@ pub fn serve(
     let reload_sass = |site: &Site, paths: &Vec<&PathBuf>| {
         let combined_paths =
             paths.iter().map(|p| p.display().to_string()).collect::<Vec<String>>().join(", ");
-        log::info!("Sass file(s) changed {combined_paths}");
+        if human_output {
+            log::info!("Sass file(s) changed {combined_paths}");
+        }
+        let res = compile_sass(&site.base_path, &site.output_path);
         rebuild_done_handling(
             &broadcaster,
-            compile_sass(&site.base_path, &site.output_path),
+            res,
             &site.sass_path.to_string_lossy(),
-        );
+            human_output,
+        )
     };
 
     let reload_templates = |site: &mut Site| {
+        let res = site.reload_templates();
         rebuild_done_handling(
             &broadcaster,
-            site.reload_templates(),
+            res,
             &site.templates_path.to_string_lossy(),
-        );
+            human_output,
+        )
     };
 
     let copy_static = |site: &Site,
@@ -1032,21 +1169,24 @@ pub fn serve(
         if let Some(gs) = &site.config.ignored_static_globset
             && gs.is_match(partial_path)
         {
-            return;
+            return Vec::new();
         }
 
         if *event_kind == SimpleFileSystemEventKind::Remove {
-            log::info!("-> Static path removed {}", partial_path.display());
-            rebuild_done_handling(
+            if human_output {
+                log::info!("-> Static path removed {}", partial_path.display());
+            }
+            let res = remove_deleted_static_output(site, partial_path);
+            return rebuild_done_handling(
                 &broadcaster,
-                remove_deleted_static_output(site, partial_path),
+                res,
                 &partial_path.to_string_lossy(),
+                human_output,
             );
-            return;
         }
 
         if !path.exists() {
-            return;
+            return Vec::new();
         }
 
         let msg = if path.is_dir() {
@@ -1055,19 +1195,26 @@ pub fn serve(
             format!("-> Static file changed {}", path.display())
         };
 
-        log::info!("{msg}");
+        if human_output {
+            log::info!("{msg}");
+        }
         if path.is_dir() {
+            let res = site.copy_static_directories();
             rebuild_done_handling(
                 &broadcaster,
-                site.copy_static_directories(),
+                res,
                 &path.to_string_lossy(),
-            );
+                human_output,
+            )
         } else {
+            let res =
+                copy_file(path, &site.output_path, &site.static_path, site.config.hard_link_static);
             rebuild_done_handling(
                 &broadcaster,
-                copy_file(path, &site.output_path, &site.static_path, site.config.hard_link_static),
+                res,
                 &partial_path.to_string_lossy(),
-            );
+                human_output,
+            )
         }
     };
 
@@ -1082,23 +1229,22 @@ pub fn serve(
         include_drafts,
         store_html,
         no_port_append,
+        format,
     ) {
-        Ok((s, _, _)) => {
+        Ok((s, _, _, _, _)) => {
             clear_serve_error();
-            rebuild_done_handling(&broadcaster, Ok(()), "/x.js");
-
-            Some(s)
+            let _ = rebuild_done_handling(&broadcaster, Ok(()), "/x.js", human_output);
+            Ok(s)
         }
         Err(e) => {
             let msg = "Failed to build the site";
-
-            messages::unravel_errors(msg, &e);
+            let diagnostics_list = site_recreate_failed(&e, human_output);
             set_serve_error(msg, e);
 
             // Send reload so the client fetches the page with the error dialog
             let _ = broadcaster.send(make_reload_message("/x.js"));
 
-            None
+            Err(diagnostics_list)
         }
     };
 
@@ -1117,30 +1263,53 @@ pub fn serve(
                 let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
                 for (change_kind, change_group) in changes.iter() {
+                    let changed_paths = change_group
+                        .iter()
+                        .map(|(_, full_path, _)| full_path.display().to_string())
+                        .collect::<Vec<_>>();
                     let current_time =
                         OffsetDateTime::now_utc().to_offset(utc_offset).format(&format);
-                    if let Ok(time_str) = current_time {
+                    if human_output && let Ok(time_str) = current_time {
                         log::info!("Change detected @ {time_str}");
-                    } else {
+                    } else if human_output {
                         // if formatting fails for some reason
                         log::info!("Change detected");
                     };
 
                     let start = Instant::now();
+                    let mut success = true;
+                    let mut rebuild_diagnostics = Vec::new();
+                    let strategy = match change_kind {
+                        ChangeKind::Content => "content_update",
+                        ChangeKind::Templates => "template_reload",
+                        ChangeKind::StaticFiles => "static_sync",
+                        ChangeKind::Sass => "sass_recompile",
+                        ChangeKind::Themes => "site_recreate",
+                        ChangeKind::Config => "site_recreate",
+                        ChangeKind::ExtraPath => "site_recreate",
+                    };
                     match change_kind {
                         ChangeKind::Content => {
                             for (_, full_path, event_kind) in change_group.iter() {
-                                log::info!("-> Content changed {}", full_path.display());
+                                if human_output {
+                                    log::info!("-> Content changed {}", full_path.display());
+                                }
 
                                 let can_do_fast_reload =
                                     *event_kind != SimpleFileSystemEventKind::Remove;
 
                                 if *event_kind == SimpleFileSystemEventKind::Remove {
-                                    rebuild_done_handling(
+                                    let res = remove_deleted_content_output(&site, full_path);
+                                    let diagnostics = rebuild_done_handling(
                                         &broadcaster,
-                                        remove_deleted_content_output(&site, full_path),
+                                        res,
                                         &full_path.to_string_lossy(),
+                                        human_output,
                                     );
+                                    if !diagnostics.is_empty() {
+                                        success = false;
+                                        rebuild_diagnostics.extend(diagnostics);
+                                    }
                                 }
 
                                 if fast_rebuild {
@@ -1160,24 +1329,51 @@ pub fn serve(
                                         };
 
                                         if res.is_err() {
-                                            if let Some(s) = recreate_site() {
-                                                site = s;
+                                            success = false;
+                                            match recreate_site() {
+                                                Ok(s) => {
+                                                    site = s;
+                                                    success = true;
+                                                    rebuild_diagnostics.clear();
+                                                }
+                                                Err(diagnostics) => {
+                                                    rebuild_diagnostics.extend(diagnostics);
+                                                }
                                             }
                                         } else {
-                                            rebuild_done_handling(
+                                            let diagnostics = rebuild_done_handling(
                                                 &broadcaster,
                                                 res,
                                                 &full_path.to_string_lossy(),
+                                                human_output,
                                             );
+                                            if !diagnostics.is_empty() {
+                                                success = false;
+                                                rebuild_diagnostics.extend(diagnostics);
+                                            }
                                         }
                                     } else {
                                         // Should we be smarter than that? Is it worth it?
-                                        if let Some(s) = recreate_site() {
-                                            site = s;
+                                        match recreate_site() {
+                                            Ok(s) => {
+                                                site = s;
+                                            }
+                                            Err(diagnostics) => {
+                                                success = false;
+                                                rebuild_diagnostics.extend(diagnostics);
+                                            }
                                         }
                                     }
-                                } else if let Some(s) = recreate_site() {
-                                    site = s;
+                                } else {
+                                    match recreate_site() {
+                                        Ok(s) => {
+                                            site = s;
+                                        }
+                                        Err(diagnostics) => {
+                                            success = false;
+                                            rebuild_diagnostics.extend(diagnostics);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1191,46 +1387,81 @@ pub fn serve(
                                 .map(|p| p.display().to_string())
                                 .collect::<Vec<String>>()
                                 .join(", ");
-                            log::info!("-> Template file(s) changed {combined_paths}");
+                            if human_output {
+                                log::info!("-> Template file(s) changed {combined_paths}");
+                            }
 
                             let shortcodes_updated = partial_paths
                                 .iter()
                                 .any(|p| p.starts_with("/templates/shortcodes"));
                             // Rebuild site if shortcodes change; otherwise, just update template.
                             if shortcodes_updated {
-                                if let Some(s) = recreate_site() {
-                                    site = s;
+                                match recreate_site() {
+                                    Ok(s) => {
+                                        site = s;
+                                    }
+                                    Err(diagnostics) => {
+                                        success = false;
+                                        rebuild_diagnostics.extend(diagnostics);
+                                    }
                                 }
                             } else {
-                                log::info!("Reloading only template");
-                                reload_templates(&mut site)
+                                if human_output {
+                                    log::info!("Reloading only template");
+                                }
+                                let diagnostics = reload_templates(&mut site);
+                                success = diagnostics.is_empty();
+                                rebuild_diagnostics.extend(diagnostics);
                             }
                         }
                         ChangeKind::StaticFiles => {
                             for (partial_path, full_path, event_kind) in change_group.iter() {
-                                copy_static(&site, full_path, partial_path, event_kind);
+                                let diagnostics =
+                                    copy_static(&site, full_path, partial_path, event_kind);
+                                if !diagnostics.is_empty() {
+                                    success = false;
+                                    rebuild_diagnostics.extend(diagnostics);
+                                }
                             }
                         }
                         ChangeKind::Sass => {
                             let full_paths = change_group.iter().map(|(_, p, _)| p).collect();
-                            reload_sass(&site, &full_paths);
+                            let diagnostics = reload_sass(&site, &full_paths);
+                            success = diagnostics.is_empty();
+                            rebuild_diagnostics.extend(diagnostics);
                         }
                         ChangeKind::Themes => {
                             // No need to iterate over change group since we're rebuilding the site.
-                            log::info!("-> Themes changed.");
+                            if human_output {
+                                log::info!("-> Themes changed.");
+                            }
 
-                            if let Some(s) = recreate_site() {
-                                site = s;
+                            match recreate_site() {
+                                Ok(s) => {
+                                    site = s;
+                                }
+                                Err(diagnostics) => {
+                                    success = false;
+                                    rebuild_diagnostics.extend(diagnostics);
+                                }
                             }
                         }
                         ChangeKind::Config => {
                             // No need to iterate over change group since we're rebuilding the site.
-                            log::info!(
-                                "-> Config changed. The browser needs to be refreshed to make the changes visible.",
-                            );
+                            if human_output {
+                                log::info!(
+                                    "-> Config changed. The browser needs to be refreshed to make the changes visible.",
+                                );
+                            }
 
-                            if let Some(s) = recreate_site() {
-                                site = s;
+                            match recreate_site() {
+                                Ok(s) => {
+                                    site = s;
+                                }
+                                Err(diagnostics) => {
+                                    success = false;
+                                    rebuild_diagnostics.extend(diagnostics);
+                                }
                             }
                         }
                         ChangeKind::ExtraPath => {
@@ -1241,19 +1472,102 @@ pub fn serve(
                                 .map(|p| p.display().to_string())
                                 .collect::<Vec<String>>()
                                 .join(", ");
-                            log::info!("-> {combined_paths} changed. Recreating whole site.");
+                            if human_output {
+                                log::info!("-> {combined_paths} changed. Recreating whole site.");
+                            }
 
                             // We can't know exactly what to update when a user provides the path.
-                            if let Some(s) = recreate_site() {
-                                site = s;
+                            match recreate_site() {
+                                Ok(s) => {
+                                    site = s;
+                                }
+                                Err(diagnostics) => {
+                                    success = false;
+                                    rebuild_diagnostics.extend(diagnostics);
+                                }
                             }
                         }
                     };
-                    messages::report_elapsed_time(start);
+                    if human_output {
+                        messages::report_elapsed_time(start);
+                    } else {
+                        let diagnostics_list = if success {
+                            Vec::new()
+                        } else if rebuild_diagnostics.is_empty() {
+                            vec![diagnostics::Diagnostic::error(
+                                "serve_rebuild_failed",
+                                format!(
+                                    "Serve rebuild failed while processing {} changes",
+                                    serve_change_kind_label(change_kind)
+                                ),
+                            )
+                            .with_phase("rebuild")]
+                        } else {
+                            rebuild_diagnostics
+                        };
+                        emit_serve_runtime_report(
+                            root_dir,
+                            config_file,
+                            start,
+                            compact_json,
+                            stream_context.as_mut(),
+                            if success {
+                                diagnostics::ReportOutcome::Passed
+                            } else {
+                                diagnostics::ReportOutcome::Failed
+                            },
+                            change_kind,
+                            strategy,
+                            changed_paths,
+                            diagnostics_list,
+                        );
+                    }
                 }
             }
-            Ok(Err(e)) => log::error!("File system event errors: {e:?}"),
-            Err(e) => log::error!("File system event receiver errors: {e:?}"),
+            Ok(Err(e)) => {
+                if human_output {
+                    log::error!("File system event errors: {e:?}");
+                } else {
+                    emit_serve_runtime_report(
+                        root_dir,
+                        config_file,
+                        Instant::now(),
+                        compact_json,
+                        stream_context.as_mut(),
+                        diagnostics::ReportOutcome::Failed,
+                        &ChangeKind::ExtraPath,
+                        "watch_error",
+                        Vec::new(),
+                        vec![diagnostics::Diagnostic::error(
+                            "serve_watch_error",
+                            format!("File system watcher error: {e:?}"),
+                        )
+                        .with_phase("watch")],
+                    );
+                }
+            }
+            Err(e) => {
+                if human_output {
+                    log::error!("File system event receiver errors: {e:?}");
+                } else {
+                    emit_serve_runtime_report(
+                        root_dir,
+                        config_file,
+                        Instant::now(),
+                        compact_json,
+                        stream_context.as_mut(),
+                        diagnostics::ReportOutcome::Failed,
+                        &ChangeKind::ExtraPath,
+                        "watch_error",
+                        Vec::new(),
+                        vec![diagnostics::Diagnostic::error(
+                            "serve_watch_receiver_error",
+                            format!("File system event receiver error: {e:?}"),
+                        )
+                        .with_phase("watch")],
+                    );
+                }
+            }
         };
     }
 }
@@ -1264,8 +1578,9 @@ mod tests {
         AppState, MAX_ERROR_OVERLAY_BYTES, RedirectTarget, clear_serve_error, construct_url,
         create_new_site, disk_content_type, error_injection_middleware, handle_request,
         remove_deleted_content_output, remove_deleted_static_output, set_serve_error,
-        strip_mounted_path,
+        site_recreate_failed, strip_mounted_path,
     };
+    use crate::cli::DiagnosticFormat;
     use crate::get_config_file_path;
     use axum::{
         body::{Body, to_bytes},
@@ -1347,14 +1662,15 @@ mod tests {
     ) {
         let cli_dir = fixture_root("tests/fixtures/site").canonicalize().unwrap();
 
-        let (root_dir, config_file) = get_config_file_path(&cli_dir, None);
+        let (root_dir, config_file) =
+            get_config_file_path(&cli_dir, None).expect("resolve fixture config");
         assert_eq!(cli_dir, root_dir);
         assert_eq!(config_file, root_dir.join("config.toml"));
 
         let force = false;
         let include_drafts = false;
 
-        let (site, bind_address, constructed_base_url) = create_new_site(
+        let (site, bind_address, constructed_base_url, _, _) = create_new_site(
             &root_dir,
             interface,
             interface_port,
@@ -1365,6 +1681,7 @@ mod tests {
             include_drafts,
             false,
             no_port_append,
+            DiagnosticFormat::Human,
         )
         .unwrap();
 
@@ -1676,6 +1993,23 @@ mod tests {
         assert!(body.contains("/livereload.js"));
 
         clear_serve_error();
+    }
+
+    #[test]
+    fn site_recreate_failed_normalizes_template_parse_errors() {
+        let diagnostics = site_recreate_failed(
+            &errors::Error::msg(
+                "\n* Failed to parse \"/tmp/site/templates/page.html\"\n --> 11:5\n  |\n11 | {% endif\n  |     ^---\n  |\n  = expected a tag close (`%}`)",
+            ),
+            false,
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, "template_parse_failed");
+        assert_eq!(diagnostics[0].path.as_deref(), Some("/tmp/site/templates/page.html"));
+        assert_eq!(diagnostics[0].line, Some(11));
+        assert_eq!(diagnostics[0].column, Some(5));
+        assert_eq!(diagnostics[0].phase.as_deref(), Some("rebuild"));
     }
 
     #[test]
@@ -2097,7 +2431,7 @@ mod tests {
                 .as_nanos()
         ));
 
-        let (site, _, _) = create_new_site(
+        let (site, _, _, _, _) = create_new_site(
             &root,
             IpAddr::from_str("127.0.0.1").unwrap(),
             1111,
@@ -2108,6 +2442,7 @@ mod tests {
             false,
             true,
             true,
+            DiagnosticFormat::Human,
         )
         .expect("site");
 
@@ -2136,7 +2471,7 @@ mod tests {
                 .as_nanos()
         ));
 
-        let (site, _, _) = create_new_site(
+        let (site, _, _, _, _) = create_new_site(
             &root,
             IpAddr::from_str("127.0.0.1").unwrap(),
             1112,
@@ -2147,6 +2482,7 @@ mod tests {
             false,
             true,
             true,
+            DiagnosticFormat::Human,
         )
         .expect("site");
 

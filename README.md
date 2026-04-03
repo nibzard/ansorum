@@ -292,6 +292,25 @@ That project demonstrates:
 - `/r/:code` redirects with allowlist enforcement
 - deterministic eval fixtures
 
+`ansorum init --starter ai-reference-layer` creates an opinionated AI reference
+layer starter with:
+
+- definitions
+- playbooks
+- methodology pages
+- metrics specs
+- comparisons
+- case studies
+
+For agent-driven workflows, `build`, `check`, `audit`, `eval`, and `serve`
+support both `--format json` and `--format json-stream`. The compact
+`json-stream` format is line-delimited and includes stable event metadata such
+as `stream_id`, `event_id`, and `sequence`, which makes it suitable for
+self-healing coding-agent loops.
+
+`build`, `check`, `audit`, and `eval` also support `--fail-on warn` when you
+want warnings to become blocking diagnostics in CI or agent automation.
+
 ## Why Ansorum
 
 The wedge is not just `llms.txt`.

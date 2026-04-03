@@ -7,12 +7,13 @@ use utils::fs::{create_directory, create_file};
 #[cfg(test)]
 use utils::fs::read_file;
 
+use crate::cli::InitStarter;
 use crate::prompt::ask_url;
 
 const CONFIG: &str = r#"
 base_url = "%BASE_URL%"
 title = "%PROJECT_TITLE%"
-description = "Starter Ansorum project for an answer-first knowledge corpus."
+description = "%PROJECT_DESCRIPTION%"
 generate_feeds = false
 generate_sitemap = true
 generate_robots_txt = true
@@ -35,13 +36,13 @@ auto_entity_packs = false
 auto_audience_packs = true
 
 [[ansorum.packs.curated]]
-name = "billing"
-source = "collections/packs/billing.toml"
+name = "%CURATED_PACK_NAME%"
+source = "%CURATED_PACK_SOURCE%"
 
 [ansorum.eval]
 enabled = false
 model = "gpt-5.4-mini"
-prompt_version = "starter-v1"
+prompt_version = "%PROMPT_VERSION%"
 "#;
 
 const README: &str = r#"# %PROJECT_TITLE%
@@ -97,6 +98,8 @@ related = ["cancel-subscription"]
 external_refs = ["https://example.com/refunds"]
 schema_type = "FAQPage"
 review_by = 2026-06-01
+owner = "Billing"
+confidence_notes = "Reviewed by policy and support"
 visibility = "public"
 ai_visibility = "public"
 llms_priority = "core"
@@ -128,6 +131,9 @@ audience = "customer"
 related = ["refunds-policy"]
 external_refs = []
 schema_type = "HowTo"
+review_by = 2026-06-01
+owner = "Billing Operations"
+confidence_notes = "Matches current customer portal workflow"
 visibility = "public"
 ai_visibility = "summary_only"
 llms_priority = "optional"
@@ -203,6 +209,265 @@ const EVAL_FIXTURES: &str = r#"- question: can i get a refund after 30 days
   forbidden_ids: [internal-support-escalation]
   required_terms: [canonical page, cancel]
   rubric_focus: prefer the public cancellation answer and keep canonical links visible
+"#;
+
+const README_AI_REFERENCE_LAYER: &str = r#"# %PROJECT_TITLE%
+
+This project was scaffolded by `ansorum init --starter ai-reference-layer`.
+
+It includes an opinionated AI reference layer:
+
+- definitions in `content/definitions/`
+- playbooks in `content/playbooks/`
+- methodology pages in `content/methodology/`
+- metrics specs in `content/metrics/`
+- comparison pages in `content/comparisons/`
+- case studies in `content/case-studies/`
+- a curated machine pack in `collections/packs/reference-layer.toml`
+
+Run the full workflow:
+
+```bash
+ansorum build
+ansorum serve
+ansorum audit
+ansorum eval
+```
+
+Use `ansorum build --format json-stream` or `ansorum audit --format json-stream` when the CLI is being driven by an AI agent.
+"#;
+
+const HOME_AI_REFERENCE_LAYER: &str = r#"+++
+title = "%PROJECT_TITLE%"
+description = "Maintained AI reference layer for definitions, methodology, metrics, comparisons, and case studies."
++++
+
+%PROJECT_TITLE% is scaffolded as an AI reference layer. The same authored corpus
+drives human pages, machine markdown, scoped packs, and answer indexes.
+
+Start with the archetypes below, then replace the placeholder content with your
+canonical definitions, operating playbooks, methodology pages, and proof points.
+"#;
+
+const AI_DEFINITION: &str = r#"+++
+title = "What is AI brand alignment?"
+description = "Definition of AI brand alignment and what it controls."
+weight = 10
+
+id = "ai-brand-alignment"
+summary = "Definition of AI brand alignment and what it controls."
+canonical_questions = ["what is ai brand alignment", "define ai brand alignment"]
+intent = "concept"
+entity = "brand"
+audience = "customer"
+related = ["reference-layer-methodology", "citation-coverage", "ai-reference-layer-vs-docs-portal"]
+external_refs = []
+schema_type = "DefinedTerm"
+review_by = 2026-06-01
+priority = "high"
+owner = "Brand Systems"
+confidence_notes = "Canonical definition reviewed by product marketing"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+retrieval_aliases = ["brand alignment ai", "ai alignment definition"]
+
+[extra]
+homepage = true
++++
+
+AI brand alignment is the discipline of making the answers an AI system sees
+match the product's canonical definitions, positioning, and proof.
+"#;
+
+const AI_PLAYBOOK: &str = r#"+++
+title = "How to improve AI citations"
+description = "Playbook for increasing citation quality from answer systems."
+weight = 20
+
+id = "improve-ai-citations"
+summary = "Playbook for increasing citation quality from answer systems."
+canonical_questions = ["how do we improve ai citations", "how to improve ai citations"]
+intent = "task"
+entity = "citations"
+audience = "customer"
+related = ["ai-brand-alignment", "citation-coverage", "reference-layer-methodology", "billing-reference-case-study"]
+external_refs = []
+schema_type = "HowTo"
+review_by = 2026-06-01
+priority = "high"
+owner = "Growth Engineering"
+confidence_notes = "Based on current publishing and eval workflow"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+retrieval_aliases = ["citation playbook", "improve citations"]
+
+[extra]
+homepage = true
++++
+
+Treat citations as an output of corpus quality, not a post-processing trick.
+
+1. Publish one canonical answer per intent.
+2. Keep related links between definitions, methods, metrics, and case studies.
+3. Expose canonical markdown and answer indexes from the same source.
+4. Audit freshness and rerun eval after every material change.
+"#;
+
+const AI_METHODOLOGY: &str = r#"+++
+title = "AI reference layer methodology"
+description = "Method for building and governing an AI reference layer."
+weight = 30
+
+id = "reference-layer-methodology"
+summary = "Method for building and governing an AI reference layer."
+canonical_questions = ["what is the ai reference layer methodology", "how do we build an ai reference layer"]
+intent = "reference"
+entity = "methodology"
+audience = "customer"
+related = ["ai-brand-alignment", "improve-ai-citations", "citation-coverage", "billing-reference-case-study"]
+external_refs = []
+schema_type = "Article"
+review_by = 2026-06-01
+priority = "high"
+owner = "Documentation Platform"
+confidence_notes = "Canonical operating method for corpus governance"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "core"
+token_budget = "medium"
+retrieval_aliases = ["reference layer method", "ai corpus methodology"]
+
+[extra]
+homepage = true
++++
+
+The method is simple:
+
+- define the canonical concepts
+- connect them to operating playbooks
+- specify the metrics used to validate output quality
+- publish comparisons and case studies that bound claims with evidence
+"#;
+
+const AI_METRIC: &str = r#"+++
+title = "Citation coverage"
+description = "Metric definition for how often answers return usable citations."
+weight = 40
+
+id = "citation-coverage"
+summary = "Metric definition for how often answers return usable citations."
+canonical_questions = ["what is citation coverage", "how do we measure citation coverage"]
+intent = "reference"
+entity = "metrics"
+audience = "customer"
+related = ["improve-ai-citations", "reference-layer-methodology", "billing-reference-case-study"]
+external_refs = []
+schema_type = "Article"
+review_by = 2026-06-01
+owner = "Analytics"
+confidence_notes = "Definition aligned with current eval rubric"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "optional"
+token_budget = "small"
+retrieval_aliases = ["citation rate", "citation metric"]
++++
+
+Citation coverage is the share of evaluated answers that include at least one
+useful, inspectable citation to the canonical source.
+"#;
+
+const AI_COMPARISON: &str = r#"+++
+title = "AI reference layer vs docs portal"
+description = "Comparison between a maintained AI reference layer and a generic docs portal."
+weight = 50
+
+id = "ai-reference-layer-vs-docs-portal"
+summary = "Comparison between a maintained AI reference layer and a generic docs portal."
+canonical_questions = ["ai reference layer vs docs portal", "why not just use docs"]
+intent = "comparison"
+entity = "positioning"
+audience = "customer"
+related = ["ai-brand-alignment", "reference-layer-methodology", "billing-reference-case-study"]
+external_refs = []
+schema_type = "Article"
+review_by = 2026-06-01
+owner = "Product Marketing"
+confidence_notes = "Comparison intended for product and GTM alignment"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "optional"
+token_budget = "medium"
+retrieval_aliases = ["docs portal comparison", "reference layer comparison"]
++++
+
+An AI reference layer is opinionated and canonical. A docs portal may contain
+good information, but it usually mixes navigation content, release notes, and
+partial answers in ways that are harder for models to learn from reliably.
+"#;
+
+const AI_CASE_STUDY: &str = r#"+++
+title = "Billing answer layer case study"
+description = "Example case study showing how a governed answer layer improves billing answers."
+weight = 60
+
+id = "billing-reference-case-study"
+summary = "Example case study showing how a governed answer layer improves billing answers."
+canonical_questions = ["show me an ai reference layer case study", "billing answer layer case study"]
+intent = "reference"
+entity = "case-study"
+audience = "customer"
+related = ["reference-layer-methodology", "improve-ai-citations", "citation-coverage", "ai-reference-layer-vs-docs-portal"]
+external_refs = []
+schema_type = "Article"
+review_by = 2026-06-01
+owner = "Solutions"
+confidence_notes = "Illustrative example starter meant to be replaced with real data"
+visibility = "public"
+ai_visibility = "public"
+llms_priority = "optional"
+token_budget = "medium"
+retrieval_aliases = ["reference layer case study", "billing case study"]
++++
+
+Before the answer layer, billing answers were split across FAQs, docs, and
+support snippets. After consolidation, the team published one maintained corpus
+with explicit freshness metadata and measurable eval targets.
+"#;
+
+const AI_REFERENCE_PACK: &str = r#"title = "AI reference layer"
+description = "Curated public pack for the AI reference layer starter."
+answers = [
+  "ai-brand-alignment",
+  "improve-ai-citations",
+  "reference-layer-methodology",
+  "citation-coverage",
+  "ai-reference-layer-vs-docs-portal",
+  "billing-reference-case-study",
+]
+"#;
+
+const AI_REFERENCE_EVAL_FIXTURES: &str = r#"- question: what is ai brand alignment
+  expected_ids: [ai-brand-alignment]
+  required_terms: [definition, canonical]
+  rubric_focus: define the term clearly and keep the answer canonical
+
+- question: how do we improve ai citations
+  expected_ids: [improve-ai-citations]
+  required_terms: [canonical answer, citations]
+  rubric_focus: describe the publishing and governance steps that improve citations
+"#;
+
+const AI_SECTION_INDEX: &str = r#"+++
+title = "%SECTION_TITLE%"
+sort_by = "weight"
++++
+
+%SECTION_DESCRIPTION%
 "#;
 
 const BASE_TEMPLATE: &str = r##"{% import "macros.html" as macros %}
@@ -370,6 +635,29 @@ const PAGE_TEMPLATE: &str = r#"{% import "macros.html" as macros %}
             <li><a href="{{ get_url(path='answers.json') | safe }}">Answer index</a></li>
             <li><a href="{{ get_url(path='llms.txt') | safe }}">llms.txt</a></li>
         </ul>
+        {% if page.answer %}
+        <h2>Governance</h2>
+        <dl class="article__governance">
+            {% if page.answer.review_by %}
+            <div>
+                <dt>Review by</dt>
+                <dd>{{ page.answer.review_by }}</dd>
+            </div>
+            {% endif %}
+            {% if page.answer.owner %}
+            <div>
+                <dt>Owner</dt>
+                <dd>{{ page.answer.owner }}</dd>
+            </div>
+            {% endif %}
+            {% if page.answer.confidence_notes %}
+            <div>
+                <dt>Confidence</dt>
+                <dd>{{ page.answer.confidence_notes }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+        {% endif %}
     </aside>
 </article>
 {% endblock %}
@@ -577,6 +865,21 @@ img { max-width: 100%; }
   border-top: 1px solid var(--line);
 }
 
+.article__governance {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.article__governance dt {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.article__governance dd {
+  margin: 0.15rem 0 0;
+}
+
 .article__content :where(h2, h3, h4) {
   margin-top: 2rem;
   line-height: 1.15;
@@ -666,7 +969,37 @@ fn strip_unc(path: &Path) -> String {
     path_to_refine.trim_start_matches(LOCAL_UNC).to_string()
 }
 
-pub fn create_new_project(name: &str, force: bool) -> Result<()> {
+fn starter_project_description(starter: InitStarter) -> &'static str {
+    match starter {
+        InitStarter::AnswerFirst => "Starter Ansorum project for an answer-first knowledge corpus.",
+        InitStarter::AiReferenceLayer => {
+            "Starter Ansorum project for a maintained AI reference layer."
+        }
+    }
+}
+
+fn starter_pack_name(starter: InitStarter) -> &'static str {
+    match starter {
+        InitStarter::AnswerFirst => "billing",
+        InitStarter::AiReferenceLayer => "reference-layer",
+    }
+}
+
+fn starter_pack_source(starter: InitStarter) -> &'static str {
+    match starter {
+        InitStarter::AnswerFirst => "collections/packs/billing.toml",
+        InitStarter::AiReferenceLayer => "collections/packs/reference-layer.toml",
+    }
+}
+
+fn starter_prompt_version(starter: InitStarter) -> &'static str {
+    match starter {
+        InitStarter::AnswerFirst => "starter-v1",
+        InitStarter::AiReferenceLayer => "ai-reference-layer-v1",
+    }
+}
+
+pub fn create_new_project(name: &str, force: bool, starter: InitStarter) -> Result<()> {
     let path = Path::new(name);
 
     // Better error message than the rust default
@@ -682,9 +1015,14 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
     }
 
     console::info("Welcome to Ansorum!");
-    console::info(
-        "This scaffold creates an answer-first project with starter content, packs, redirects, and eval fixtures.",
-    );
+    match starter {
+        InitStarter::AnswerFirst => console::info(
+            "This scaffold creates an answer-first project with starter content, packs, redirects, and eval fixtures.",
+        ),
+        InitStarter::AiReferenceLayer => console::info(
+            "This scaffold creates an AI reference layer with definitions, playbooks, methodology pages, metrics, comparisons, and case studies.",
+        ),
+    }
     console::info("Any choices made can be changed by modifying the generated files later.");
 
     let base_url = ask_url("> What is the URL of your site?", "https://example.com")?;
@@ -693,13 +1031,21 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
     let config = CONFIG
         .trim_start()
         .replace("%BASE_URL%", &base_url)
-        .replace("%PROJECT_TITLE%", &project_title);
+        .replace("%PROJECT_TITLE%", &project_title)
+        .replace("%PROJECT_DESCRIPTION%", starter_project_description(starter))
+        .replace("%CURATED_PACK_NAME%", starter_pack_name(starter))
+        .replace("%CURATED_PACK_SOURCE%", starter_pack_source(starter))
+        .replace("%PROMPT_VERSION%", starter_prompt_version(starter));
 
-    populate(path, &project_title, &config)?;
+    populate(path, &project_title, &config, starter)?;
 
     println!();
     console::success(&format!(
-        "Done! Your answer-first project was created in {}",
+        "Done! Your {} project was created in {}",
+        match starter {
+            InitStarter::AnswerFirst => "answer-first",
+            InitStarter::AiReferenceLayer => "AI reference layer",
+        },
         strip_unc(&canonicalize(path).unwrap())
     ));
     println!();
@@ -710,32 +1056,140 @@ pub fn create_new_project(name: &str, force: bool) -> Result<()> {
     Ok(())
 }
 
-fn populate(path: &Path, project_title: &str, config: &str) -> Result<()> {
+fn populate(path: &Path, project_title: &str, config: &str, starter: InitStarter) -> Result<()> {
     if !path.exists() {
         create_dir(path)?;
     }
 
     create_file(&path.join("config.toml"), config)?;
-    create_file(&path.join("README.md"), README.replace("%PROJECT_TITLE%", project_title))?;
+    let readme = match starter {
+        InitStarter::AnswerFirst => README.replace("%PROJECT_TITLE%", project_title),
+        InitStarter::AiReferenceLayer => {
+            README_AI_REFERENCE_LAYER.replace("%PROJECT_TITLE%", project_title)
+        }
+    };
+    create_file(&path.join("README.md"), readme)?;
 
     create_directory(&path.join("collections/packs"))?;
     create_directory(&path.join("content"))?;
     create_directory(&path.join("eval"))?;
     create_directory(&path.join("templates"))?;
     create_directory(&path.join("static"))?;
-
-    create_file(&path.join("collections/packs/billing.toml"), BILLING_PACK)?;
-    create_file(&path.join("content/_index.md"), HOME.replace("%PROJECT_TITLE%", project_title))?;
-    create_file(&path.join("content/refunds.md"), REFUNDS)?;
-    create_file(&path.join("content/cancel.md"), CANCEL)?;
-    create_file(&path.join("content/internal-playbook.md"), INTERNAL_PLAYBOOK)?;
-    create_file(&path.join("content/refunds.schema.json"), REFUNDS_SCHEMA)?;
-    create_file(&path.join("eval/fixtures.yaml"), EVAL_FIXTURES)?;
     create_file(&path.join("templates/base.html"), BASE_TEMPLATE)?;
     create_file(&path.join("templates/macros.html"), MACROS_TEMPLATE)?;
     create_file(&path.join("templates/index.html"), INDEX_TEMPLATE)?;
     create_file(&path.join("templates/page.html"), PAGE_TEMPLATE)?;
     create_file(&path.join("static/site.css"), SITE_CSS)?;
+
+    match starter {
+        InitStarter::AnswerFirst => {
+            create_file(&path.join("collections/packs/billing.toml"), BILLING_PACK)?;
+            create_file(
+                &path.join("content/_index.md"),
+                HOME.replace("%PROJECT_TITLE%", project_title),
+            )?;
+            create_file(&path.join("content/refunds.md"), REFUNDS)?;
+            create_file(&path.join("content/cancel.md"), CANCEL)?;
+            create_file(&path.join("content/internal-playbook.md"), INTERNAL_PLAYBOOK)?;
+            create_file(&path.join("content/refunds.schema.json"), REFUNDS_SCHEMA)?;
+            create_file(&path.join("eval/fixtures.yaml"), EVAL_FIXTURES)?;
+        }
+        InitStarter::AiReferenceLayer => {
+            create_directory(&path.join("content/definitions"))?;
+            create_directory(&path.join("content/playbooks"))?;
+            create_directory(&path.join("content/methodology"))?;
+            create_directory(&path.join("content/metrics"))?;
+            create_directory(&path.join("content/comparisons"))?;
+            create_directory(&path.join("content/case-studies"))?;
+            create_file(
+                &path.join("content/definitions/_index.md"),
+                AI_SECTION_INDEX
+                    .replace("%SECTION_TITLE%", "Definitions")
+                    .replace(
+                        "%SECTION_DESCRIPTION%",
+                        "Canonical definitions that anchor the answer graph.",
+                    ),
+            )?;
+            create_file(
+                &path.join("content/playbooks/_index.md"),
+                AI_SECTION_INDEX
+                    .replace("%SECTION_TITLE%", "Playbooks")
+                    .replace(
+                        "%SECTION_DESCRIPTION%",
+                        "Operational answer patterns teams can follow directly.",
+                    ),
+            )?;
+            create_file(
+                &path.join("content/methodology/_index.md"),
+                AI_SECTION_INDEX
+                    .replace("%SECTION_TITLE%", "Methodology")
+                    .replace(
+                        "%SECTION_DESCRIPTION%",
+                        "The governing method behind the AI reference layer.",
+                    ),
+            )?;
+            create_file(
+                &path.join("content/metrics/_index.md"),
+                AI_SECTION_INDEX
+                    .replace("%SECTION_TITLE%", "Metrics")
+                    .replace(
+                        "%SECTION_DESCRIPTION%",
+                        "Metric definitions used to validate answer quality.",
+                    ),
+            )?;
+            create_file(
+                &path.join("content/comparisons/_index.md"),
+                AI_SECTION_INDEX
+                    .replace("%SECTION_TITLE%", "Comparisons")
+                    .replace(
+                        "%SECTION_DESCRIPTION%",
+                        "Comparison pages that clarify boundaries and tradeoffs.",
+                    ),
+            )?;
+            create_file(
+                &path.join("content/case-studies/_index.md"),
+                AI_SECTION_INDEX
+                    .replace("%SECTION_TITLE%", "Case Studies")
+                    .replace(
+                        "%SECTION_DESCRIPTION%",
+                        "Proof pages that show the system working in practice.",
+                    ),
+            )?;
+            create_file(
+                &path.join("collections/packs/reference-layer.toml"),
+                AI_REFERENCE_PACK,
+            )?;
+            create_file(
+                &path.join("content/_index.md"),
+                HOME_AI_REFERENCE_LAYER.replace("%PROJECT_TITLE%", project_title),
+            )?;
+            create_file(
+                &path.join("content/definitions/ai-brand-alignment.md"),
+                AI_DEFINITION,
+            )?;
+            create_file(
+                &path.join("content/playbooks/improve-ai-citations.md"),
+                AI_PLAYBOOK,
+            )?;
+            create_file(
+                &path.join("content/methodology/reference-layer-methodology.md"),
+                AI_METHODOLOGY,
+            )?;
+            create_file(
+                &path.join("content/metrics/citation-coverage.md"),
+                AI_METRIC,
+            )?;
+            create_file(
+                &path.join("content/comparisons/ai-reference-layer-vs-docs-portal.md"),
+                AI_COMPARISON,
+            )?;
+            create_file(
+                &path.join("content/case-studies/billing-reference-case-study.md"),
+                AI_CASE_STUDY,
+            )?;
+            create_file(&path.join("eval/fixtures.yaml"), AI_REFERENCE_EVAL_FIXTURES)?;
+        }
+    }
 
     Ok(())
 }
@@ -856,8 +1310,15 @@ mod tests {
         let config = CONFIG
             .trim_start()
             .replace("%BASE_URL%", "https://example.com")
-            .replace("%PROJECT_TITLE%", "Test Existing Dir");
-        populate(&dir, "Test Existing Dir", &config)
+            .replace("%PROJECT_TITLE%", "Test Existing Dir")
+            .replace(
+                "%PROJECT_DESCRIPTION%",
+                starter_project_description(InitStarter::AnswerFirst),
+            )
+            .replace("%CURATED_PACK_NAME%", starter_pack_name(InitStarter::AnswerFirst))
+            .replace("%CURATED_PACK_SOURCE%", starter_pack_source(InitStarter::AnswerFirst))
+            .replace("%PROMPT_VERSION%", starter_prompt_version(InitStarter::AnswerFirst));
+        populate(&dir, "Test Existing Dir", &config, InitStarter::AnswerFirst)
             .expect("Could not populate ansorum directories");
 
         assert!(dir.join("config.toml").exists());
@@ -900,8 +1361,15 @@ mod tests {
         let config = CONFIG
             .trim_start()
             .replace("%BASE_URL%", "https://example.com")
-            .replace("%PROJECT_TITLE%", "Test Non Existing Dir");
-        populate(&dir, "Test Non Existing Dir", &config)
+            .replace("%PROJECT_TITLE%", "Test Non Existing Dir")
+            .replace(
+                "%PROJECT_DESCRIPTION%",
+                starter_project_description(InitStarter::AnswerFirst),
+            )
+            .replace("%CURATED_PACK_NAME%", starter_pack_name(InitStarter::AnswerFirst))
+            .replace("%CURATED_PACK_SOURCE%", starter_pack_source(InitStarter::AnswerFirst))
+            .replace("%PROMPT_VERSION%", starter_prompt_version(InitStarter::AnswerFirst));
+        populate(&dir, "Test Non Existing Dir", &config, InitStarter::AnswerFirst)
             .expect("Could not populate ansorum directories");
 
         assert!(dir.exists());
@@ -918,6 +1386,43 @@ mod tests {
         assert!(dir.join("content/refunds.schema.json").exists());
         assert!(dir.join("eval/fixtures.yaml").exists());
         assert!(dir.join("static/site.css").exists());
+
+        remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn populate_ai_reference_layer_directory() {
+        let mut dir = temp_dir();
+        dir.push("test_ai_reference_layer_dir");
+        if dir.exists() {
+            remove_dir_all(&dir).expect("Could not free test directory");
+        }
+        let config = CONFIG
+            .trim_start()
+            .replace("%BASE_URL%", "https://example.com")
+            .replace("%PROJECT_TITLE%", "AI Reference Layer")
+            .replace(
+                "%PROJECT_DESCRIPTION%",
+                starter_project_description(InitStarter::AiReferenceLayer),
+            )
+            .replace("%CURATED_PACK_NAME%", starter_pack_name(InitStarter::AiReferenceLayer))
+            .replace("%CURATED_PACK_SOURCE%", starter_pack_source(InitStarter::AiReferenceLayer))
+            .replace("%PROMPT_VERSION%", starter_prompt_version(InitStarter::AiReferenceLayer));
+        populate(&dir, "AI Reference Layer", &config, InitStarter::AiReferenceLayer)
+            .expect("Could not populate AI reference layer starter");
+
+        assert!(dir.join("collections/packs/reference-layer.toml").exists());
+        assert!(dir.join("content/definitions/ai-brand-alignment.md").exists());
+        assert!(dir.join("content/playbooks/improve-ai-citations.md").exists());
+        assert!(dir.join("content/methodology/reference-layer-methodology.md").exists());
+        assert!(dir.join("content/metrics/citation-coverage.md").exists());
+        assert!(dir.join("content/comparisons/ai-reference-layer-vs-docs-portal.md").exists());
+        assert!(dir.join("content/case-studies/billing-reference-case-study.md").exists());
+        assert!(
+            read_file(&dir.join("README.md"))
+                .unwrap()
+                .contains("ai-reference-layer")
+        );
 
         remove_dir_all(&dir).unwrap();
     }

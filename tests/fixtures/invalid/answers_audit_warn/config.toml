@@ -1,0 +1,7 @@
+base_url = "https://answers.example.com"
+title = "Audit warning fixture"
+description = "Fixture corpus for fail-on warn audit coverage."
+generate_feeds = false
+generate_sitemap = false
+generate_robots_txt = false
+build_search_index = false

@@ -67,118 +67,6 @@
     
 
     
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "WebSite",
-                "@id": "https://answers.example.com#website",
-                "url": "https://answers.example.com",
-                "name": "Acme Billing Answers",
-                "description": "Reference Ansorum project for a billing and support answer corpus.",
-                "publisher": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                "inLanguage": "en",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": {
-                        "@type": "EntryPoint",
-                        "urlTemplate": "https://answers.example.com?q={search_term_string}"
-                    },
-                    "query-input": "required name=search_term_string"
-                }
-            },
-            {
-                "@type": "Organization",
-                "@id": "https://zentinelproxy.io/#organization",
-                "name": "raskell.io",
-                "url": "https://zentinelproxy.io",
-                "logo": {
-                    "@type": "ImageObject",
-                    "url": "https://zentinelproxy.io/img/og-image.png",
-                    "width": 1200,
-                    "height": 630
-                }
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://answers.example.com/cancel/#webpage",
-                "url": "https://answers.example.com/cancel/",
-                "name": "Cancel a subscription",
-                "isPartOf": {
-                    "@id": "https://answers.example.com#website"
-                },
-                "description": "",
-                "inLanguage": "en"
-                
-                
-            }
-            
-            ,{
-                "@type": "Article",
-                "@id": "https://answers.example.com/cancel/#article",
-                "isPartOf": {
-                    "@id": "https://answers.example.com/cancel/#webpage"
-                },
-                "headline": "Cancel a subscription",
-                
-                
-                
-                "author": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                "publisher": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                
-                
-                "wordCount": 99,
-                
-                "inLanguage": "en"
-            }
-            
-        ]
-    }
-    </script>
-
-    
-    
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-            {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Acme Billing Answers",
-                "item": "https://answers.example.com"
-            }
-            
-            
-            
-            ,{
-                "@type": "ListItem",
-                "position": 2,
-                "name": "Acme Billing Answers",
-                "item": "https://answers.example.com/"
-            }
-            
-            
-            ,{
-                "@type": "ListItem",
-                "position": 3,
-                "name": "Cancel a subscription",
-                "item": "https://answers.example.com/cancel/"
-            }
-        ]
-    }
-    </script>
-    
-
-    
     <link rel="stylesheet" href="https://answers.example.com/style.css">
 
     
@@ -215,6 +103,70 @@
 
     
 <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://answers.example.com/#website",
+      "url": "https://answers.example.com/",
+      "name": "Acme Billing Answers",
+      "description": "Reference Ansorum project for a billing and support answer corpus.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://answers.example.com/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://answers.example.com/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://answers.example.com/#organization",
+      "name": "Acme Billing Answers",
+      "url": "https://answers.example.com/"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://answers.example.com/cancel/#webpage",
+      "url": "https://answers.example.com/cancel/",
+      "isPartOf": {
+        "@id": "https://answers.example.com/#website"
+      },
+      "publisher": {
+        "@id": "https://answers.example.com/#organization"
+      },
+      "inLanguage": "en",
+      "name": "Cancel a subscription",
+      "description": "How to cancel a subscription and what happens after.",
+      "breadcrumb": {
+        "@id": "https://answers.example.com/cancel/#breadcrumb"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://answers.example.com/cancel/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Acme Billing Answers",
+          "item": "https://answers.example.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Cancel a subscription",
+          "item": "https://answers.example.com/cancel/"
+        }
+      ]
+    }
+  ]
+}</script><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "HowTo",
   "url": "https://answers.example.com/cancel/",
@@ -555,6 +507,28 @@
 <article class="article" itemscope itemtype="https://schema.org/Article" aria-labelledby="article-title">
     <header class="article__header article__header--docs">
         <h1 id="article-title" itemprop="headline">Cancel a subscription</h1>
+        
+        
+        <dl class="article-answer-meta">
+            
+            <div>
+                <dt>Last reviewed</dt>
+                <dd>2026-06-01</dd>
+            </div>
+            
+            
+            <div>
+                <dt>Owner</dt>
+                <dd>Billing Operations</dd>
+            </div>
+            
+            
+            <div>
+                <dt>Confidence</dt>
+                <dd>Matches current self-serve cancellation flow</dd>
+            </div>
+            
+        </dl>
         
     </header>
 

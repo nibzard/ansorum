@@ -424,6 +424,28 @@ pub fn audit_library(library: &Library, answers: &AnswerCorpus, today: NaiveDate
             );
         }
 
+        if answer.is_machine_ai_visible() && answer.llms_priority == LlmsPriority::Core {
+            if answer.owner.as_deref().is_none_or(|value| value.trim().is_empty()) {
+                report.push(
+                    AuditSeverity::Warn,
+                    "missing_owner",
+                    "core AI-visible answers should set `owner` for governance and review routing",
+                    answer_id,
+                    source_path,
+                );
+            }
+
+            if answer.confidence_notes.as_deref().is_none_or(|value| value.trim().is_empty()) {
+                report.push(
+                    AuditSeverity::Warn,
+                    "missing_confidence_notes",
+                    "core AI-visible answers should set `confidence_notes` to explain review posture",
+                    answer_id,
+                    source_path,
+                );
+            }
+        }
+
         if answer.priority.as_deref() == Some("high") && answer.related.is_empty() {
             report.push(
                 AuditSeverity::Error,
@@ -432,6 +454,43 @@ pub fn audit_library(library: &Library, answers: &AnswerCorpus, today: NaiveDate
                 answer_id,
                 source_path,
             );
+        }
+
+        if answer.priority.as_deref() == Some("high") && !answer.related.is_empty() {
+            let same_entity_candidates = answers
+                .same_entity(&answer.entity)
+                .into_iter()
+                .filter(|record| record.id != answer.id)
+                .collect::<Vec<_>>();
+            let has_same_entity_related = same_entity_candidates
+                .iter()
+                .any(|record| answer.related.iter().any(|related| related == &record.id));
+            if !same_entity_candidates.is_empty() && !has_same_entity_related {
+                report.push(
+                    AuditSeverity::Warn,
+                    "missing_same_entity_related_link",
+                    "high-priority answers should link to at least one related answer in the same entity cluster",
+                    answer_id,
+                    source_path,
+                );
+            }
+
+            let cross_intent_candidates = same_entity_candidates
+                .iter()
+                .filter(|record| record.intent != answer.intent)
+                .collect::<Vec<_>>();
+            let has_cross_intent_related = cross_intent_candidates
+                .iter()
+                .any(|record| answer.related.iter().any(|related| related == &record.id));
+            if !cross_intent_candidates.is_empty() && !has_cross_intent_related {
+                report.push(
+                    AuditSeverity::Warn,
+                    "missing_cross_intent_related_link",
+                    "high-priority answers should link to a same-entity answer with a different intent",
+                    answer_id,
+                    source_path,
+                );
+            }
         }
 
         if let Some(review_by) = answer.review_by.as_deref() {

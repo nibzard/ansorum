@@ -67,118 +67,6 @@
     
 
     
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "WebSite",
-                "@id": "https://answers.example.com#website",
-                "url": "https://answers.example.com",
-                "name": "Acme Billing Answers",
-                "description": "Reference Ansorum project for a billing and support answer corpus.",
-                "publisher": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                "inLanguage": "en",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": {
-                        "@type": "EntryPoint",
-                        "urlTemplate": "https://answers.example.com?q={search_term_string}"
-                    },
-                    "query-input": "required name=search_term_string"
-                }
-            },
-            {
-                "@type": "Organization",
-                "@id": "https://zentinelproxy.io/#organization",
-                "name": "raskell.io",
-                "url": "https://zentinelproxy.io",
-                "logo": {
-                    "@type": "ImageObject",
-                    "url": "https://zentinelproxy.io/img/og-image.png",
-                    "width": 1200,
-                    "height": 630
-                }
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://answers.example.com/refunds/#webpage",
-                "url": "https://answers.example.com/refunds/",
-                "name": "Refund policy",
-                "isPartOf": {
-                    "@id": "https://answers.example.com#website"
-                },
-                "description": "",
-                "inLanguage": "en"
-                
-                
-            }
-            
-            ,{
-                "@type": "Article",
-                "@id": "https://answers.example.com/refunds/#article",
-                "isPartOf": {
-                    "@id": "https://answers.example.com/refunds/#webpage"
-                },
-                "headline": "Refund policy",
-                
-                
-                
-                "author": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                "publisher": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                
-                
-                "wordCount": 88,
-                
-                "inLanguage": "en"
-            }
-            
-        ]
-    }
-    </script>
-
-    
-    
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-            {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Acme Billing Answers",
-                "item": "https://answers.example.com"
-            }
-            
-            
-            
-            ,{
-                "@type": "ListItem",
-                "position": 2,
-                "name": "Acme Billing Answers",
-                "item": "https://answers.example.com/"
-            }
-            
-            
-            ,{
-                "@type": "ListItem",
-                "position": 3,
-                "name": "Refund policy",
-                "item": "https://answers.example.com/refunds/"
-            }
-        ]
-    }
-    </script>
-    
-
-    
     <link rel="stylesheet" href="https://answers.example.com/style.css">
 
     
@@ -215,6 +103,70 @@
 
     
 <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://answers.example.com/#website",
+      "url": "https://answers.example.com/",
+      "name": "Acme Billing Answers",
+      "description": "Reference Ansorum project for a billing and support answer corpus.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://answers.example.com/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://answers.example.com/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://answers.example.com/#organization",
+      "name": "Acme Billing Answers",
+      "url": "https://answers.example.com/"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://answers.example.com/refunds/#webpage",
+      "url": "https://answers.example.com/refunds/",
+      "isPartOf": {
+        "@id": "https://answers.example.com/#website"
+      },
+      "publisher": {
+        "@id": "https://answers.example.com/#organization"
+      },
+      "inLanguage": "en",
+      "name": "Refund policy",
+      "description": "How refunds work, who qualifies, and when payment returns land.",
+      "breadcrumb": {
+        "@id": "https://answers.example.com/refunds/#breadcrumb"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://answers.example.com/refunds/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Acme Billing Answers",
+          "item": "https://answers.example.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Refund policy",
+          "item": "https://answers.example.com/refunds/"
+        }
+      ]
+    }
+  ]
+}</script><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "url": "https://answers.example.com/refunds/",
@@ -573,6 +525,28 @@
 <article class="article" itemscope itemtype="https://schema.org/Article" aria-labelledby="article-title">
     <header class="article__header article__header--docs">
         <h1 id="article-title" itemprop="headline">Refund policy</h1>
+        
+        
+        <dl class="article-answer-meta">
+            
+            <div>
+                <dt>Last reviewed</dt>
+                <dd>2026-06-01</dd>
+            </div>
+            
+            
+            <div>
+                <dt>Owner</dt>
+                <dd>Billing Policy</dd>
+            </div>
+            
+            
+            <div>
+                <dt>Confidence</dt>
+                <dd>Reviewed with support and finance</dd>
+            </div>
+            
+        </dl>
         
     </header>
 

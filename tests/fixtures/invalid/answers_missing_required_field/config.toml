@@ -1,0 +1,6 @@
+base_url = "https://answers.example.com"
+title = "Missing required front matter fixture"
+generate_feeds = false
+generate_sitemap = false
+generate_robots_txt = false
+build_search_index = false

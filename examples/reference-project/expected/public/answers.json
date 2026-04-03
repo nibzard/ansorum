@@ -19,6 +19,7 @@
       "retrieval_aliases": [
         "cancel subscription"
       ],
+      "review_by": "2026-06-01",
       "llms_priority": "optional",
       "token_budget": "small",
       "visibility": "public",

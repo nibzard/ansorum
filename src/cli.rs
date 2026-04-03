@@ -31,12 +31,66 @@ pub struct Cli {
 pub enum AuditFormat {
     Human,
     Json,
+    JsonStream,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum EvalFormat {
     Human,
     Json,
+    JsonStream,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum DiagnosticFormat {
+    Human,
+    Json,
+    JsonStream,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum FailOn {
+    Error,
+    Warn,
+}
+
+impl FailOn {
+    pub fn threshold_exceeded(self, errors: usize, warnings: usize) -> bool {
+        match self {
+            Self::Error => errors > 0,
+            Self::Warn => errors > 0 || warnings > 0,
+        }
+    }
+}
+
+impl AuditFormat {
+    pub fn is_json(self) -> bool {
+        matches!(self, Self::Json | Self::JsonStream)
+    }
+
+    pub fn is_json_stream(self) -> bool {
+        matches!(self, Self::JsonStream)
+    }
+}
+
+impl EvalFormat {
+    pub fn is_json(self) -> bool {
+        matches!(self, Self::Json | Self::JsonStream)
+    }
+
+    pub fn is_json_stream(self) -> bool {
+        matches!(self, Self::JsonStream)
+    }
+}
+
+impl DiagnosticFormat {
+    pub fn is_json(self) -> bool {
+        matches!(self, Self::Json | Self::JsonStream)
+    }
+
+    pub fn is_json_stream(self) -> bool {
+        matches!(self, Self::JsonStream)
+    }
 }
 
 #[derive(Subcommand)]
@@ -50,6 +104,10 @@ pub enum Command {
         /// Force creation of project even if directory is non-empty
         #[clap(short = 'f', long)]
         force: bool,
+
+        /// Starter scaffold to generate
+        #[clap(long, value_enum, default_value_t = InitStarter::AnswerFirst)]
+        starter: InitStarter,
     },
 
     /// Deletes the output directory if there is one and builds the site
@@ -73,6 +131,14 @@ pub enum Command {
         /// Minify generated HTML files
         #[clap(long)]
         minify: bool,
+
+        /// Output format
+        #[clap(long, value_enum, default_value_t = DiagnosticFormat::Human)]
+        format: DiagnosticFormat,
+
+        /// Failure threshold for diagnostics
+        #[clap(long, value_enum, default_value_t = FailOn::Error)]
+        fail_on: FailOn,
     },
 
     /// Serve the site. Rebuild and reload on change automatically
@@ -125,6 +191,10 @@ pub enum Command {
         /// Debounce time in milliseconds for the file watcher (at least 1ms)
         #[clap(short = 'd', long, default_value_t = 1000, value_parser = clap::value_parser!(u64).range(1..))]
         debounce: u64,
+
+        /// Output format
+        #[clap(long, value_enum, default_value_t = DiagnosticFormat::Human)]
+        format: DiagnosticFormat,
     },
 
     /// Try to build the project without rendering it. Checks links
@@ -135,6 +205,14 @@ pub enum Command {
         /// Skip external links
         #[clap(long)]
         skip_external_links: bool,
+
+        /// Output format
+        #[clap(long, value_enum, default_value_t = DiagnosticFormat::Human)]
+        format: DiagnosticFormat,
+
+        /// Failure threshold for diagnostics
+        #[clap(long, value_enum, default_value_t = FailOn::Error)]
+        fail_on: FailOn,
     },
 
     /// Audit answer metadata, freshness, and machine-output quality
@@ -146,6 +224,10 @@ pub enum Command {
         /// Output format
         #[clap(long, value_enum, default_value_t = AuditFormat::Human)]
         format: AuditFormat,
+
+        /// Failure threshold for diagnostics
+        #[clap(long, value_enum, default_value_t = FailOn::Error)]
+        fail_on: FailOn,
     },
 
     /// Evaluate retrieval, answer selection, and rubric-scored quality against fixtures
@@ -189,6 +271,10 @@ pub enum Command {
         /// Fail if any case does not receive an LLM score
         #[clap(long)]
         require_llm: bool,
+
+        /// Failure threshold for diagnostics
+        #[clap(long, value_enum, default_value_t = FailOn::Error)]
+        fail_on: FailOn,
     },
 
     /// Generate shell completion
@@ -197,4 +283,10 @@ pub enum Command {
         #[clap(value_enum)]
         shell: Shell,
     },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum InitStarter {
+    AnswerFirst,
+    AiReferenceLayer,
 }

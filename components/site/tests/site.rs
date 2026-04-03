@@ -580,8 +580,10 @@ fn audits_freshness_visibility_and_machine_output_quality() {
     assert!(codes.contains(&"stale_review_by"));
     assert!(codes.contains(&"token_budget_overflow"));
     assert!(codes.contains(&"related_visibility_leak"));
+    assert!(codes.contains(&"missing_owner"));
+    assert!(codes.contains(&"missing_confidence_notes"));
     assert_eq!(report.summary.errors, 4);
-    assert_eq!(report.summary.warnings, 3);
+    assert_eq!(report.summary.warnings, 5);
     assert!(report.has_errors());
 }
 

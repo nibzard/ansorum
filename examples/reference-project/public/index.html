@@ -63,63 +63,6 @@
     
 
     
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "WebSite",
-                "@id": "https://answers.example.com#website",
-                "url": "https://answers.example.com",
-                "name": "Acme Billing Answers",
-                "description": "Reference Ansorum project for a billing and support answer corpus.",
-                "publisher": {
-                    "@id": "https://zentinelproxy.io/#organization"
-                },
-                "inLanguage": "en",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": {
-                        "@type": "EntryPoint",
-                        "urlTemplate": "https://answers.example.com?q={search_term_string}"
-                    },
-                    "query-input": "required name=search_term_string"
-                }
-            },
-            {
-                "@type": "Organization",
-                "@id": "https://zentinelproxy.io/#organization",
-                "name": "raskell.io",
-                "url": "https://zentinelproxy.io",
-                "logo": {
-                    "@type": "ImageObject",
-                    "url": "https://zentinelproxy.io/img/og-image.png",
-                    "width": 1200,
-                    "height": 630
-                }
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://answers.example.com/#webpage",
-                "url": "https://answers.example.com/",
-                "name": "Acme Billing Answers",
-                "isPartOf": {
-                    "@id": "https://answers.example.com#website"
-                },
-                "description": "Reference documentation for a billing and support answer corpus.",
-                "inLanguage": "en"
-                
-                
-            }
-            
-        ]
-    }
-    </script>
-
-    
-    
-
-    
     <link rel="stylesheet" href="https://answers.example.com/style.css">
 
     
@@ -155,7 +98,50 @@
     
 
     
-</head>
+<script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://answers.example.com/#website",
+      "url": "https://answers.example.com/",
+      "name": "Acme Billing Answers",
+      "description": "Reference Ansorum project for a billing and support answer corpus.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://answers.example.com/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://answers.example.com/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://answers.example.com/#organization",
+      "name": "Acme Billing Answers",
+      "url": "https://answers.example.com/"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://answers.example.com/#webpage",
+      "url": "https://answers.example.com/",
+      "isPartOf": {
+        "@id": "https://answers.example.com/#website"
+      },
+      "publisher": {
+        "@id": "https://answers.example.com/#organization"
+      },
+      "inLanguage": "en",
+      "name": "Acme Billing Answers",
+      "description": "Reference documentation for a billing and support answer corpus."
+    }
+  ]
+}</script></head>
 <body class="">
     
     <a href="#main-content" class="skip-link">Skip to main content</a>
