@@ -210,7 +210,7 @@ async fn handle_request(
         && let Some(redirect) = state.redirects.get(code)
     {
         log_redirect_hit(req.method(), path_str, code, redirect);
-        return redirect_response(redirect);
+        return redirect_response(redirect, &state.base_path);
     }
 
     if !state.markdown_routes && is_markdown_route(&path) {
@@ -258,7 +258,14 @@ async fn handle_request(
     }
 
     let metadata = match tokio::fs::metadata(root.as_path()).await {
-        Err(err) => return io_error(err, path_str, !prefer_markdown && !is_markdown_route(&path)),
+        Err(err) => {
+            return io_error(
+                err,
+                path_str,
+                !prefer_markdown && !is_markdown_route(&path),
+                base_path,
+            );
+        }
         Ok(metadata) => metadata,
     };
     if metadata.is_dir() {
@@ -291,7 +298,14 @@ async fn handle_request(
     let result = tokio::fs::read(&root).await;
 
     let contents = match result {
-        Err(err) => return io_error(err, path_str, !prefer_markdown && !is_markdown_route(&path)),
+        Err(err) => {
+            return io_error(
+                err,
+                path_str,
+                !prefer_markdown && !is_markdown_route(&path),
+                base_path,
+            );
+        }
         Ok(contents) => contents,
     };
 
@@ -403,17 +417,16 @@ async fn error_injection_middleware(response: Response) -> Response {
         return response;
     }
 
-    // Only inject errors into HTML responses or 404 responses.
-    // Don't interfere with WebSocket upgrades (101) or other special responses.
+    // Only inject errors into HTML responses.
+    // Don't interfere with WebSocket upgrades (101) or machine-facing endpoints.
     let is_html = response
         .headers()
         .get(header::CONTENT_TYPE)
         .map(|val| val == HeaderValue::from_static("text/html"))
         .unwrap_or(false);
-    let is_not_found = response.status() == StatusCode::NOT_FOUND;
 
-    // Pass through non-HTML, non-404 responses unchanged (e.g., WebSocket upgrades)
-    if !is_html && !is_not_found {
+    // Pass through non-HTML responses unchanged (e.g., WebSocket upgrades)
+    if !is_html {
         return response;
     }
 
@@ -435,24 +448,11 @@ async fn error_injection_middleware(response: Response) -> Response {
     if let Some((msg, error)) = SERVE_ERROR.lock().unwrap().get_mut() {
         let html_error = render_serve_error_html(msg, error);
 
-        if is_html {
-            // Inject error dialog into existing HTML response
-            let mut new_bytes = bytes;
-            new_bytes.extend(html_error.as_bytes());
-            parts.headers.remove(header::CONTENT_LENGTH);
-            return Response::from_parts(parts, Body::from(new_bytes));
-        } else if is_not_found {
-            // Return a full HTML page with the error dialog for 404s
-            // Include livereload.js so the page can receive reload messages when the error is fixed
-            let html_page = format!(
-                r#"<!DOCTYPE html><html><head><title>Ansorum Build Error</title><script src="/livereload.js"></script></head><body>{html_error}</body></html>"#
-            );
-            return Response::builder()
-                .header(header::CONTENT_TYPE, "text/html")
-                .status(StatusCode::OK)
-                .body(Body::from(html_page))
-                .expect("Could not build error response");
-        }
+        // Inject error dialog into existing HTML response
+        let mut new_bytes = bytes;
+        new_bytes.extend(html_error.as_bytes());
+        parts.headers.remove(header::CONTENT_LENGTH);
+        return Response::from_parts(parts, Body::from(new_bytes));
     }
 
     Response::from_parts(parts, Body::from(bytes))
@@ -538,12 +538,31 @@ fn redirect_code(path: &str) -> Option<&str> {
     }
 }
 
-fn redirect_response(redirect: &RedirectTarget) -> Response {
+fn redirect_response(redirect: &RedirectTarget, base_path: &str) -> Response {
+    let location = if redirect.external {
+        redirect.target.clone()
+    } else {
+        mounted_internal_redirect_target(base_path, &redirect.target)
+    };
+
     Response::builder()
         .status(StatusCode::TEMPORARY_REDIRECT)
-        .header(header::LOCATION, &redirect.target)
+        .header(header::LOCATION, location)
         .body(Body::empty())
         .expect("Could not build redirect response")
+}
+
+fn mounted_internal_redirect_target(base_path: &str, target: &str) -> String {
+    if base_path == "/" {
+        return target.to_string();
+    }
+
+    let normalized_base = base_path.trim_end_matches('/');
+    if target == normalized_base || target.starts_with(&format!("{normalized_base}/")) {
+        return target.to_string();
+    }
+
+    format!("{normalized_base}{target}")
 }
 
 fn log_redirect_hit(method: &Method, path: &str, code: &str, redirect: &RedirectTarget) {
@@ -647,10 +666,19 @@ fn render_serve_error_html(msg: &str, error: &Error) -> String {
     )
 }
 
-fn internal_server_error(error: Error, prefer_html: bool) -> Response {
+fn live_reload_script_path(base_path: &str) -> String {
+    if base_path == "/" {
+        "/livereload.js".to_string()
+    } else {
+        format!("{}/livereload.js", base_path.trim_end_matches('/'))
+    }
+}
+
+fn internal_server_error(error: Error, prefer_html: bool, base_path: &str) -> Response {
     if prefer_html {
+        let live_reload_path = live_reload_script_path(base_path);
         let html_page = format!(
-            r#"<!DOCTYPE html><html><head><title>Ansorum Serve Error</title><script src="/livereload.js"></script></head><body>{}</body></html>"#,
+            r#"<!DOCTYPE html><html><head><title>Ansorum Serve Error</title><script src="{live_reload_path}"></script></head><body>{}</body></html>"#,
             render_serve_error_html("Failed to serve request", &error)
         );
 
@@ -668,7 +696,12 @@ fn internal_server_error(error: Error, prefer_html: bool) -> Response {
         .expect("Could not build Internal Server Error response")
 }
 
-fn io_error(err: std::io::Error, request_path: &str, prefer_html: bool) -> Response {
+fn io_error(
+    err: std::io::Error,
+    request_path: &str,
+    prefer_html: bool,
+    base_path: &str,
+) -> Response {
     match err.kind() {
         std::io::ErrorKind::NotFound => not_found(),
         std::io::ErrorKind::PermissionDenied => {
@@ -679,7 +712,7 @@ fn io_error(err: std::io::Error, request_path: &str, prefer_html: bool) -> Respo
                 "Unexpected I/O error while serving `{request_path}`: kind={:?}, error={err}",
                 err.kind()
             );
-            internal_server_error(Error::new(err), prefer_html)
+            internal_server_error(Error::new(err), prefer_html, base_path)
         }
     }
 }
@@ -841,13 +874,8 @@ fn create_new_site(
     store_html: bool,
     mut no_port_append: bool,
     format: DiagnosticFormat,
-) -> Result<(
-    Site,
-    SocketAddr,
-    String,
-    diagnostics::SiteContentSummary,
-    Vec<diagnostics::Diagnostic>,
-)> {
+) -> Result<(Site, SocketAddr, String, diagnostics::SiteContentSummary, Vec<diagnostics::Diagnostic>)>
+{
     SITE_CONTENT.write().unwrap().clear();
 
     let mut site = Site::new(root_dir, config_file)?;
@@ -917,22 +945,21 @@ pub fn serve(
     let start = Instant::now();
     let human_output = !format.is_json();
     let compact_json = format.is_json_stream();
-    let mut stream_context =
-        compact_json.then(|| diagnostics::ReportStreamContext::new("serve"));
+    let mut stream_context = compact_json.then(|| diagnostics::ReportStreamContext::new("serve"));
     let (mut site, bind_address, constructed_base_url, content_summary, startup_diagnostics) =
         create_new_site(
-        root_dir,
-        interface,
-        interface_port,
-        output_dir,
-        force,
-        base_url,
-        config_file,
-        include_drafts,
-        store_html,
-        no_port_append,
-        format,
-    )?;
+            root_dir,
+            interface,
+            interface_port,
+            output_dir,
+            force,
+            base_url,
+            config_file,
+            include_drafts,
+            store_html,
+            no_port_append,
+            format,
+        )?;
     let base_path = match constructed_base_url.splitn(4, '/').nth(3) {
         Some(path) => format!("/{path}"),
         None => "/".to_string(),
@@ -1037,6 +1064,7 @@ pub fn serve(
             .expect("Could not build tokio runtime");
 
         rt.block_on(async {
+            let mounted_base_path = base_path.clone();
             let state = Arc::new(AppState {
                 static_root,
                 base_path,
@@ -1046,9 +1074,18 @@ pub fn serve(
                 reload_tx,
             });
 
-            let app = Router::new()
+            let mut app = Router::new()
                 .route("/livereload.js", get(serve_livereload_js))
-                .route("/livereload", get(ws_handler))
+                .route("/livereload", get(ws_handler));
+            if mounted_base_path != "/" {
+                app = app.nest(
+                    mounted_base_path.trim_end_matches('/'),
+                    Router::new()
+                        .route("/livereload.js", get(serve_livereload_js))
+                        .route("/livereload", get(ws_handler)),
+                );
+            }
+            let app = app
                 .fallback(handle_request)
                 .layer(middleware::map_response(error_injection_middleware))
                 .with_state(state);
@@ -1062,11 +1099,15 @@ pub fn serve(
             if human_output {
                 log::info!(
                     "Web server is available at {} (bound to {})\n",
-                    &constructed_base_url.replace(&bind_address.to_string(), &local_addr.to_string()),
+                    &constructed_base_url
+                        .replace(&bind_address.to_string(), &local_addr.to_string()),
                     &local_addr
                 );
             }
-            if human_output && open && let Err(err) = open::that(&constructed_base_url) {
+            if human_output
+                && open
+                && let Err(err) = open::that(&constructed_base_url)
+            {
                 log::error!("Failed to open URL in your browser: {err}");
             }
 
@@ -1143,12 +1184,7 @@ pub fn serve(
             log::info!("Sass file(s) changed {combined_paths}");
         }
         let res = compile_sass(&site.base_path, &site.output_path);
-        rebuild_done_handling(
-            &broadcaster,
-            res,
-            &site.sass_path.to_string_lossy(),
-            human_output,
-        )
+        rebuild_done_handling(&broadcaster, res, &site.sass_path.to_string_lossy(), human_output)
     };
 
     let reload_templates = |site: &mut Site| {
@@ -1200,21 +1236,11 @@ pub fn serve(
         }
         if path.is_dir() {
             let res = site.copy_static_directories();
-            rebuild_done_handling(
-                &broadcaster,
-                res,
-                &path.to_string_lossy(),
-                human_output,
-            )
+            rebuild_done_handling(&broadcaster, res, &path.to_string_lossy(), human_output)
         } else {
             let res =
                 copy_file(path, &site.output_path, &site.static_path, site.config.hard_link_static);
-            rebuild_done_handling(
-                &broadcaster,
-                res,
-                &partial_path.to_string_lossy(),
-                human_output,
-            )
+            rebuild_done_handling(&broadcaster, res, &partial_path.to_string_lossy(), human_output)
         }
     };
 
@@ -1494,14 +1520,16 @@ pub fn serve(
                         let diagnostics_list = if success {
                             Vec::new()
                         } else if rebuild_diagnostics.is_empty() {
-                            vec![diagnostics::Diagnostic::error(
-                                "serve_rebuild_failed",
-                                format!(
-                                    "Serve rebuild failed while processing {} changes",
-                                    serve_change_kind_label(change_kind)
-                                ),
-                            )
-                            .with_phase("rebuild")]
+                            vec![
+                                diagnostics::Diagnostic::error(
+                                    "serve_rebuild_failed",
+                                    format!(
+                                        "Serve rebuild failed while processing {} changes",
+                                        serve_change_kind_label(change_kind)
+                                    ),
+                                )
+                                .with_phase("rebuild"),
+                            ]
                         } else {
                             rebuild_diagnostics
                         };
@@ -1538,11 +1566,13 @@ pub fn serve(
                         &ChangeKind::ExtraPath,
                         "watch_error",
                         Vec::new(),
-                        vec![diagnostics::Diagnostic::error(
-                            "serve_watch_error",
-                            format!("File system watcher error: {e:?}"),
-                        )
-                        .with_phase("watch")],
+                        vec![
+                            diagnostics::Diagnostic::error(
+                                "serve_watch_error",
+                                format!("File system watcher error: {e:?}"),
+                            )
+                            .with_phase("watch"),
+                        ],
                     );
                 }
             }
@@ -1560,11 +1590,13 @@ pub fn serve(
                         &ChangeKind::ExtraPath,
                         "watch_error",
                         Vec::new(),
-                        vec![diagnostics::Diagnostic::error(
-                            "serve_watch_receiver_error",
-                            format!("File system event receiver error: {e:?}"),
-                        )
-                        .with_phase("watch")],
+                        vec![
+                            diagnostics::Diagnostic::error(
+                                "serve_watch_receiver_error",
+                                format!("File system event receiver error: {e:?}"),
+                            )
+                            .with_phase("watch"),
+                        ],
                     );
                 }
             }
@@ -1874,10 +1906,7 @@ mod tests {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
         SITE_CONTENT.write().unwrap().insert(RelativePathBuf::new(), "<html>Home</html>".into());
-        SITE_CONTENT
-            .write()
-            .unwrap()
-            .insert(RelativePathBuf::from("index.md"), "# Home".into());
+        SITE_CONTENT.write().unwrap().insert(RelativePathBuf::from("index.md"), "# Home".into());
 
         let state = test_app_state(std::env::temp_dir());
 
@@ -1969,7 +1998,34 @@ mod tests {
     }
 
     #[test]
-    fn replaces_not_found_response_with_error_page_when_build_fails() {
+    fn injects_error_overlay_into_html_not_found_responses() {
+        clear_serve_error();
+        set_serve_error("Failed to build the site", errors::anyhow!("broken template"));
+
+        let response = Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(Body::from("<html><body>Not Found</body></html>"))
+            .expect("response");
+
+        let rt =
+            tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+        let response = rt.block_on(error_injection_middleware(response));
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body = body_text(response);
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert!(body.contains("<html><body>Not Found</body></html>"));
+        assert!(body.contains("Ansorum Build Error"));
+        assert!(body.contains("broken template"));
+
+        clear_serve_error();
+    }
+
+    #[test]
+    fn leaves_plain_text_not_found_responses_unchanged_when_build_fails() {
         clear_serve_error();
         set_serve_error("Failed to build the site", errors::anyhow!("broken template"));
 
@@ -1986,11 +2042,9 @@ mod tests {
         let headers = response.headers().clone();
         let body = body_text(response);
 
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
-        assert!(body.contains("Ansorum Build Error"));
-        assert!(body.contains("broken template"));
-        assert!(body.contains("/livereload.js"));
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/plain");
+        assert_eq!(body, "Not Found");
 
         clear_serve_error();
     }
@@ -2250,6 +2304,25 @@ mod tests {
     }
 
     #[test]
+    fn returns_html_500_with_mounted_livereload_script_on_unexpected_io_errors() {
+        let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
+        SITE_CONTENT.write().unwrap().clear();
+
+        let root = unique_temp_path("ansorum-serve-io-html-mounted");
+        let refunds = root.join("refunds");
+        fs::create_dir_all(refunds.join("index.html")).expect("create invalid html path");
+
+        let state = test_app_state_with_base_path(root.clone(), "/docs");
+        let (status, headers, body) = run_request(request("/docs/refunds/", None), state);
+
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html");
+        assert!(body.contains("/docs/livereload.js"));
+
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
     fn returns_plain_500_for_unexpected_io_errors_on_markdown_requests() {
         let _guard = SITE_CONTENT_TEST_GUARD.lock().expect("lock test guard");
         SITE_CONTENT.write().unwrap().clear();
@@ -2382,7 +2455,7 @@ mod tests {
         let (status, headers, body) = run_request(request("/docs/r/sales-demo", None), state);
 
         assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
-        assert_eq!(headers[header::LOCATION], "/demo");
+        assert_eq!(headers[header::LOCATION], "/docs/demo");
         assert!(body.is_empty());
     }
 

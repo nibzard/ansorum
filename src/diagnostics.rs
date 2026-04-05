@@ -362,24 +362,16 @@ pub struct ReportStreamContext {
 impl ReportStreamContext {
     pub fn new(command: &str) -> Self {
         Self {
-            stream_id: format!(
-                "{}-{}-{}",
-                command,
-                process::id(),
-                Utc::now().timestamp_millis()
-            ),
+            stream_id: format!("{}-{}-{}", command, process::id(), Utc::now().timestamp_millis()),
             next_sequence: 1,
         }
     }
 }
 
 pub fn print_json_report(report: &CommandReport, compact: bool) -> Result<()> {
-    let json = if compact {
-        serde_json::to_string(report)
-    } else {
-        serde_json::to_string_pretty(report)
-    }
-    .map_err(|error| Error::msg(format!("Failed to serialize command report: {error}")))?;
+    let json =
+        if compact { serde_json::to_string(report) } else { serde_json::to_string_pretty(report) }
+            .map_err(|error| Error::msg(format!("Failed to serialize command report: {error}")))?;
     println!("{json}");
     Ok(())
 }
@@ -439,9 +431,11 @@ fn infer_error_diagnostics(
         .or_else(|| parse_sidecar_failure(message, phase))
         .or_else(|| parse_index_conflict(message, phase))
         .unwrap_or_else(|| {
-            vec![Diagnostic::error(default_code, message.to_string())
-                .with_phase(phase.to_string())
-                .with_caused_by(causes.to_vec())]
+            vec![
+                Diagnostic::error(default_code, message.to_string())
+                    .with_phase(phase.to_string())
+                    .with_caused_by(causes.to_vec()),
+            ]
         })
 }
 
@@ -613,9 +607,8 @@ fn parse_front_matter_failure(
     let path = message[start + 1..end].to_string();
     let cause = causes.first().cloned().unwrap_or_else(|| message.to_string());
 
-    if let Some(field) = cause
-        .strip_prefix("An answer page requires `")
-        .and_then(|value| value.strip_suffix('`'))
+    if let Some(field) =
+        cause.strip_prefix("An answer page requires `").and_then(|value| value.strip_suffix('`'))
     {
         return Some(vec![
             Diagnostic::error(
@@ -670,11 +663,10 @@ fn parse_template_parse_failure(
     }
 
     let cause = causes.first()?.clone();
-    parse_template_failure_text(&cause, phase)
-        .map(|mut diagnostics| {
-            diagnostics[0] = diagnostics[0].clone().with_caused_by(vec![cause]);
-            diagnostics
-        })
+    parse_template_failure_text(&cause, phase).map(|mut diagnostics| {
+        diagnostics[0] = diagnostics[0].clone().with_caused_by(vec![cause]);
+        diagnostics
+    })
 }
 
 fn parse_sidecar_failure(message: &str, phase: &str) -> Option<Vec<Diagnostic>> {
@@ -695,11 +687,8 @@ fn parse_sidecar_failure(message: &str, phase: &str) -> Option<Vec<Diagnostic>> 
 }
 
 fn parse_index_conflict(message: &str, phase: &str) -> Option<Vec<Diagnostic>> {
-    let path = message
-        .split(" in \"")
-        .nth(1)
-        .and_then(|value| value.strip_suffix('"'))?
-        .to_string();
+    let path =
+        message.split(" in \"").nth(1).and_then(|value| value.strip_suffix('"'))?.to_string();
     Some(vec![
         Diagnostic::error("content_index_conflict", message.to_string())
             .with_path(path)
@@ -731,7 +720,6 @@ fn parse_template_failure_text(text: &str, phase: &str) -> Option<Vec<Diagnostic
     }
     Some(vec![diagnostic])
 }
-
 
 fn parse_line_column(text: &str) -> Option<(usize, usize)> {
     let line = text
@@ -772,7 +760,8 @@ mod tests {
         let failure = CommandFailure::new(
             Diagnostic::error("config_not_found", "config.toml not found").with_phase("preflight"),
         );
-        let report = CommandReport::failure("build", None, None, std::time::Duration::ZERO, failure);
+        let report =
+            CommandReport::failure("build", None, None, std::time::Duration::ZERO, failure);
 
         assert_eq!(report.summary.errors, 1);
         assert_eq!(report.summary.warnings, 0);
@@ -863,10 +852,7 @@ mod tests {
         );
 
         assert_eq!(failure.diagnostics[0].code, "frontmatter_missing_required_field");
-        assert_eq!(
-            failure.diagnostics[0].message,
-            "Answer front matter requires `ai_visibility`"
-        );
+        assert_eq!(failure.diagnostics[0].message, "Answer front matter requires `ai_visibility`");
     }
 
     #[test]
@@ -941,7 +927,10 @@ mod tests {
     fn enforce_fail_on_warn_promotes_warnings_to_error() {
         let mut success = CommandSuccess {
             stage: "completed",
-            diagnostics: vec![Diagnostic::warn("orphan_page", "Page is not linked from any section")],
+            diagnostics: vec![Diagnostic::warn(
+                "orphan_page",
+                "Page is not linked from any section",
+            )],
             artifacts: Default::default(),
             report: None,
         };
@@ -958,7 +947,10 @@ mod tests {
     fn enforce_fail_on_error_does_not_promote_warnings() {
         let mut success = CommandSuccess {
             stage: "completed",
-            diagnostics: vec![Diagnostic::warn("orphan_page", "Page is not linked from any section")],
+            diagnostics: vec![Diagnostic::warn(
+                "orphan_page",
+                "Page is not linked from any section",
+            )],
             artifacts: Default::default(),
             report: None,
         };

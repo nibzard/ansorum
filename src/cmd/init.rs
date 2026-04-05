@@ -1103,82 +1103,58 @@ fn populate(path: &Path, project_title: &str, config: &str, starter: InitStarter
             create_directory(&path.join("content/case-studies"))?;
             create_file(
                 &path.join("content/definitions/_index.md"),
-                AI_SECTION_INDEX
-                    .replace("%SECTION_TITLE%", "Definitions")
-                    .replace(
-                        "%SECTION_DESCRIPTION%",
-                        "Canonical definitions that anchor the answer graph.",
-                    ),
+                AI_SECTION_INDEX.replace("%SECTION_TITLE%", "Definitions").replace(
+                    "%SECTION_DESCRIPTION%",
+                    "Canonical definitions that anchor the answer graph.",
+                ),
             )?;
             create_file(
                 &path.join("content/playbooks/_index.md"),
-                AI_SECTION_INDEX
-                    .replace("%SECTION_TITLE%", "Playbooks")
-                    .replace(
-                        "%SECTION_DESCRIPTION%",
-                        "Operational answer patterns teams can follow directly.",
-                    ),
+                AI_SECTION_INDEX.replace("%SECTION_TITLE%", "Playbooks").replace(
+                    "%SECTION_DESCRIPTION%",
+                    "Operational answer patterns teams can follow directly.",
+                ),
             )?;
             create_file(
                 &path.join("content/methodology/_index.md"),
-                AI_SECTION_INDEX
-                    .replace("%SECTION_TITLE%", "Methodology")
-                    .replace(
-                        "%SECTION_DESCRIPTION%",
-                        "The governing method behind the AI reference layer.",
-                    ),
+                AI_SECTION_INDEX.replace("%SECTION_TITLE%", "Methodology").replace(
+                    "%SECTION_DESCRIPTION%",
+                    "The governing method behind the AI reference layer.",
+                ),
             )?;
             create_file(
                 &path.join("content/metrics/_index.md"),
-                AI_SECTION_INDEX
-                    .replace("%SECTION_TITLE%", "Metrics")
-                    .replace(
-                        "%SECTION_DESCRIPTION%",
-                        "Metric definitions used to validate answer quality.",
-                    ),
+                AI_SECTION_INDEX.replace("%SECTION_TITLE%", "Metrics").replace(
+                    "%SECTION_DESCRIPTION%",
+                    "Metric definitions used to validate answer quality.",
+                ),
             )?;
             create_file(
                 &path.join("content/comparisons/_index.md"),
-                AI_SECTION_INDEX
-                    .replace("%SECTION_TITLE%", "Comparisons")
-                    .replace(
-                        "%SECTION_DESCRIPTION%",
-                        "Comparison pages that clarify boundaries and tradeoffs.",
-                    ),
+                AI_SECTION_INDEX.replace("%SECTION_TITLE%", "Comparisons").replace(
+                    "%SECTION_DESCRIPTION%",
+                    "Comparison pages that clarify boundaries and tradeoffs.",
+                ),
             )?;
             create_file(
                 &path.join("content/case-studies/_index.md"),
-                AI_SECTION_INDEX
-                    .replace("%SECTION_TITLE%", "Case Studies")
-                    .replace(
-                        "%SECTION_DESCRIPTION%",
-                        "Proof pages that show the system working in practice.",
-                    ),
+                AI_SECTION_INDEX.replace("%SECTION_TITLE%", "Case Studies").replace(
+                    "%SECTION_DESCRIPTION%",
+                    "Proof pages that show the system working in practice.",
+                ),
             )?;
-            create_file(
-                &path.join("collections/packs/reference-layer.toml"),
-                AI_REFERENCE_PACK,
-            )?;
+            create_file(&path.join("collections/packs/reference-layer.toml"), AI_REFERENCE_PACK)?;
             create_file(
                 &path.join("content/_index.md"),
                 HOME_AI_REFERENCE_LAYER.replace("%PROJECT_TITLE%", project_title),
             )?;
-            create_file(
-                &path.join("content/definitions/ai-brand-alignment.md"),
-                AI_DEFINITION,
-            )?;
-            create_file(
-                &path.join("content/playbooks/improve-ai-citations.md"),
-                AI_PLAYBOOK,
-            )?;
+            create_file(&path.join("content/definitions/ai-brand-alignment.md"), AI_DEFINITION)?;
+            create_file(&path.join("content/playbooks/improve-ai-citations.md"), AI_PLAYBOOK)?;
             create_file(
                 &path.join("content/methodology/reference-layer-methodology.md"),
                 AI_METHODOLOGY,
             )?;
-            create_file(
-                &path.join("content/metrics/citation-coverage.md"),
-                AI_METRIC,
-            )?;
+            create_file(&path.join("content/metrics/citation-coverage.md"), AI_METRIC)?;
             create_file(
                 &path.join("content/comparisons/ai-reference-layer-vs-docs-portal.md"),
                 AI_COMPARISON,
@@ -1311,10 +1287,7 @@ mod tests {
             .trim_start()
             .replace("%BASE_URL%", "https://example.com")
             .replace("%PROJECT_TITLE%", "Test Existing Dir")
-            .replace(
-                "%PROJECT_DESCRIPTION%",
-                starter_project_description(InitStarter::AnswerFirst),
-            )
+            .replace("%PROJECT_DESCRIPTION%", starter_project_description(InitStarter::AnswerFirst))
             .replace("%CURATED_PACK_NAME%", starter_pack_name(InitStarter::AnswerFirst))
             .replace("%CURATED_PACK_SOURCE%", starter_pack_source(InitStarter::AnswerFirst))
             .replace("%PROMPT_VERSION%", starter_prompt_version(InitStarter::AnswerFirst));
@@ -1341,9 +1314,7 @@ mod tests {
         assert!(read_file(&dir.join("config.toml")).unwrap().contains("generate_sitemap = true"));
         assert!(read_file(&dir.join("templates/base.html")).unwrap().contains("answers.json"));
         assert!(
-            read_file(&dir.join("templates/macros.html"))
-                .unwrap()
-                .contains("machine_markdown_url")
+            read_file(&dir.join("templates/macros.html")).unwrap().contains("machine_markdown_url")
         );
         assert!(read_file(&dir.join("static/site.css")).unwrap().contains("--paper"));
         assert!(read_file(&dir.join("eval/fixtures.yaml")).unwrap().contains("expected_ids"));
@@ -1362,10 +1333,7 @@ mod tests {
             .trim_start()
             .replace("%BASE_URL%", "https://example.com")
             .replace("%PROJECT_TITLE%", "Test Non Existing Dir")
-            .replace(
-                "%PROJECT_DESCRIPTION%",
-                starter_project_description(InitStarter::AnswerFirst),
-            )
+            .replace("%PROJECT_DESCRIPTION%", starter_project_description(InitStarter::AnswerFirst))
             .replace("%CURATED_PACK_NAME%", starter_pack_name(InitStarter::AnswerFirst))
             .replace("%CURATED_PACK_SOURCE%", starter_pack_source(InitStarter::AnswerFirst))
             .replace("%PROMPT_VERSION%", starter_prompt_version(InitStarter::AnswerFirst));
@@ -1418,11 +1386,7 @@ mod tests {
         assert!(dir.join("content/metrics/citation-coverage.md").exists());
         assert!(dir.join("content/comparisons/ai-reference-layer-vs-docs-portal.md").exists());
         assert!(dir.join("content/case-studies/billing-reference-case-study.md").exists());
-        assert!(
-            read_file(&dir.join("README.md"))
-                .unwrap()
-                .contains("ai-reference-layer")
-        );
+        assert!(read_file(&dir.join("README.md")).unwrap().contains("ai-reference-layer"));
 
         remove_dir_all(&dir).unwrap();
     }

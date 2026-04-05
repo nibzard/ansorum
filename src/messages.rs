@@ -12,7 +12,9 @@ fn ignored_page_paths(site: &Site) -> Vec<String> {
     library
         .sections
         .values()
-        .flat_map(|s| s.ignored_pages.iter().map(|k| library.pages[k].file.path.display().to_string()))
+        .flat_map(|s| {
+            s.ignored_pages.iter().map(|k| library.pages[k].file.path.display().to_string())
+        })
         .collect()
 }
 
@@ -41,7 +43,9 @@ pub fn collect_ignored_page_diagnostics(site: &Site) -> Vec<Diagnostic> {
             )
             .with_path(path)
             .with_phase("validate")
-            .with_suggestion("Add date/weight metadata or remove sorting requirements for the section")
+            .with_suggestion(
+                "Add date/weight metadata or remove sorting requirements for the section",
+            )
         })
         .collect()
 }
@@ -53,7 +57,9 @@ pub fn collect_orphan_page_diagnostics(site: &Site) -> Vec<Diagnostic> {
             Diagnostic::warn("orphan_page", "Page is not linked from any section")
                 .with_path(path)
                 .with_phase("validate")
-                .with_suggestion("Link the page from a section or mark it intentionally unreachable")
+                .with_suggestion(
+                    "Link the page from a section or mark it intentionally unreachable",
+                )
         })
         .collect()
 }
@@ -174,9 +180,15 @@ fn print_diagnostic(diagnostic: &Diagnostic) {
     }
 
     match diagnostic.severity {
-        crate::diagnostics::DiagnosticSeverity::Error => log::error!("{}: {}", parts.join(" "), diagnostic.message),
-        crate::diagnostics::DiagnosticSeverity::Warn => log::warn!("{}: {}", parts.join(" "), diagnostic.message),
-        crate::diagnostics::DiagnosticSeverity::Info => log::info!("{}: {}", parts.join(" "), diagnostic.message),
+        crate::diagnostics::DiagnosticSeverity::Error => {
+            log::error!("{}: {}", parts.join(" "), diagnostic.message)
+        }
+        crate::diagnostics::DiagnosticSeverity::Warn => {
+            log::warn!("{}: {}", parts.join(" "), diagnostic.message)
+        }
+        crate::diagnostics::DiagnosticSeverity::Info => {
+            log::info!("{}: {}", parts.join(" "), diagnostic.message)
+        }
     }
 
     if let Some(suggestion) = diagnostic.suggestion.as_deref() {

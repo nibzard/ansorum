@@ -199,14 +199,22 @@ fn main() {
             let start = Instant::now();
             let cli_dir = match canonicalize_root_dir(&cli.root) {
                 Ok(cli_dir) => cli_dir,
-                Err(failure) => exit_build_or_check_failure("build", format, None, None, start, failure),
-            };
-            let (root_dir, config_file) = match get_config_file_path(&cli_dir, cli.config.as_deref()) {
-                Ok(paths) => paths,
                 Err(failure) => {
-                    exit_build_or_check_failure("build", format, Some(&cli_dir), None, start, failure)
+                    exit_build_or_check_failure("build", format, None, None, start, failure)
                 }
             };
+            let (root_dir, config_file) =
+                match get_config_file_path(&cli_dir, cli.config.as_deref()) {
+                    Ok(paths) => paths,
+                    Err(failure) => exit_build_or_check_failure(
+                        "build",
+                        format,
+                        Some(&cli_dir),
+                        None,
+                        start,
+                        failure,
+                    ),
+                };
             if !format.is_json() {
                 log::info!("Building site...");
             }
@@ -308,8 +316,8 @@ fn main() {
                     failure,
                 )
             });
-            let (root_dir, config_file) =
-                get_config_file_path(&cli_dir, cli.config.as_deref()).unwrap_or_else(|failure| {
+            let (root_dir, config_file) = get_config_file_path(&cli_dir, cli.config.as_deref())
+                .unwrap_or_else(|failure| {
                     exit_command_failure(
                         "serve",
                         format.is_json(),
@@ -363,14 +371,22 @@ fn main() {
             let start = Instant::now();
             let cli_dir = match canonicalize_root_dir(&cli.root) {
                 Ok(cli_dir) => cli_dir,
-                Err(failure) => exit_build_or_check_failure("check", format, None, None, start, failure),
-            };
-            let (root_dir, config_file) = match get_config_file_path(&cli_dir, cli.config.as_deref()) {
-                Ok(paths) => paths,
                 Err(failure) => {
-                    exit_build_or_check_failure("check", format, Some(&cli_dir), None, start, failure)
+                    exit_build_or_check_failure("check", format, None, None, start, failure)
                 }
             };
+            let (root_dir, config_file) =
+                match get_config_file_path(&cli_dir, cli.config.as_deref()) {
+                    Ok(paths) => paths,
+                    Err(failure) => exit_build_or_check_failure(
+                        "check",
+                        format,
+                        Some(&cli_dir),
+                        None,
+                        start,
+                        failure,
+                    ),
+                };
             if !format.is_json() {
                 log::info!("Checking site...");
             }
@@ -408,8 +424,8 @@ fn main() {
                     failure,
                 )
             });
-            let (root_dir, config_file) =
-                get_config_file_path(&cli_dir, cli.config.as_deref()).unwrap_or_else(|failure| {
+            let (root_dir, config_file) = get_config_file_path(&cli_dir, cli.config.as_deref())
+                .unwrap_or_else(|failure| {
                     exit_command_failure(
                         "audit",
                         format.is_json(),
@@ -457,8 +473,8 @@ fn main() {
                     failure,
                 )
             });
-            let (root_dir, config_file) =
-                get_config_file_path(&cli_dir, cli.config.as_deref()).unwrap_or_else(|failure| {
+            let (root_dir, config_file) = get_config_file_path(&cli_dir, cli.config.as_deref())
+                .unwrap_or_else(|failure| {
                     exit_command_failure(
                         "eval",
                         format.is_json(),

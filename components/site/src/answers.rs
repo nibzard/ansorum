@@ -42,9 +42,12 @@ pub struct AnswerCorpus {
 }
 
 impl AnswerCorpus {
-    pub fn from_library(library: &Library) -> Result<Self> {
-        let mut records =
-            library.pages.values().filter_map(AnswerRecord::from_page).collect::<Vec<_>>();
+    pub fn from_library(library: &Library, markdown_routes: bool) -> Result<Self> {
+        let mut records = library
+            .pages
+            .values()
+            .filter_map(|page| AnswerRecord::from_page(page, markdown_routes))
+            .collect::<Vec<_>>();
         records.sort_by(|left, right| {
             left.id.cmp(&right.id).then(left.source_path.cmp(&right.source_path))
         });
@@ -230,14 +233,14 @@ impl AnswerCorpus {
 }
 
 impl AnswerRecord {
-    fn from_page(page: &Page) -> Option<Self> {
+    fn from_page(page: &Page, markdown_routes: bool) -> Option<Self> {
         let answer = page.answer()?;
         Some(Self {
             id: answer.id.clone(),
             title: page.answer_title().to_string(),
             summary: answer.summary.clone(),
             canonical_url: page.permalink.clone(),
-            markdown_url: markdown_url_from_page(page),
+            markdown_url: markdown_url_from_page(page, markdown_routes),
             intent: answer.intent.clone(),
             entity: answer.entity.clone(),
             audience: answer.audience.clone(),
@@ -676,8 +679,12 @@ pub fn structured_data_for_page(page: &Page) -> Result<Option<StructuredDataOutp
     Ok(Some(StructuredDataOutput { json }))
 }
 
-fn markdown_url_from_page(page: &Page) -> String {
-    page.canonical_machine_markdown_permalink()
+fn markdown_url_from_page(page: &Page, markdown_routes: bool) -> String {
+    if markdown_routes {
+        page.canonical_machine_markdown_permalink()
+    } else {
+        page.permalink.clone()
+    }
 }
 
 fn structured_data_preset(page: &Page) -> Option<JsonValue> {
@@ -770,20 +777,21 @@ fn structured_data_preset(page: &Page) -> Option<JsonValue> {
             object.insert("description".to_string(), JsonValue::String(answer.summary.clone()));
         }
         "BreadcrumbList" => {
+            let permalink_base = page
+                .permalink
+                .strip_suffix(page.path.trim_start_matches('/'))
+                .unwrap_or(&page.permalink);
             let items = page
                 .components
                 .iter()
                 .enumerate()
                 .map(|(index, component)| {
-                    let item_path = format!(
-                        "{}/",
-                        page.components[..=index].join("/")
-                    );
+                    let item_path = format!("{}/", page.components[..=index].join("/"));
                     json!({
                         "@type": "ListItem",
                         "position": index + 1,
                         "name": component,
-                        "item": format!("{}{}", page.permalink.trim_end_matches(&page.path), item_path),
+                        "item": format!("{permalink_base}{item_path}"),
                     })
                 })
                 .collect::<Vec<_>>();

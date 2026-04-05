@@ -9,7 +9,8 @@ use site::answers::{AuditReport, audit_library};
 
 use crate::cli::{AuditFormat, FailOn};
 use crate::diagnostics::{
-    self, CommandFailure, CommandReport, CommandSuccess, Diagnostic, DiagnosticSeverity, ReportOutcome,
+    self, CommandFailure, CommandReport, CommandSuccess, Diagnostic, DiagnosticSeverity,
+    ReportOutcome,
 };
 use crate::observability::{self, DispatchMode};
 
@@ -97,17 +98,15 @@ pub fn audit(
 
     match format {
         AuditFormat::Human => print_human_report(&report),
-        AuditFormat::Json | AuditFormat::JsonStream => {
-            print_json_report(
-                root_dir,
-                config_file,
-                &report,
-                diagnostics,
-                start.elapsed(),
-                format,
-                threshold_exceeded,
-            )?
-        }
+        AuditFormat::Json | AuditFormat::JsonStream => print_json_report(
+            root_dir,
+            config_file,
+            &report,
+            diagnostics,
+            start.elapsed(),
+            format,
+            threshold_exceeded,
+        )?,
     }
 
     if report.has_errors() || threshold_exceeded {
@@ -248,10 +247,9 @@ fn print_json_report(
         stage: "completed",
         diagnostics,
         artifacts: Default::default(),
-        report: Some(
-            serde_json::to_value(report)
-                .map_err(|error| errors::Error::msg(format!("Failed to serialize audit report: {error}")))?,
-        ),
+        report: Some(serde_json::to_value(report).map_err(|error| {
+            errors::Error::msg(format!("Failed to serialize audit report: {error}"))
+        })?),
     };
     let mut envelope = CommandReport::completed(
         "audit",
@@ -286,16 +284,10 @@ fn print_failure_report(
         return Ok(());
     }
 
-    let failure = CommandFailure::new(
-        Diagnostic::error(code, message).with_phase(phase.to_string()),
-    );
-    let mut report = CommandReport::failure(
-        "audit",
-        Some(root_dir),
-        Some(config_file),
-        duration,
-        failure,
-    );
+    let failure =
+        CommandFailure::new(Diagnostic::error(code, message).with_phase(phase.to_string()));
+    let mut report =
+        CommandReport::failure("audit", Some(root_dir), Some(config_file), duration, failure);
     let compact = format.is_json_stream();
     if compact {
         let mut stream = diagnostics::ReportStreamContext::new("audit");

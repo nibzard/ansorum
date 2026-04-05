@@ -80,6 +80,22 @@ pub struct Site {
     check_external_links: bool,
 }
 
+fn live_reload_script_path(base_url: &str) -> String {
+    let base_path = match base_url {
+        "/" => String::from("/"),
+        _ => match base_url.splitn(4, '/').nth(3) {
+            Some(path) if !path.is_empty() => format!("/{}", path.trim_end_matches('/')),
+            _ => String::from("/"),
+        },
+    };
+
+    if base_path == "/" {
+        String::from("/livereload.js")
+    } else {
+        format!("{base_path}/livereload.js")
+    }
+}
+
 impl Site {
     /// Parse a site at the given path. Defaults to the current dir
     /// Passing in a path is used in tests and when --root argument is passed
@@ -336,7 +352,7 @@ impl Site {
         self.populate_sections();
         self.answers = {
             let library = self.library.read().unwrap();
-            AnswerCorpus::from_library(&library)?
+            AnswerCorpus::from_library(&library, self.config.ansorum.delivery.markdown_routes)?
         };
         llms::validate_packs(&self.config, &self.base_path, &self.answers)?;
         // taxonomy Tera fns are loaded in `register_early_global_fns`
@@ -604,8 +620,9 @@ impl Site {
     /// Inject live reload script tag if in live reload mode
     fn inject_livereload(&self, mut html: String) -> String {
         if let Some(port) = self.live_reload {
+            let script_path = live_reload_script_path(&self.config.base_url);
             let script =
-                format!(r#"<script src="/livereload.js?port={}&amp;mindelay=10"></script>"#, port,);
+                format!(r#"<script src="{script_path}?port={port}&amp;mindelay=10"></script>"#);
             if let Some(index) = html.rfind("</body>") {
                 html.insert_str(index, &script);
             } else {

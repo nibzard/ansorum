@@ -248,8 +248,7 @@ Refund details for customers."#,
     site.set_output_path(&public);
     site.build().expect("Couldn't build the site");
 
-    let markdown =
-        fs::read_to_string(public.join("refunds.md")).expect("read machine markdown");
+    let markdown = fs::read_to_string(public.join("refunds.md")).expect("read machine markdown");
     let front_matter = machine_front_matter(&markdown);
 
     let yaml: serde_yaml::Value =
@@ -327,6 +326,35 @@ fn skips_machine_markdown_outputs_when_markdown_routes_are_disabled() {
 }
 
 #[test]
+fn machine_indexes_fall_back_to_canonical_urls_when_markdown_routes_are_disabled() {
+    let (_, _tmp_dir, public) = build_site_with_setup(REFERENCE_PROJECT, |mut site| {
+        site.config.ansorum.delivery.markdown_routes = false;
+        site.config.ansorum.delivery.markdown_negotiation = false;
+        (site, true)
+    });
+
+    let index = fs::read_to_string(public.join("answers.json")).expect("read answers.json");
+    let json: serde_json::Value = serde_json::from_str(&index).expect("parse answers.json");
+    let answers = json["answers"].as_array().expect("answers should be an array");
+
+    assert_eq!(answers[0]["markdown_url"], "https://answers.example.com/cancel/");
+    assert_eq!(answers[1]["markdown_url"], "https://answers.example.com/refunds/");
+    assert!(!index.contains(".md"));
+
+    assert!(file_contains!(
+        public,
+        "llms.txt",
+        "- [Refund policy](https://answers.example.com/refunds/): How refunds work, who qualifies, and when payment returns land."
+    ));
+    assert!(file_contains!(
+        public,
+        "llms-full.txt",
+        "### [Refund policy](https://answers.example.com/refunds/)"
+    ));
+    assert!(!file_contains!(public, "llms.txt", "https://answers.example.com/refunds.md"));
+}
+
+#[test]
 fn matches_answer_first_golden_outputs() {
     let (_, _tmp_dir, public) = build_site(REFERENCE_PROJECT);
 
@@ -382,6 +410,11 @@ fn embeds_json_ld_and_writes_schema_sidecars() {
         public,
         "refunds/index.html",
         "\"@id\": \"https://answers.example.com/refunds/#breadcrumb\""
+    ));
+    assert!(file_contains!(
+        public,
+        "refunds/index.html",
+        "\"item\": \"https://answers.example.com/refunds/\""
     ));
     assert!(!file_contains!(public, "refunds/index.html", "zentinelproxy.io"));
 
@@ -777,6 +810,21 @@ fn can_build_site_with_live_reload_and_drafts() {
     assert!(file_exists!(public, "secret_section/draft-page/index.html"));
     assert!(file_exists!(public, "secret_section/page/index.html"));
     assert!(file_exists!(public, "secret_section/secret_sub_section/hello/index.html"));
+}
+
+#[test]
+fn can_build_site_with_live_reload_under_mounted_base_path() {
+    let (_site, _tmp_dir, public) = build_site_with_setup(SITE_FIXTURE, |mut site| {
+        use std::net::IpAddr;
+        use std::str::FromStr;
+
+        site.set_base_url("https://replace-this-with-your-url.com/docs".to_string());
+        site.enable_live_reload(IpAddr::from_str("127.0.0.1").unwrap(), 1000);
+        (site, true)
+    });
+
+    assert!(file_contains!(public, "index.html", "/docs/livereload.js"));
+    assert!(!file_contains!(public, "index.html", "src=\"/livereload.js?"));
 }
 
 #[test]

@@ -431,10 +431,7 @@ fn single_line(text: &str) -> String {
 }
 
 fn markdown_link_text(text: &str) -> String {
-    single_line(text)
-        .replace('\\', r"\\")
-        .replace('[', r"\[")
-        .replace(']', r"\]")
+    single_line(text).replace('\\', r"\\").replace('[', r"\[").replace(']', r"\]")
 }
 
 fn corpus_description(config: &Config) -> &str {
