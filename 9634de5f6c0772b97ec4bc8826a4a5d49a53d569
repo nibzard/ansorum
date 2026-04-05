@@ -1,0 +1,10 @@
+# Context
+
+## Background
+This commit bundles the answer-surface and serve-path fixes from the recent review pass.
+
+## Why This Way
+Machine indexes now fall back to canonical HTML URLs when markdown routes are disabled, mounted serves now preserve redirect and live-reload base paths, and build preflight now allows existing empty output directories without forcing.
+
+## Gotchas
+`cargo test -q` passed for this commit. `cargo clippy -q --all-targets -- -D warnings` still has pre-existing lint failures outside this change set.
